@@ -39,6 +39,9 @@ message GitHubUser {
   // Required. GitHub user email address.
   string email = 1;
 
+  // GitHub user name.
+  string UserName = 2;
+
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).
-  map<string, string> labels = 2;
+  map<string, string> labels = 3;
 }
