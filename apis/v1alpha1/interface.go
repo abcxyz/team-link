@@ -28,11 +28,11 @@ type SourceEventHandler interface {
 // Mapping interface that gets the mapped value given key value.
 type Mapping interface {
   // Get the destination user mapped to the given source user.
-  GetDestUser(ctx context.Context, srcUserEmail string) (string, error)
+  DestUser(ctx context.Context, srcUserEmail string) (string, error)
 
   // Get the destination team mapped to the given source team.
-  GetDestTeam(ctx context.Context, srcTeam string)(string, error)
+  DestTeam(ctx context.Context, srcTeam string)(string, error)
 
   // Get all source teams that are mapped to the same destination team.
-  GetSourceTeams(ctx context.Context, destTeam string)([]string, error)
+  SourceTeams(ctx context.Context, destTeam string)([]string, error)
 }
