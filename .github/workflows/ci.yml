@@ -15,25 +15,19 @@
 name: 'ci'
 
 on:
-  push:
-    branches:
-      - 'main'
   pull_request:
     branches:
       - 'main'
-  workflow_dispatch:
-  workflow_call:
+      - 'release/**/*'
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
+  group: '${{ github.workflow }}-${{ github.event_name}}-${{ github.head_ref || github.ref }}'
   cancel-in-progress: true
 
 jobs:
   # Linting jobs - go, yaml.
   go_lint:
     uses: 'abcxyz/pkg/.github/workflows/go-lint.yml@main' # ratchet:exclude
-    with:
-      go_version: '1.21'
 
   yaml_lint:
     uses: 'abcxyz/pkg/.github/workflows/yaml-lint.yml@main' # ratchet:exclude
