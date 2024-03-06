@@ -14,32 +14,31 @@
 
 syntax = "proto3";
 
-import "google/protobuf/any.proto";
 option go_package = "github.com/team-link/apis/v1alpha1";
 
 // A representation of an event associated with creation/modification of a source team's memberships.
 message SourceEvent  {
   // Required. Source team ID.
-  int64 TeamID = 1;
+  int64 team_id = 1;
 }
 
 // A snapshot of a GitHub team's memberships.
 message GitHubTeam {
   // Required. GitHub team ID.
-  int64 TeamID = 1;
+  int64 team_id = 1;
 
   // Required. GitHub Organization ID.
-  int64 OrgID = 2;
+  int64 org_id = 2;
 
   // Required. GitHub users to be added to the team.
-  repeated GitHubUser Users = 3;
+  repeated GitHubUser users = 3;
 }
 
 // A representation of a GitHub User.
 message GitHubUser {
   // Required. GitHub user email address.
-  string Email = 1;
+  string email = 1;
 
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).
-  map<string, google.protobuf.Any> Labels = 2;
+  map<string, string> labels = 2;
 }
