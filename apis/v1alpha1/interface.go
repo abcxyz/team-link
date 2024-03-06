@@ -16,23 +16,26 @@ package v1alpha1
 
 import "context"
 
-// SourceEventHandler interface that handles source event, typically it does:
-//   1. Filter events
-//     	- for teams and users that are in mapping.
-//      - other conditions.
-//   2. Check source and populate a snapshot of a GitHub team's memberships.
+// SourceEventHandler interface that handles source event.
 type SourceEventHandler interface {
+  // Handle handles a SourceEvent of a source team membership change and it
+  // typically does the following:
+  //   1. Find the GitHub team that the source team is mapped to, and get all
+  //      the source teams that are mapped to the same GitHub team.
+  //   2. Return a GitHubTeam object that contains all memberships of these
+  //      source teams and the GitHub team info, so that downstream can
+  //      sync the memberships to the Github team.
   Handle(context.Context, *SourceEvent) (*GitHubTeam, error)
 }
 
-// Mapping interface that gets the mapped value given key value.
-type Mapping interface {
-  // Get the destination user mapped to the given source user.
-  DestUser(ctx context.Context, srcUserEmail string) (string, error)
+// Mapper interface that gets the mapped value given key value.
+type Mapper interface {
+  // Get the destination user id mapped to the given source user id.
+  DestUserId(ctx context.Context, srcUserId string) (string, error)
 
-  // Get the destination team mapped to the given source team.
-  DestTeam(ctx context.Context, srcTeam string)(string, error)
+  // Get the destination team id mapped to the given source team id.
+  DestTeamId(ctx context.Context, srcTeamId string)(string, error)
 
-  // Get all source teams that are mapped to the same destination team.
-  SourceTeams(ctx context.Context, destTeam string)([]string, error)
+  // Get all source teams's ids that are mapped to the same destination team id.
+  SourceTeamIds(ctx context.Context, destTeamId string)([]string, error)
 }
