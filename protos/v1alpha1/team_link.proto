@@ -40,8 +40,12 @@ message GitHubUser {
   string email = 1;
 
   // GitHub user name.
-  string UserName = 2;
+  string user_name = 2;
+
+  // GitHub user id.
+  string user_id = 3;
+
 
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).
-  map<string, string> labels = 3;
+  map<string, string> labels = 15;
 }

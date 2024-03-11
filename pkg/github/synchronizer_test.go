@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v56/github"
 	"github.com/sethvargo/go-retry"
 
 	"github.com/abcxyz/pkg/githubauth"
@@ -53,39 +53,55 @@ func TestSynchronizer_Sync(t *testing.T) {
 		name                string
 		teamUsernames       []string
 		currTeamUsernames   []string
+		currTeamInvitations []string
 		tokenServerResqCode int
 		ListMemberFail      bool
+		ListInvitationFail  bool
 		wantTeamUsernames   []string
+		wantTeamInvitations []string
 		wantSyncErrSubStr   string
 	}{
 		{
 			name:                "success_add_and_remove_members",
 			teamUsernames:       []string{"a", "b", "c"},
 			currTeamUsernames:   []string{"a", "d"},
+			currTeamInvitations: []string{"b"},
 			tokenServerResqCode: http.StatusCreated,
-			wantTeamUsernames:   []string{"a", "b", "c"},
+			wantTeamUsernames:   []string{"a"},
+			wantTeamInvitations: []string{"b", "c"},
 		},
 		{
 			name:                "list_member_fail",
 			teamUsernames:       []string{"a"},
 			tokenServerResqCode: http.StatusCreated,
 			ListMemberFail:      true,
-			wantSyncErrSubStr:   "failed to get GitHub team members",
+			wantSyncErrSubStr:   "failed to get active GitHub team members",
+		},
+		{
+			name:                "list_invitation_fail",
+			teamUsernames:       []string{"a"},
+			tokenServerResqCode: http.StatusCreated,
+			ListInvitationFail:  true,
+			wantSyncErrSubStr:   "failed to get pending GitHub team invitations",
 		},
 		{
 			name:                "add_member_fail",
-			teamUsernames:       []string{"a", testBadUserName},
+			teamUsernames:       []string{"a", "b", testBadUserName},
 			currTeamUsernames:   []string{"a", "d"},
+			currTeamInvitations: []string{"b"},
 			tokenServerResqCode: http.StatusCreated,
 			wantTeamUsernames:   []string{"a"},
+			wantTeamInvitations: []string{"b"},
 			wantSyncErrSubStr:   "failed to add GitHub team members",
 		},
 		{
 			name:                "remove_member_fail",
-			teamUsernames:       []string{"a", "b"},
+			teamUsernames:       []string{"a", "b", "c"},
 			currTeamUsernames:   []string{"a", testBadUserName},
+			currTeamInvitations: []string{"c"},
 			tokenServerResqCode: http.StatusCreated,
-			wantTeamUsernames:   []string{"a", "b", testBadUserName},
+			wantTeamUsernames:   []string{"a", testBadUserName},
+			wantTeamInvitations: []string{"b", "c"},
 			wantSyncErrSubStr:   "failed to remove GitHub team members",
 		},
 		{
@@ -104,11 +120,11 @@ func TestSynchronizer_Sync(t *testing.T) {
 			t.Parallel()
 
 			// Create fake github client.
-			ghClient, mux := testSetupGhClient(t)
+			ghClient, mux := testGitHubClient(t)
 
-			// List membership.
+			// List active memberships.
 			var gotTeamUsernames []string
-			bytearr, err := marshal(tc.currTeamUsernames)
+			currTeamUsernamesBytes, err := marshal(tc.currTeamUsernames)
 			if err != nil {
 				t.Fatalf("failed to marshal team usernames: %v", err)
 			}
@@ -118,7 +134,22 @@ func TestSynchronizer_Sync(t *testing.T) {
 					return
 				}
 				gotTeamUsernames = append(gotTeamUsernames, tc.currTeamUsernames...)
-				fmt.Fprint(w, string(bytearr))
+				fmt.Fprint(w, string(currTeamUsernamesBytes))
+			})
+
+			// List pending memberships.
+			var gotTeamInvitations []string
+			currTeamInvitationsBytes, err := marshal(tc.currTeamInvitations)
+			if err != nil {
+				t.Fatalf("failed to marshal team usernames: %v", err)
+			}
+			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "invitations"), func(w http.ResponseWriter, r *http.Request) {
+				if tc.ListInvitationFail {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				gotTeamInvitations = append(gotTeamInvitations, tc.currTeamInvitations...)
+				fmt.Fprint(w, string(currTeamInvitationsBytes))
 			})
 
 			// Update membership.
@@ -129,7 +160,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 						return
 					}
 					if r.Method == "PUT" {
-						gotTeamUsernames = append(gotTeamUsernames, u)
+						gotTeamInvitations = append(gotTeamInvitations, u)
 					} else {
 						gotTeamUsernames = remove(gotTeamUsernames, u)
 					}
@@ -148,14 +179,17 @@ func TestSynchronizer_Sync(t *testing.T) {
 			if !equal(gotTeamUsernames, tc.wantTeamUsernames) {
 				t.Errorf("Process(%+v) got unexpected team usernames, got: %v, want: %v", tc.name, gotTeamUsernames, tc.wantTeamUsernames)
 			}
+			if !equal(gotTeamInvitations, tc.wantTeamInvitations) {
+				t.Errorf("Process(%+v) got unexpected team invitations, got: %v, want: %v", tc.name, gotTeamInvitations, tc.wantTeamInvitations)
+			}
 		})
 	}
 }
 
-// testSetupGhClient sets up a test HTTP server along with a github.Client that
+// testGitHubClient sets up a test HTTP server along with a github.Client that
 // is configured to talk to that test server. Tests should register handlers on
 // mux which provide mock responses for the API method being tested.
-func testSetupGhClient(tb testing.TB) (*github.Client, *http.ServeMux) {
+func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
 	tb.Helper()
 	// mux is the HTTP request multiplexer used with the test server.
 	mux := http.NewServeMux()
@@ -229,8 +263,8 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 func marshal(arr []string) ([]byte, error) {
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
-		j := i
-		logins[j] = &github.User{Login: &s}
+		l := s
+		logins[i] = &github.User{Login: &l} // #nosec G601
 	}
 	return json.Marshal(logins)
 }
