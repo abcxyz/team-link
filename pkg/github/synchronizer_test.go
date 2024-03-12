@@ -246,7 +246,7 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 func marshal(arr []string) ([]byte, error) {
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
-		logins[i] = &github.User{Login: &s} // #nosec G601 // loop variable is not reused in https://tip.golang.org/doc/go1.22
+		logins[i] = &github.User{Login: &s} //#nosec G601 //nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22
 	}
 	return json.Marshal(logins)
 }
