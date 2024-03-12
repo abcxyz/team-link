@@ -107,8 +107,8 @@ func TestSynchronizer_Sync(t *testing.T) {
 		},
 	}
 
-	//nolint:govet // go 1.22 creates new variables for each iteration, ref https://tip.golang.org/doc/go1.22.
 	for _, tc := range cases {
+		tc := tc
 		ctx := context.Background()
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -246,8 +246,8 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 func marshal(arr []string) ([]byte, error) {
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
-		//#nosec G601 //nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22
-		logins[i] = &github.User{Login: &s}
+		//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22
+		logins[i] = &github.User{Login: &s} //#nosec G601
 	}
 	return json.Marshal(logins)
 }
