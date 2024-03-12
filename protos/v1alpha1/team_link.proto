@@ -45,7 +45,6 @@ message GitHubUser {
   // GitHub user id.
   int64 user_id = 3;
 
-
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).
   map<string, string> labels = 15;
 }
