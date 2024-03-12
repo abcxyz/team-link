@@ -4,14 +4,13 @@ go 1.22
 
 require (
 	github.com/abcxyz/pkg v1.0.4
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v56 v56.0.0
-	github.com/sethvargo/go-retry v0.2.4
 	google.golang.org/protobuf v1.33.0
 )
 
 require (
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect

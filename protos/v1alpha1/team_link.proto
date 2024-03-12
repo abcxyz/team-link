@@ -39,11 +39,11 @@ message GitHubUser {
   // Required. GitHub user email address.
   string email = 1;
 
-  // GitHub user name.
-  string user_name = 2;
+  // GitHub user login/username.
+  string login = 2;
 
   // GitHub user id.
-  string user_id = 3;
+  int64 user_id = 3;
 
 
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).

@@ -20,10 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/go-github/v56/github"
-	"github.com/sethvargo/go-retry"
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/sets"
@@ -31,44 +29,24 @@ import (
 )
 
 // Synchronizer that syncs github team memberships.
+// TODO(#7): add retry strategy.
 type Synchronizer struct {
 	client    *github.Client
 	githubApp *githubauth.App
-	// Optional retry backoff strategy, default is 5 attempts with fibonacci
-	// backoff that starts at 500ms.
-	retry retry.Backoff
-}
-
-// Option is the option to set up a Synchronizer.
-type Option func(h *Synchronizer) *Synchronizer
-
-// WithRetry provides retry strategy to the Synchronizer.
-func WithRetry(b retry.Backoff) Option {
-	return func(s *Synchronizer) *Synchronizer {
-		s.retry = b
-		return s
-	}
 }
 
 // NewSynchronizer creates a new Synchronizer with provided clients and options.
-func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App, opts ...Option) *Synchronizer {
-	s := &Synchronizer{
+func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchronizer {
+	return &Synchronizer{
 		client:    ghClient,
 		githubApp: ghApp,
 	}
-	for _, opt := range opts {
-		s = opt(s)
-	}
-	if s.retry == nil {
-		s.retry = retry.WithMaxRetries(5, retry.NewFibonacci(500*time.Millisecond))
-	}
-	return s
 }
 
 // Sync overides a GitHub team's memberships with the provided team membership
 // snapshot.
-// TODO(#3): populate the users' GitHub usernames in the GitHubTeam object
-// before this since they are required when updating GitHub team memberships.
+// TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
+// this since they are required when updating GitHub team memberships.
 func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) error {
 	// Configure Github auth token to the GitHub client.
 	t, err := s.getAccessToken(ctx)
@@ -77,38 +55,39 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 	}
 	ghClient := s.client.WithAuthToken(t)
 
-	// Get current team members' username from GitHub and expected team members'
+	// Get current team members' login from GitHub and expected team members'
 	// user from the team object.
-	gotActiveMemberUsernames, err := s.curTeamUsernames(ctx, ghClient, team.OrgId, team.TeamId, s.listActiveTeamMembersWithRetry)
+	gotActiveMemberLogins, err := s.currentTeamLogins(ctx, ghClient, team.OrgId, team.TeamId, listActiveTeamMembers)
 	if err != nil {
 		return fmt.Errorf("failed to get active GitHub team members: %w", err)
 	}
-	gotPendingInvitationUsernames, err := s.curTeamUsernames(ctx, ghClient, team.OrgId, team.TeamId, s.listPendingTeamInvitationsWithRetry)
+	gotPendingInvitationLogins, err := s.currentTeamLogins(ctx, ghClient, team.OrgId, team.TeamId, listPendingTeamInvitations)
 	if err != nil {
 		return fmt.Errorf("failed to get pending GitHub team invitations: %w", err)
 	}
-	gotUsernames := append(gotActiveMemberUsernames, gotPendingInvitationUsernames...)
-	wantUsernames := usernames(team)
+	gotLogins := sets.Union(gotActiveMemberLogins, gotPendingInvitationLogins)
+	wantLogins := logins(team)
 
 	var retErr error
 	// Add GitHub team memberships.
-	for _, u := range sets.Subtract(wantUsernames, gotUsernames) {
-		if err := s.addTeamMembersWithRetry(ctx, ghClient, team.OrgId, team.TeamId, u); err != nil {
-			retErr = errors.Join(retErr, err)
+	for _, u := range sets.Subtract(wantLogins, gotLogins) {
+		if _, _, err := ghClient.Teams.AddTeamMembershipByID(ctx, team.OrgId, team.TeamId, u, &github.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
+			retErr = errors.Join(retErr, fmt.Errorf("failed to add GitHub team members: %w", err))
 		}
 	}
 	// Remove GitHub team memberships.
-	for _, u := range sets.Subtract(gotUsernames, wantUsernames) {
-		if err := s.removeTeamMembersWithRetry(ctx, ghClient, team.OrgId, team.TeamId, u); err != nil {
-			retErr = errors.Join(retErr, err)
+	for _, u := range sets.Subtract(gotLogins, wantLogins) {
+		if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.OrgId, team.TeamId, u); err != nil {
+			retErr = errors.Join(retErr, fmt.Errorf("failed to remove GitHub team members: %w", err))
 		}
 	}
 	return retErr
 }
 
-// teamUsernames returns a list of GitHub usernames that are members or has
-// invitations to the given Github team.
-func (s *Synchronizer) curTeamUsernames(
+// currentTeamLogins returns a list of GitHub logins that are members or has
+// invitations to the given GitHub team.
+// TODO(#6): refactor the paginated GitHub API call.
+func (s *Synchronizer) currentTeamLogins(
 	ctx context.Context,
 	c *github.Client,
 	orgID, teamID int64,
@@ -119,12 +98,12 @@ func (s *Synchronizer) curTeamUsernames(
 		PerPage: 100,
 	}
 	for {
-		usernames, resp, err := f(ctx, c, orgID, teamID, opt)
+		logins, resp, err := f(ctx, c, orgID, teamID, opt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get team member usernames: %w", err)
+			return nil, fmt.Errorf("failed to get team member logins: %w", err)
 		}
 
-		res = append(res, usernames...)
+		res = append(res, logins...)
 		if resp.NextPage == 0 {
 			break // No more pages to fetch
 		}
@@ -133,60 +112,32 @@ func (s *Synchronizer) curTeamUsernames(
 	return res, nil
 }
 
-func (s *Synchronizer) addTeamMembersWithRetry(ctx context.Context, c *github.Client, orgID, teamID int64, username string) error {
-	return retry.Do(ctx, s.retry, func(ctx context.Context) error { //nolint:wrapcheck
-		_, _, err := c.Teams.AddTeamMembershipByID(ctx, orgID, teamID, username, &github.TeamAddTeamMembershipOptions{Role: "member"})
-		if err != nil {
-			return retry.RetryableError(fmt.Errorf("failed to add GitHub team members: %w", err))
-		}
-		return nil
-	})
-}
-
-func (s *Synchronizer) removeTeamMembersWithRetry(ctx context.Context, c *github.Client, orgID, teamID int64, username string) error {
-	return retry.Do(ctx, s.retry, func(ctx context.Context) error { //nolint:wrapcheck
-		_, err := c.Teams.RemoveTeamMembershipByID(ctx, orgID, teamID, username)
-		if err != nil {
-			return retry.RetryableError(fmt.Errorf("failed to remove GitHub team members: %w", err))
-		}
-		return nil
-	})
-}
-
-func (s *Synchronizer) listActiveTeamMembersWithRetry(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) (usernames []string, resp *github.Response, retErr error) {
-	var members []*github.User
+func listActiveTeamMembers(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
 	o := &github.TeamListTeamMembersOptions{
 		Role:        "all",
 		ListOptions: *opt,
 	}
-	retErr = retry.Do(ctx, s.retry, func(ctx context.Context) error {
-		var err error
-		members, resp, err = c.Teams.ListTeamMembersByID(ctx, orgID, teamID, o)
-		if err != nil {
-			return retry.RetryableError(fmt.Errorf("failed to list team membership: %w", err))
-		}
-		return nil
-	})
-	for _, m := range members {
-		usernames = append(usernames, *m.Login)
+	members, resp, err := c.Teams.ListTeamMembersByID(ctx, orgID, teamID, o)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list team membership: %w", err)
 	}
-	return usernames, resp, retErr //nolint:wrapcheck
+	logins := make([]string, 0, len(members))
+	for _, m := range members {
+		logins = append(logins, *m.Login)
+	}
+	return logins, resp, nil
 }
 
-func (s *Synchronizer) listPendingTeamInvitationsWithRetry(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) (usernames []string, resp *github.Response, retErr error) {
-	var invitations []*github.Invitation
-	retErr = retry.Do(ctx, s.retry, func(ctx context.Context) error {
-		var err error
-		invitations, resp, err = c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, opt)
-		if err != nil {
-			return retry.RetryableError(fmt.Errorf("failed to list team invitations: %w", err))
-		}
-		return nil
-	})
-	for _, i := range invitations {
-		usernames = append(usernames, *i.Login)
+func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
+	invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, opt)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list team invitations: %w", err)
 	}
-	return usernames, resp, retErr //nolint:wrapcheck
+	logins := make([]string, 0, len(invitations))
+	for _, inv := range invitations {
+		logins = append(logins, *inv.Login)
+	}
+	return logins, resp, nil
 }
 
 func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
@@ -203,12 +154,12 @@ func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
-// usernames returns a list of GitHub usernames that are in the given
-// team object.
-func usernames(team *v1alpha1.GitHubTeam) []string {
+// logins returns a list of GitHub logins/usernames that are in the given team
+// object.
+func logins(team *v1alpha1.GitHubTeam) []string {
 	res := make([]string, len(team.Users))
 	for i, m := range team.Users {
-		res[i] = m.UserName // #nosec G601
+		res[i] = m.Login
 	}
 	return res
 }
