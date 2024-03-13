@@ -57,11 +57,11 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 
 	// Get current team members' login from GitHub and expected team members'
 	// user from the team object.
-	gotActiveMemberLogins, err := s.currentTeamLogins(ctx, ghClient, team.OrgId, team.TeamId, listActiveTeamMembers)
+	gotActiveMemberLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId(), listActiveTeamMembers)
 	if err != nil {
 		return fmt.Errorf("failed to get active GitHub team members: %w", err)
 	}
-	gotPendingInvitationLogins, err := s.currentTeamLogins(ctx, ghClient, team.OrgId, team.TeamId, listPendingTeamInvitations)
+	gotPendingInvitationLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId(), listPendingTeamInvitations)
 	if err != nil {
 		return fmt.Errorf("failed to get pending GitHub team invitations: %w", err)
 	}
@@ -71,13 +71,13 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 	var retErr error
 	// Add GitHub team memberships.
 	for _, u := range sets.Subtract(wantLogins, gotLogins) {
-		if _, _, err := ghClient.Teams.AddTeamMembershipByID(ctx, team.OrgId, team.TeamId, u, &github.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
+		if _, _, err := ghClient.Teams.AddTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u, &github.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to add GitHub team members: %w", err))
 		}
 	}
 	// Remove GitHub team memberships.
 	for _, u := range sets.Subtract(gotLogins, wantLogins) {
-		if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.OrgId, team.TeamId, u); err != nil {
+		if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to remove GitHub team members: %w", err))
 		}
 	}
@@ -157,8 +157,8 @@ func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
 // logins returns a list of GitHub logins/usernames that are in the given team
 // object.
 func logins(team *v1alpha1.GitHubTeam) []string {
-	res := make([]string, len(team.Users))
-	for i, m := range team.Users {
+	res := make([]string, len(team.GetUsers()))
+	for i, m := range team.GetUsers() {
 		res[i] = m.Login
 	}
 	return res

@@ -108,6 +108,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
 		ctx := context.Background()
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -245,7 +246,7 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 func marshal(arr []string) ([]byte, error) {
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
-		logins[i] = &github.User{Login: &s}
+		logins[i] = &github.User{Login: &s} //#nosec G601
 	}
 	return json.Marshal(logins)
 }
