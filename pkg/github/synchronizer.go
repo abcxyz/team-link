@@ -159,7 +159,7 @@ func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
 func logins(team *v1alpha1.GitHubTeam) []string {
 	res := make([]string, len(team.GetUsers()))
 	for i, m := range team.GetUsers() {
-		res[i] = m.Login
+		res[i] = m.GetLogin()
 	}
 	return res
 }
