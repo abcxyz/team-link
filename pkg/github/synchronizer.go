@@ -49,7 +49,7 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchroniz
 // this since they are required when updating GitHub team memberships.
 func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) error {
 	// Configure Github auth token to the GitHub client.
-	t, err := s.getAccessToken(ctx)
+	t, err := s.accessToken(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get access token: %w", err)
 	}
@@ -66,7 +66,7 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 		return fmt.Errorf("failed to get pending GitHub team invitations: %w", err)
 	}
 	gotLogins := sets.Union(gotActiveMemberLogins, gotPendingInvitationLogins)
-	wantLogins := logins(team)
+	wantLogins := loginsFromTeam(team)
 
 	var retErr error
 	// Add GitHub team memberships.
@@ -140,7 +140,7 @@ func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, te
 	return logins, resp, nil
 }
 
-func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
+func (s *Synchronizer) accessToken(ctx context.Context) (string, error) {
 	tr := &githubauth.TokenRequestAllRepos{
 		Permissions: map[string]string{
 			"organization": "write",
@@ -154,9 +154,9 @@ func (s *Synchronizer) getAccessToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
-// logins returns a list of GitHub logins/usernames that are in the given team
-// object.
-func logins(team *v1alpha1.GitHubTeam) []string {
+// loginsFromTeam returns a list of GitHub logins/usernames that are in the
+// given team object.
+func loginsFromTeam(team *v1alpha1.GitHubTeam) []string {
 	res := make([]string, len(team.GetUsers()))
 	for i, m := range team.GetUsers() {
 		res[i] = m.GetLogin()

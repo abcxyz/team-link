@@ -48,7 +48,7 @@ var (
 func TestSynchronizer_Sync(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
+	cases := []struct{
 		name                 string
 		teamMemberLogins     []string
 		currTeamMemberLogins []string
@@ -122,7 +122,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 
 			// List active memberships.
 			gotTeamMemberLogins := make(map[string]struct{})
-			currTeamMemberLoginsBytes := testMarshal(t, tc.currTeamMemberLogins)
+			currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(t, tc.currTeamMemberLogins)
 			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "members"), func(w http.ResponseWriter, r *http.Request) {
 				if tc.listMemberFail {
 					w.WriteHeader(http.StatusNotFound)
@@ -135,7 +135,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 			})
 
 			// List pending memberships.
-			currTeamInvitationsBytes := testMarshal(t, tc.currTeamInvitations)
+			currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(t, tc.currTeamInvitations)
 			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "invitations"), func(w http.ResponseWriter, r *http.Request) {
 				if tc.listInvitationFail {
 					w.WriteHeader(http.StatusNotFound)
@@ -163,7 +163,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 			ghApp := testNewGitHubApp(t, tc.tokenServerResqCode)
 
 			s := NewSynchronizer(ghClient, ghApp)
-			team := convert(tc.teamMemberLogins)
+			team := teamWithUserLogins(tc.teamMemberLogins)
 			gotSyncErr := s.Sync(ctx, team)
 			if diff := testutil.DiffErrString(gotSyncErr, tc.wantSyncErrSubStr); diff != "" {
 				t.Errorf("Process(%+v) got unexpected error substring: %v", tc.name, diff)
@@ -231,7 +231,7 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	return ghApp
 }
 
-func convert(arr []string) *v1alpha1.GitHubTeam {
+func teamWithUserLogins(arr []string) *v1alpha1.GitHubTeam {
 	users := make([]*v1alpha1.GitHubUser, len(arr))
 	for i, s := range arr {
 		users[i] = &v1alpha1.GitHubUser{Login: s}
@@ -243,7 +243,7 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 	}
 }
 
-func testMarshal(tb testing.TB, arr []string) []byte {
+func testJSONMarshalGitHubUserLogins(tb testing.TB, arr []string) []byte {
 	tb.Helper()
 
 	logins := make([]*github.User, len(arr))
