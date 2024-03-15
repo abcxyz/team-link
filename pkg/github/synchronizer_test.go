@@ -56,7 +56,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 		tokenServerResqCode  int
 		listMemberFail       bool
 		listInvitationFail   bool
-		wantTeamMemberLogins []string
+		wantTeamMemberLogins map[string]struct{}
 		wantSyncErrSubStr    string
 	}{
 		{
@@ -65,21 +65,23 @@ func TestSynchronizer_Sync(t *testing.T) {
 			currTeamMemberLogins: []string{"test-login-a", "test-login-d"},
 			currTeamInvitations:  []string{"test-login-b"},
 			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: []string{"test-login-a", "test-login-c"},
+			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}, "test-login-c": {}},
 		},
 		{
-			name:                "list_member_fail",
-			teamMemberLogins:    []string{"test-login-a"},
-			tokenServerResqCode: http.StatusCreated,
-			listMemberFail:      true,
-			wantSyncErrSubStr:   "failed to get active GitHub team members",
+			name:                 "list_member_fail",
+			teamMemberLogins:     []string{"test-login-a"},
+			tokenServerResqCode:  http.StatusCreated,
+			listMemberFail:       true,
+			wantTeamMemberLogins: map[string]struct{}{},
+			wantSyncErrSubStr:    "failed to get active GitHub team members",
 		},
 		{
-			name:                "list_invitation_fail",
-			teamMemberLogins:    []string{"test-login-a"},
-			tokenServerResqCode: http.StatusCreated,
-			listInvitationFail:  true,
-			wantSyncErrSubStr:   "failed to get pending GitHub team invitations",
+			name:                 "list_invitation_fail",
+			teamMemberLogins:     []string{"test-login-a"},
+			tokenServerResqCode:  http.StatusCreated,
+			listInvitationFail:   true,
+			wantTeamMemberLogins: map[string]struct{}{},
+			wantSyncErrSubStr:    "failed to get pending GitHub team invitations",
 		},
 		{
 			name:                 "add_member_fail",
@@ -87,7 +89,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 			currTeamMemberLogins: []string{"test-login-a", "test-login-d"},
 			currTeamInvitations:  []string{"test-login-b"},
 			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: []string{"test-login-a"},
+			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}},
 			wantSyncErrSubStr:    "failed to add GitHub team members",
 		},
 		{
@@ -96,14 +98,15 @@ func TestSynchronizer_Sync(t *testing.T) {
 			currTeamMemberLogins: []string{"test-login-a", testBadUserLogin},
 			currTeamInvitations:  []string{"test-login-c"},
 			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: []string{"test-login-a", testBadUserLogin, "test-login-b"},
+			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}, testBadUserLogin: {}, "test-login-b": {}},
 			wantSyncErrSubStr:    "failed to remove GitHub team members",
 		},
 		{
-			name:                "get_access_token_fail",
-			teamMemberLogins:    []string{"test-login-a", "test-login-b", "test-login-c"},
-			tokenServerResqCode: http.StatusUnauthorized,
-			wantSyncErrSubStr:   "failed to get access token",
+			name:                 "get_access_token_fail",
+			teamMemberLogins:     []string{"test-login-a", "test-login-b", "test-login-c"},
+			tokenServerResqCode:  http.StatusUnauthorized,
+			wantTeamMemberLogins: map[string]struct{}{},
+			wantSyncErrSubStr:    "failed to get access token",
 		},
 	}
 
@@ -118,25 +121,21 @@ func TestSynchronizer_Sync(t *testing.T) {
 			ghClient, mux := testGitHubClient(t)
 
 			// List active memberships.
-			var gotTeamMemberLogins []string
-			currTeamMemberLoginsBytes, err := marshal(tc.currTeamMemberLogins)
-			if err != nil {
-				t.Fatalf("failed to marshal team member logins: %v", err)
-			}
+			gotTeamMemberLogins := make(map[string]struct{})
+			currTeamMemberLoginsBytes := testMarshal(t, tc.currTeamMemberLogins)
 			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "members"), func(w http.ResponseWriter, r *http.Request) {
 				if tc.listMemberFail {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
-				gotTeamMemberLogins = append(gotTeamMemberLogins, tc.currTeamMemberLogins...)
+				for _, l := range tc.currTeamMemberLogins {
+					gotTeamMemberLogins[l] = struct{}{}
+				}
 				fmt.Fprint(w, string(currTeamMemberLoginsBytes))
 			})
 
 			// List pending memberships.
-			currTeamInvitationsBytes, err := marshal(tc.currTeamInvitations)
-			if err != nil {
-				t.Fatalf("failed to marshal team member logins: %v", err)
-			}
+			currTeamInvitationsBytes := testMarshal(t, tc.currTeamInvitations)
 			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "invitations"), func(w http.ResponseWriter, r *http.Request) {
 				if tc.listInvitationFail {
 					w.WriteHeader(http.StatusNotFound)
@@ -153,9 +152,9 @@ func TestSynchronizer_Sync(t *testing.T) {
 						return
 					}
 					if r.Method == http.MethodPut {
-						gotTeamMemberLogins = append(gotTeamMemberLogins, u)
+						gotTeamMemberLogins[u] = struct{}{}
 					} else {
-						gotTeamMemberLogins = remove(gotTeamMemberLogins, u)
+						delete(gotTeamMemberLogins, u)
 					}
 				})
 			}
@@ -179,6 +178,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 // testGitHubClient sets up a test HTTP server along with a github.Client that
 // is configured to talk to that test server. Tests should register handlers on
 // mux which provide mock responses for the API method being tested.
+// TODO(#9): instead of mock, use a fake client instead.
 func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
 	tb.Helper()
 
@@ -243,21 +243,17 @@ func convert(arr []string) *v1alpha1.GitHubTeam {
 	}
 }
 
-func marshal(arr []string) ([]byte, error) {
+func testMarshal(tb testing.TB, arr []string) []byte {
+	tb.Helper()
+
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
 		//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22.
 		logins[i] = &github.User{Login: &s} //#nosec G601 // loop variable is not reused.
 	}
-	return json.Marshal(logins)
-}
-
-func remove(arr []string, item string) []string {
-	res := make([]string, 0, len(arr))
-	for _, s := range arr {
-		if s != item {
-			res = append(res, s)
-		}
+	res, err := json.Marshal(logins)
+	if err != nil {
+		tb.Fatalf("failed to marshal team member logins: %v", err)
 	}
 	return res
 }
