@@ -48,7 +48,7 @@ var (
 func TestSynchronizer_Sync(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct{
+	cases := []struct {
 		name                 string
 		teamMemberLogins     []string
 		currTeamMemberLogins []string
