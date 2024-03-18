@@ -32,6 +32,10 @@ message GitHubTeam {
 
   // Required. GitHub users to be added to the team.
   repeated GitHubUser users = 3;
+
+  // Required. Linked source team IDs. The actual value depending on the source
+  // team service API, what value it uses to retrieve the source team.
+  repeated string source_team_ids = 4;
 }
 
 // A representation of a GitHub User.
