@@ -16,28 +16,35 @@ package v1alpha1
 
 import "context"
 
-// SourceEventHandler interface that handles source event.
-type SourceEventHandler interface {
-	// Handle handles a SourceEvent of a source team membership change and it
+// GitHubTeamResolver interface that resolves source event and returns a
+// GitHubTeam object.
+type GitHubTeamResolver interface {
+	// Resolve resolves a SourceEvent of a source team membership change and it
 	// typically does the following:
 	//   1. Find the GitHub team that the source team is mapped to, and get all
 	//      the source teams that are mapped to the same GitHub team.
 	//   2. Return a GitHubTeam object that contains all memberships of these
 	//      source teams and the GitHub team info, so that downstream can
 	//      sync the memberships to the Github team.
-	Handle(context.Context, *SourceEvent) (*GitHubTeam, error)
+	Resolve(context.Context, *SourceEvent) (*GitHubTeam, error)
 }
 
 // Mapper maps source teams/users and destination teams/users.
 // The actual team and user ids depend on the type of source/destination systems.
 type Mapper interface {
-	// DestUserID returns the destination user id for the given source user id.
-	DestUserID(ctx context.Context, srcUserID string) (string, error)
+	// GitHubUser returns a GitHubUser that contains the destination user
+	// information for the given source user id.
+	GitHubUser(ctx, srcUserID string) (*GitHubUser, error)
 
-	// DestTeamID returns the destination team id for the given source team id.
-	DestTeamID(ctx context.Context, srcTeamID string) (string, error)
+	// GitHubTeam returns a GitHubTeam that contains the destination team
+	// information for the given source team id. Note that one destination team
+	// could be mapped to multiple source teams.
+	GitHubTeam(ctx context.Context, srcTeamID string) (*GitHubTeam, error)
+}
 
-	// SourceTeamIDs returns all source teams' ids for the given destination team
-	// id. One destination team could have multiple source teams.
-	SourceTeamIDs(ctx context.Context, destTeamID string) ([]string, error)
+// TeamSynchronizer interface that syncs the team memberships in the given
+// GitHubTeam to GitHub.
+type TeamSynchronizer interface {
+	// Sync syncs the team memberships in the given GitHubTeam to GitHub.
+	Sync(context.Context, *GitHubTeam) error
 }
