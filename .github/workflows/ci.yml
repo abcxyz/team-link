@@ -31,3 +31,7 @@ jobs:
 
   yaml_lint:
     uses: 'abcxyz/pkg/.github/workflows/yaml-lint.yml@main' # ratchet:exclude
+
+  # Unit tests - go.
+  go-test:
+    uses: 'abcxyz/pkg/.github/workflows/go-test.yml@main' # ratchet:exclude
