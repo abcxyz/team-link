@@ -34,7 +34,7 @@ type GitHubTeamResolver interface {
 type Mapper interface {
 	// GitHubUser returns a GitHubUser that contains the destination user
 	// information for the given source user id.
-	GitHubUser(ctx, srcUserID string) (*GitHubUser, error)
+	GitHubUser(ctx context.Context, srcUserID string) (*GitHubUser, error)
 
 	// GitHubTeam returns a GitHubTeam that contains the destination team
 	// information for the given source team id. Note that one destination team
