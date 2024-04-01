@@ -16,35 +16,36 @@ package v1alpha1
 
 import "context"
 
-// GitHubTeamResolver interface that resolves source event and returns a
-// GitHubTeam object.
+// GitHubTeamResolver interface that resolves source event and returns a list
+// GitHubTeam objects.
 type GitHubTeamResolver interface {
 	// Resolve resolves a SourceEvent of a source team membership change and it
-	// typically does the following:
-	//   1. Find the GitHub team that the source team is mapped to, and get all
-	//      the source teams that are mapped to the same GitHub team.
-	//   2. Return a GitHubTeam object that contains all memberships of these
-	//      source teams and the GitHub team info, so that downstream can
-	//      sync the memberships to the Github team.
-	Resolve(context.Context, *SourceEvent) (*GitHubTeam, error)
+	// does the following:
+	//  1. Find the GitHub teams that the source team is mapped to, and for each
+	//     GitHub team, get all the source teams that it mapped to.
+	//  2. Return a list of GitHubTeam objects and each contains all memberships
+	//     of its mapped source teams and the GitHub team info, so that downstream
+	//     can sync the memberships to the GitHub teams.
+	Resolve(context.Context, *SourceEvent) ([]*GitHubTeam, error)
 }
 
-// Mapper maps source teams/users and destination teams/users.
+// GitHubMapper maps destination(GitHub) teams/users to source teams/users.
 // The actual team and user ids depend on the type of source/destination systems.
-type Mapper interface {
-	// GitHubUser returns a GitHubUser that contains the destination user
+type GitHubMapper interface {
+	// GitHubUser returns a GitHubUser that contains the GitHub user
 	// information for the given source user id.
 	GitHubUser(ctx context.Context, srcUserID string) (*GitHubUser, error)
 
-	// GitHubTeam returns a GitHubTeam that contains the destination team
-	// information for the given source team id. Note that one destination team
-	// could be mapped to multiple source teams.
-	GitHubTeam(ctx context.Context, srcTeamID string) (*GitHubTeam, error)
+	// GitHubTeams returns a list of GitHubTeams that contains the GitHub team
+	// information for the given source team id. Note that the relationship for
+	// source to GitHub team could be many to many.
+	GitHubTeams(ctx context.Context, srcTeamID string) ([]*GitHubTeam, error)
 }
 
-// TeamSynchronizer interface that syncs the team memberships in the given
-// GitHubTeam to GitHub.
+// TeamSynchronizer interface that syncs the team memberships in the each of the
+// GitHubTeam from the given list to GitHub.
 type TeamSynchronizer interface {
-	// Sync syncs the team memberships in the given GitHubTeam to GitHub.
-	Sync(context.Context, *GitHubTeam) error
+	// Sync syncs the team memberships in the each of the GitHubTeam from the
+	// given list to GitHub.
+	Sync(context.Context, []*GitHubTeam) error
 }
