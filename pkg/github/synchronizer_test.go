@@ -49,8 +49,8 @@ func TestSynchronizer_Sync(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name                 string
-		tokenServerResqCode  int
+		name                string
+		tokenServerResqCode int
 		// For lists below, list[0] is for testTeamIDs[0], list[1] is for
 		// testTeamIDs[1].
 		teamMemberLogins     [][]string
@@ -62,8 +62,8 @@ func TestSynchronizer_Sync(t *testing.T) {
 		wantSyncErrSubStr    string
 	}{
 		{
-			name:                 "success_add_and_remove_members",
-			teamMemberLogins:     [][]string{
+			name: "success_add_and_remove_members",
+			teamMemberLogins: [][]string{
 				{"test-login-a", "test-login-b", "test-login-c"},
 				{"test-login-a", "test-login-b"},
 			},
@@ -71,19 +71,19 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a", "test-login-d"},
 				{"test-login-a", "test-login-c"},
 			},
-			currTeamInvitations:  [][]string{
+			currTeamInvitations: [][]string{
 				{"test-login-b"},
 				{"test-login-b"},
 			},
-			tokenServerResqCode:  http.StatusCreated,
+			tokenServerResqCode: http.StatusCreated,
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}, "test-login-c": {}},
 				{"test-login-a": {}},
 			},
 		},
 		{
-			name:                 "list_member_fail",
-			teamMemberLogins:     [][]string{
+			name: "list_member_fail",
+			teamMemberLogins: [][]string{
 				{"test-login-a"},
 				{"test-login-a"},
 			},
@@ -91,21 +91,21 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a", "test-login-b"},
 				{"test-login-a", "test-login-c"},
 			},
-			currTeamInvitations:  [][]string{
+			currTeamInvitations: [][]string{
 				{},
 				{"test-login-b"},
 			},
-			tokenServerResqCode:  http.StatusCreated,
-			listMemberFail:       []bool{false, true},
+			tokenServerResqCode: http.StatusCreated,
+			listMemberFail:      []bool{false, true},
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}},
 				nil,
 			},
-			wantSyncErrSubStr:    fmt.Sprintf("failed to get active GitHub team members for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to get active GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "list_invitation_fail",
-			teamMemberLogins:     [][]string{
+			name: "list_invitation_fail",
+			teamMemberLogins: [][]string{
 				{"test-login-a"},
 				{"test-login-a"},
 			},
@@ -113,21 +113,21 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a", "test-login-b"},
 				{"test-login-a", "test-login-c"},
 			},
-			currTeamInvitations:  [][]string{
+			currTeamInvitations: [][]string{
 				{},
 				{"test-login-b"},
 			},
-			tokenServerResqCode:  http.StatusCreated,
-			listInvitationFail:   []bool{false, true},
+			tokenServerResqCode: http.StatusCreated,
+			listInvitationFail:  []bool{false, true},
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}},
 				{"test-login-a": {}, "test-login-c": {}},
 			},
-			wantSyncErrSubStr:    fmt.Sprintf("failed to get pending GitHub team invitations for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to get pending GitHub team invitations for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "add_member_fail",
-			teamMemberLogins:     [][]string{
+			name: "add_member_fail",
+			teamMemberLogins: [][]string{
 				{"test-login-a"},
 				{"test-login-a", "test-login-b", testBadUserLogin},
 			},
@@ -135,20 +135,20 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a", "test-login-b"},
 				{"test-login-a", "test-login-d"},
 			},
-			currTeamInvitations:  [][]string{
+			currTeamInvitations: [][]string{
 				{},
 				{"test-login-b"},
 			},
-			tokenServerResqCode:  http.StatusCreated,
+			tokenServerResqCode: http.StatusCreated,
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}},
 				{"test-login-a": {}},
 			},
-			wantSyncErrSubStr:    fmt.Sprintf("failed to add GitHub team members for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to add GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "remove_member_fail",
-			teamMemberLogins:     [][]string{
+			name: "remove_member_fail",
+			teamMemberLogins: [][]string{
 				{"test-login-a"},
 				{"test-login-a", "test-login-b", "test-login-c"},
 			},
@@ -156,16 +156,16 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a", "test-login-b"},
 				{"test-login-a", testBadUserLogin},
 			},
-			currTeamInvitations:  [][]string{
+			currTeamInvitations: [][]string{
 				{},
 				{"test-login-c"},
 			},
-			tokenServerResqCode:  http.StatusCreated,
+			tokenServerResqCode: http.StatusCreated,
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}},
 				{"test-login-a": {}, testBadUserLogin: {}, "test-login-b": {}},
 			},
-			wantSyncErrSubStr:    fmt.Sprintf("failed to remove GitHub team members for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to remove GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
 			name:                 "get_access_token_fail",
@@ -199,7 +199,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 					for _, l := range logins {
 						gotTeamMemberLogins[i][l] = struct{}{}
 					}
-					w.Write(currTeamMemberLoginsBytes)
+					fmt.Fprint(w, string(currTeamMemberLoginsBytes))
 				})
 			}
 
