@@ -37,75 +37,143 @@ import (
 const (
 	testBadUserLogin = "bad_user_name"
 	testOrgID        = 1234567
-	testTeamID       = 2345678
 )
 
 var (
-	testMuxPatternPrefix = fmt.Sprintf("/organizations/%d/team/%d/", testOrgID, testTeamID)
+	testTeamIDs          = []int64{2345678, 3456789}
+	testMuxPatternPrefix = fmt.Sprintf("/organizations/%d/team/", testOrgID)
 	testUserLogins       = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin}
 )
+
+type testCase struct {
+	name                string
+	tokenServerResqCode int
+	// For lists below, list[0] is for testTeamIDs[0], list[1] is for
+	// testTeamIDs[1].
+	teamMemberLogins     [][]string
+	currTeamMemberLogins [][]string
+	currTeamInvitations  [][]string
+	listMemberFail       []bool
+	listInvitationFail   []bool
+	wantTeamMemberLogins []map[string]struct{}
+	wantSyncErrSubStr    string
+}
 
 func TestSynchronizer_Sync(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name                 string
-		teamMemberLogins     []string
-		currTeamMemberLogins []string
-		currTeamInvitations  []string
-		tokenServerResqCode  int
-		listMemberFail       bool
-		listInvitationFail   bool
-		wantTeamMemberLogins map[string]struct{}
-		wantSyncErrSubStr    string
-	}{
+	cases := []testCase{
 		{
-			name:                 "success_add_and_remove_members",
-			teamMemberLogins:     []string{"test-login-a", "test-login-b", "test-login-c"},
-			currTeamMemberLogins: []string{"test-login-a", "test-login-d"},
-			currTeamInvitations:  []string{"test-login-b"},
-			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}, "test-login-c": {}},
+			name: "success_add_and_remove_members",
+			teamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b", "test-login-c"},
+				{"test-login-a", "test-login-b"},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-d"},
+				{"test-login-a", "test-login-c"},
+			},
+			currTeamInvitations: [][]string{
+				{"test-login-b"},
+				{"test-login-b"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}, "test-login-c": {}},
+				{"test-login-a": {}},
+			},
 		},
 		{
-			name:                 "list_member_fail",
-			teamMemberLogins:     []string{"test-login-a"},
-			tokenServerResqCode:  http.StatusCreated,
-			listMemberFail:       true,
-			wantTeamMemberLogins: map[string]struct{}{},
-			wantSyncErrSubStr:    "failed to get active GitHub team members",
+			name: "list_member_fail",
+			teamMemberLogins: [][]string{
+				{"test-login-a"},
+				{"test-login-a"},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b"},
+				{"test-login-a", "test-login-c"},
+			},
+			currTeamInvitations: [][]string{
+				{},
+				{"test-login-b"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			listMemberFail:      []bool{false, true},
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				nil,
+			},
+			wantSyncErrSubStr: fmt.Sprintf("failed to get GitHub team members/invitations for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "list_invitation_fail",
-			teamMemberLogins:     []string{"test-login-a"},
-			tokenServerResqCode:  http.StatusCreated,
-			listInvitationFail:   true,
-			wantTeamMemberLogins: map[string]struct{}{},
-			wantSyncErrSubStr:    "failed to get pending GitHub team invitations",
+			name: "list_invitation_fail",
+			teamMemberLogins: [][]string{
+				{"test-login-a"},
+				{"test-login-a"},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b"},
+				{"test-login-a", "test-login-c"},
+			},
+			currTeamInvitations: [][]string{
+				{},
+				{"test-login-b"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			listInvitationFail:  []bool{false, true},
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{"test-login-a": {}, "test-login-c": {}},
+			},
+			wantSyncErrSubStr: fmt.Sprintf("failed to get GitHub team members/invitations for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "add_member_fail",
-			teamMemberLogins:     []string{"test-login-a", "test-login-b", testBadUserLogin},
-			currTeamMemberLogins: []string{"test-login-a", "test-login-d"},
-			currTeamInvitations:  []string{"test-login-b"},
-			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}},
-			wantSyncErrSubStr:    "failed to add GitHub team members",
+			name: "add_member_fail",
+			teamMemberLogins: [][]string{
+				{"test-login-a"},
+				{"test-login-a", "test-login-b", testBadUserLogin},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b"},
+				{"test-login-a", "test-login-d"},
+			},
+			currTeamInvitations: [][]string{
+				{},
+				{"test-login-b"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{"test-login-a": {}},
+			},
+			wantSyncErrSubStr: fmt.Sprintf("failed to add GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "remove_member_fail",
-			teamMemberLogins:     []string{"test-login-a", "test-login-b", "test-login-c"},
-			currTeamMemberLogins: []string{"test-login-a", testBadUserLogin},
-			currTeamInvitations:  []string{"test-login-c"},
-			tokenServerResqCode:  http.StatusCreated,
-			wantTeamMemberLogins: map[string]struct{}{"test-login-a": {}, testBadUserLogin: {}, "test-login-b": {}},
-			wantSyncErrSubStr:    "failed to remove GitHub team members",
+			name: "remove_member_fail",
+			teamMemberLogins: [][]string{
+				{"test-login-a"},
+				{"test-login-a", "test-login-b", "test-login-c"},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b"},
+				{"test-login-a", testBadUserLogin},
+			},
+			currTeamInvitations: [][]string{
+				{},
+				{"test-login-c"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{"test-login-a": {}, testBadUserLogin: {}, "test-login-b": {}},
+			},
+			wantSyncErrSubStr: fmt.Sprintf("failed to remove GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
 			name:                 "get_access_token_fail",
-			teamMemberLogins:     []string{"test-login-a", "test-login-b", "test-login-c"},
+			teamMemberLogins:     [][]string{{"test-login-a", "test-login-b", "test-login-c"}},
 			tokenServerResqCode:  http.StatusUnauthorized,
-			wantTeamMemberLogins: map[string]struct{}{},
+			wantTeamMemberLogins: []map[string]struct{}{nil},
 			wantSyncErrSubStr:    "failed to get access token",
 		},
 	}
@@ -118,57 +186,19 @@ func TestSynchronizer_Sync(t *testing.T) {
 			t.Parallel()
 
 			// Create fake github client.
-			ghClient, mux := testGitHubClient(t)
-
-			// List active memberships.
-			gotTeamMemberLogins := make(map[string]struct{})
-			currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(t, tc.currTeamMemberLogins)
-			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "members"), func(w http.ResponseWriter, r *http.Request) {
-				if tc.listMemberFail {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
-				for _, l := range tc.currTeamMemberLogins {
-					gotTeamMemberLogins[l] = struct{}{}
-				}
-				fmt.Fprint(w, string(currTeamMemberLoginsBytes))
-			})
-
-			// List pending memberships.
-			currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(t, tc.currTeamInvitations)
-			mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "invitations"), func(w http.ResponseWriter, r *http.Request) {
-				if tc.listInvitationFail {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
-				fmt.Fprint(w, string(currTeamInvitationsBytes))
-			})
-
-			// Update membership.
-			for _, u := range testUserLogins {
-				mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, "memberships/", u), func(w http.ResponseWriter, r *http.Request) {
-					if u == testBadUserLogin {
-						w.WriteHeader(http.StatusNotFound)
-						return
-					}
-					if r.Method == http.MethodPut {
-						gotTeamMemberLogins[u] = struct{}{}
-					} else {
-						delete(gotTeamMemberLogins, u)
-					}
-				})
-			}
+			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
+			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
+			ghClient := testGitHubClient(t, tc, gotTeamMemberLogins, teams)
 
 			// Create fake github app.
 			ghApp := testNewGitHubApp(t, tc.tokenServerResqCode)
 
 			s := NewSynchronizer(ghClient, ghApp)
-			team := teamWithUserLogins(tc.teamMemberLogins)
-			gotSyncErr := s.Sync(ctx, team)
+			gotSyncErr := s.Sync(ctx, teams)
 			if diff := testutil.DiffErrString(gotSyncErr, tc.wantSyncErrSubStr); diff != "" {
 				t.Errorf("Process(%+v) got unexpected error substring: %v", tc.name, diff)
 			}
-			if diff := cmp.Diff(gotTeamMemberLogins, tc.wantTeamMemberLogins); diff != "" {
+			if diff := cmp.Diff(tc.wantTeamMemberLogins, gotTeamMemberLogins); diff != "" {
 				t.Errorf("Process(%+v) got unexpected team member logins (-want,+got):\n%s", tc.name, diff)
 			}
 		})
@@ -176,10 +206,16 @@ func TestSynchronizer_Sync(t *testing.T) {
 }
 
 // testGitHubClient sets up a test HTTP server along with a github.Client that
-// is configured to talk to that test server. Tests should register handlers on
-// mux which provide mock responses for the API method being tested.
+// is configured to talk to that test server. It also register handlers on mux
+// given a test case which provide mock responses for the API method being
+// tested, and fills the gotTeamMemberLogins and teams to be synced.
 // TODO(#9): instead of mock, use a fake client instead.
-func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
+func testGitHubClient(
+	tb testing.TB,
+	tc testCase,
+	gotTeamMemberLogins []map[string]struct{},
+	teams []*v1alpha1.GitHubTeam,
+) *github.Client {
 	tb.Helper()
 
 	// mux is the HTTP request multiplexer used with the test server.
@@ -201,7 +237,62 @@ func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
 	client.BaseURL = url
 	client.UploadURL = url
 
-	return client, mux
+	// List active memberships.
+	for i, logins := range tc.currTeamMemberLogins {
+		currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(tb, logins)
+		mux.HandleFunc(
+			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/members"),
+			func(w http.ResponseWriter, r *http.Request) {
+				if len(tc.listMemberFail) > i && tc.listMemberFail[i] {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				gotTeamMemberLogins[i] = make(map[string]struct{}, len(logins))
+				for _, l := range logins {
+					gotTeamMemberLogins[i][l] = struct{}{}
+				}
+				fmt.Fprint(w, string(currTeamMemberLoginsBytes))
+			},
+		)
+	}
+
+	// List pending memberships.
+	for i, invites := range tc.currTeamInvitations {
+		currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(tb, invites)
+		mux.HandleFunc(
+			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/invitations"),
+			func(w http.ResponseWriter, r *http.Request) {
+				if len(tc.listInvitationFail) > i && tc.listInvitationFail[i] {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				fmt.Fprint(w, string(currTeamInvitationsBytes))
+			},
+		)
+	}
+
+	// Update membership.
+	for i, ls := range tc.teamMemberLogins {
+		for _, u := range testUserLogins {
+			mux.HandleFunc(
+				fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/memberships/", u),
+				func(w http.ResponseWriter, r *http.Request) {
+					if u == testBadUserLogin {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					if r.Method == http.MethodPut {
+						gotTeamMemberLogins[i][u] = struct{}{}
+					} else {
+						delete(gotTeamMemberLogins[i], u)
+					}
+				},
+			)
+		}
+		teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
+	}
+
+	return client
 }
 
 func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
@@ -231,14 +322,14 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	return ghApp
 }
 
-func teamWithUserLogins(arr []string) *v1alpha1.GitHubTeam {
+func teamWithUserLogins(arr []string, teamID int64) *v1alpha1.GitHubTeam {
 	users := make([]*v1alpha1.GitHubUser, len(arr))
 	for i, s := range arr {
 		users[i] = &v1alpha1.GitHubUser{Login: s}
 	}
 	return &v1alpha1.GitHubTeam{
 		OrgId:  testOrgID,
-		TeamId: testTeamID,
+		TeamId: teamID,
 		Users:  users,
 	}
 }

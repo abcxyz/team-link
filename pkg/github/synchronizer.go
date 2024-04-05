@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package github defines the mechanism to update GitHub team memberships given
-// a record of the expected team memberships.
+// package github defines the mechanism to update GitHub teams' memberships
+// given a list of records of the expected team memberships.
 package github
 
 import (
@@ -43,11 +43,11 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchroniz
 	}
 }
 
-// Sync overides a GitHub team's memberships with the provided team membership
-// snapshot.
+// Sync overides several GitHub teams' memberships with the provided team
+// membership snapshots.
 // TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
 // this since they are required when updating GitHub team memberships.
-func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) error {
+func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) error {
 	// Configure Github auth token to the GitHub client.
 	t, err := s.accessToken(ctx)
 	if err != nil {
@@ -55,30 +55,43 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 	}
 	ghClient := s.client.WithAuthToken(t)
 
-	// Get current team members' login from GitHub and expected team members'
-	// user from the team object.
-	gotActiveMemberLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId(), listActiveTeamMembers)
-	if err != nil {
-		return fmt.Errorf("failed to get active GitHub team members: %w", err)
-	}
-	gotPendingInvitationLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId(), listPendingTeamInvitations)
-	if err != nil {
-		return fmt.Errorf("failed to get pending GitHub team invitations: %w", err)
-	}
-	gotLogins := sets.Union(gotActiveMemberLogins, gotPendingInvitationLogins)
-	wantLogins := loginsFromTeam(team)
-
 	var retErr error
-	// Add GitHub team memberships.
-	for _, u := range sets.Subtract(wantLogins, gotLogins) {
-		if _, _, err := ghClient.Teams.AddTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u, &github.TeamAddTeamMembershipOptions{Role: "member"}); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to add GitHub team members: %w", err))
+	for _, team := range teams {
+		// Get current team members' login from GitHub and expected team members'
+		// user from the team object.
+		gotLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId())
+		if err != nil {
+			retErr = errors.Join(
+				retErr,
+				fmt.Errorf("failed to get GitHub team members/invitations for team(%d): %w", team.GetTeamId(), err),
+			)
+			continue
 		}
-	}
-	// Remove GitHub team memberships.
-	for _, u := range sets.Subtract(gotLogins, wantLogins) {
-		if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to remove GitHub team members: %w", err))
+		wantLogins := loginsFromTeam(team)
+
+		// Add GitHub team memberships.
+		for _, u := range sets.Subtract(wantLogins, gotLogins) {
+			if _, _, err := ghClient.Teams.AddTeamMembershipByID(
+				ctx,
+				team.GetOrgId(),
+				team.GetTeamId(),
+				u,
+				&github.TeamAddTeamMembershipOptions{Role: "member"},
+			); err != nil {
+				retErr = errors.Join(
+					retErr,
+					fmt.Errorf("failed to add GitHub team members for team(%d): %w", team.GetTeamId(), err),
+				)
+			}
+		}
+		// Remove GitHub team memberships.
+		for _, u := range sets.Subtract(gotLogins, wantLogins) {
+			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
+				retErr = errors.Join(
+					retErr,
+					fmt.Errorf("failed to remove GitHub team members for team(%d): %w", team.GetTeamId(), err),
+				)
+			}
 		}
 	}
 	return retErr
@@ -86,28 +99,38 @@ func (s *Synchronizer) Sync(ctx context.Context, team *v1alpha1.GitHubTeam) erro
 
 // currentTeamLogins returns a list of GitHub logins that are members or has
 // invitations to the given GitHub team.
-// TODO(#6): refactor the paginated GitHub API call.
+// TODO(#6): make the paginated GitHub API call generic.
 func (s *Synchronizer) currentTeamLogins(
 	ctx context.Context,
 	c *github.Client,
 	orgID, teamID int64,
-	f func(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error),
 ) ([]string, error) {
-	var res []string
-	opt := &github.ListOptions{
-		PerPage: 100,
+	callMap := []func(
+		ctx context.Context,
+		c *github.Client,
+		orgID, teamID int64,
+		opt *github.ListOptions,
+	) ([]string, *github.Response, error){
+		listActiveTeamMembers,
+		listPendingTeamInvitations,
 	}
-	for {
-		logins, resp, err := f(ctx, c, orgID, teamID, opt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get team member logins: %w", err)
+	var res []string
+	for _, f := range callMap {
+		opt := &github.ListOptions{
+			PerPage: 100,
 		}
+		for {
+			logins, resp, err := f(ctx, c, orgID, teamID, opt)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get team member/invitation logins: %w", err)
+			}
 
-		res = append(res, logins...)
-		if resp.NextPage == 0 {
-			break // No more pages to fetch
+			res = sets.Union(res, logins)
+			if resp.NextPage == 0 {
+				break // No more pages to fetch
+			}
+			opt.Page = resp.NextPage
 		}
-		opt.Page = resp.NextPage
 	}
 	return res, nil
 }
