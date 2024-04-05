@@ -101,7 +101,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a": {}},
 				nil,
 			},
-			wantSyncErrSubStr: fmt.Sprintf("failed to get active GitHub team members for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to get GitHub team members/invitations for team(%d)", testTeamIDs[1]),
 		},
 		{
 			name: "list_invitation_fail",
@@ -123,7 +123,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 				{"test-login-a": {}},
 				{"test-login-a": {}, "test-login-c": {}},
 			},
-			wantSyncErrSubStr: fmt.Sprintf("failed to get pending GitHub team invitations for team(%d)", testTeamIDs[1]),
+			wantSyncErrSubStr: fmt.Sprintf("failed to get GitHub team members/invitations for team(%d)", testTeamIDs[1]),
 		},
 		{
 			name: "add_member_fail",
