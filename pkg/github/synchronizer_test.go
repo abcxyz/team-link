@@ -45,22 +45,24 @@ var (
 	testUserLogins       = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin}
 )
 
+type testCase struct {
+	name                string
+	tokenServerResqCode int
+	// For lists below, list[0] is for testTeamIDs[0], list[1] is for
+	// testTeamIDs[1].
+	teamMemberLogins     [][]string
+	currTeamMemberLogins [][]string
+	currTeamInvitations  [][]string
+	listMemberFail       []bool
+	listInvitationFail   []bool
+	wantTeamMemberLogins []map[string]struct{}
+	wantSyncErrSubStr    string
+}
+
 func TestSynchronizer_Sync(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		name                string
-		tokenServerResqCode int
-		// For lists below, list[0] is for testTeamIDs[0], list[1] is for
-		// testTeamIDs[1].
-		teamMemberLogins     [][]string
-		currTeamMemberLogins [][]string
-		currTeamInvitations  [][]string
-		listMemberFail       []bool
-		listInvitationFail   []bool
-		wantTeamMemberLogins []map[string]struct{}
-		wantSyncErrSubStr    string
-	}{
+	cases := []testCase{
 		{
 			name: "success_add_and_remove_members",
 			teamMemberLogins: [][]string{
@@ -184,55 +186,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 			t.Parallel()
 
 			// Create fake github client.
-			ghClient, mux := testGitHubClient(t)
-
-			// List active memberships.
-			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
-			for i, logins := range tc.currTeamMemberLogins {
-				currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(t, logins)
-				mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/members"), func(w http.ResponseWriter, r *http.Request) {
-					if len(tc.listMemberFail) > i && tc.listMemberFail[i] {
-						w.WriteHeader(http.StatusNotFound)
-						return
-					}
-					gotTeamMemberLogins[i] = make(map[string]struct{}, len(logins))
-					for _, l := range logins {
-						gotTeamMemberLogins[i][l] = struct{}{}
-					}
-					fmt.Fprint(w, string(currTeamMemberLoginsBytes))
-				})
-			}
-
-			// List pending memberships.
-			for i, invites := range tc.currTeamInvitations {
-				currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(t, invites)
-				mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/invitations"), func(w http.ResponseWriter, r *http.Request) {
-					if len(tc.listInvitationFail) > i && tc.listInvitationFail[i] {
-						w.WriteHeader(http.StatusNotFound)
-						return
-					}
-					fmt.Fprint(w, string(currTeamInvitationsBytes))
-				})
-			}
-
-			// Update membership.
-			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
-			for i, ls := range tc.teamMemberLogins {
-				for _, u := range testUserLogins {
-					mux.HandleFunc(fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/memberships/", u), func(w http.ResponseWriter, r *http.Request) {
-						if u == testBadUserLogin {
-							w.WriteHeader(http.StatusNotFound)
-							return
-						}
-						if r.Method == http.MethodPut {
-							gotTeamMemberLogins[i][u] = struct{}{}
-						} else {
-							delete(gotTeamMemberLogins[i], u)
-						}
-					})
-				}
-				teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
-			}
+			gotTeamMemberLogins, teams, ghClient := testGitHubClient(t, tc)
 
 			// Create fake github app.
 			ghApp := testNewGitHubApp(t, tc.tokenServerResqCode)
@@ -250,10 +204,11 @@ func TestSynchronizer_Sync(t *testing.T) {
 }
 
 // testGitHubClient sets up a test HTTP server along with a github.Client that
-// is configured to talk to that test server. Tests should register handlers on
-// mux which provide mock responses for the API method being tested.
+// is configured to talk to that test server. It also register handlers on mux
+// given a test case which provide mock responses for the API method being
+// tested, and returns the gotTeamMemberLogins and teams to be synced.
 // TODO(#9): instead of mock, use a fake client instead.
-func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
+func testGitHubClient(tb testing.TB, tc testCase) ([]map[string]struct{}, []*v1alpha1.GitHubTeam, *github.Client) {
 	tb.Helper()
 
 	// mux is the HTTP request multiplexer used with the test server.
@@ -275,7 +230,64 @@ func testGitHubClient(tb testing.TB) (*github.Client, *http.ServeMux) {
 	client.BaseURL = url
 	client.UploadURL = url
 
-	return client, mux
+	// List active memberships.
+	gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
+	for i, logins := range tc.currTeamMemberLogins {
+		currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(tb, logins)
+		mux.HandleFunc(
+			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/members"),
+			func(w http.ResponseWriter, r *http.Request) {
+				if len(tc.listMemberFail) > i && tc.listMemberFail[i] {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				gotTeamMemberLogins[i] = make(map[string]struct{}, len(logins))
+				for _, l := range logins {
+					gotTeamMemberLogins[i][l] = struct{}{}
+				}
+				fmt.Fprint(w, string(currTeamMemberLoginsBytes))
+			},
+		)
+	}
+
+	// List pending memberships.
+	for i, invites := range tc.currTeamInvitations {
+		currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(tb, invites)
+		mux.HandleFunc(
+			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/invitations"),
+			func(w http.ResponseWriter, r *http.Request) {
+				if len(tc.listInvitationFail) > i && tc.listInvitationFail[i] {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				fmt.Fprint(w, string(currTeamInvitationsBytes))
+			},
+		)
+	}
+
+	// Update membership.
+	teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
+	for i, ls := range tc.teamMemberLogins {
+		for _, u := range testUserLogins {
+			mux.HandleFunc(
+				fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/memberships/", u),
+				func(w http.ResponseWriter, r *http.Request) {
+					if u == testBadUserLogin {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					if r.Method == http.MethodPut {
+						gotTeamMemberLogins[i][u] = struct{}{}
+					} else {
+						delete(gotTeamMemberLogins[i], u)
+					}
+				},
+			)
+		}
+		teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
+	}
+
+	return gotTeamMemberLogins, teams, client
 }
 
 func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
