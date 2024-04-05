@@ -186,7 +186,9 @@ func TestSynchronizer_Sync(t *testing.T) {
 			t.Parallel()
 
 			// Create fake github client.
-			gotTeamMemberLogins, teams, ghClient := testGitHubClient(t, tc)
+			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
+			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
+			ghClient := testGitHubClient(t, tc, gotTeamMemberLogins, teams)
 
 			// Create fake github app.
 			ghApp := testNewGitHubApp(t, tc.tokenServerResqCode)
@@ -206,9 +208,14 @@ func TestSynchronizer_Sync(t *testing.T) {
 // testGitHubClient sets up a test HTTP server along with a github.Client that
 // is configured to talk to that test server. It also register handlers on mux
 // given a test case which provide mock responses for the API method being
-// tested, and returns the gotTeamMemberLogins and teams to be synced.
+// tested, and fills the gotTeamMemberLogins and teams to be synced.
 // TODO(#9): instead of mock, use a fake client instead.
-func testGitHubClient(tb testing.TB, tc testCase) ([]map[string]struct{}, []*v1alpha1.GitHubTeam, *github.Client) {
+func testGitHubClient(
+	tb testing.TB,
+	tc testCase,
+	gotTeamMemberLogins []map[string]struct{},
+	teams []*v1alpha1.GitHubTeam,
+) *github.Client {
 	tb.Helper()
 
 	// mux is the HTTP request multiplexer used with the test server.
@@ -231,7 +238,6 @@ func testGitHubClient(tb testing.TB, tc testCase) ([]map[string]struct{}, []*v1a
 	client.UploadURL = url
 
 	// List active memberships.
-	gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
 	for i, logins := range tc.currTeamMemberLogins {
 		currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(tb, logins)
 		mux.HandleFunc(
@@ -266,7 +272,6 @@ func testGitHubClient(tb testing.TB, tc testCase) ([]map[string]struct{}, []*v1a
 	}
 
 	// Update membership.
-	teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
 	for i, ls := range tc.teamMemberLogins {
 		for _, u := range testUserLogins {
 			mux.HandleFunc(
@@ -287,7 +292,7 @@ func testGitHubClient(tb testing.TB, tc testCase) ([]map[string]struct{}, []*v1a
 		teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
 	}
 
-	return gotTeamMemberLogins, teams, client
+	return client
 }
 
 func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
