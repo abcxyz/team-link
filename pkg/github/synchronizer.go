@@ -143,7 +143,7 @@ func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, te
 func (s *Synchronizer) accessToken(ctx context.Context) (string, error) {
 	tr := &githubauth.TokenRequestAllRepos{
 		Permissions: map[string]string{
-			"organization": "write",
+			"members": "write",
 		},
 	}
 
