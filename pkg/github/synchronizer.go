@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v61/github"
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/sets"

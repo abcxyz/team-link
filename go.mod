@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/abcxyz/pkg v1.0.4
 	github.com/google/go-cmp v0.6.0
-	github.com/google/go-github/v56 v56.0.0
+	github.com/google/go-github/v61 v61.0.0
 	google.golang.org/protobuf v1.33.0
 )
 

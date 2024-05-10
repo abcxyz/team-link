@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v61/github"
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/testutil"
