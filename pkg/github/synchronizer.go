@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-github/v61/github"
 
 	"github.com/abcxyz/pkg/githubauth"
-	"github.com/abcxyz/pkg/sets"
+	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/team-link/apis/v1alpha1"
 )
 
@@ -43,11 +43,13 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchroniz
 	}
 }
 
-// Sync overides several GitHub teams' memberships with the provided team
+// Sync overrides several GitHub teams' memberships with the provided team
 // membership snapshots.
 // TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
 // this since they are required when updating GitHub team memberships.
 func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) error {
+	logger := logging.FromContext(ctx)
+
 	// Configure Github auth token to the GitHub client.
 	t, err := s.accessToken(ctx)
 	if err != nil {
@@ -57,9 +59,9 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 
 	var retErr error
 	for _, team := range teams {
-		// Get current team members' login from GitHub and expected team members'
-		// user from the team object.
-		gotLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId())
+		// Get current team members including both active member and pending
+		// membership invitations from GitHub.
+		gotMembers, err := s.currentTeamMembers(ctx, ghClient, team.GetOrgId(), team.GetTeamId())
 		if err != nil {
 			retErr = errors.Join(
 				retErr,
@@ -67,15 +69,29 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 			)
 			continue
 		}
-		wantLogins := loginsFromTeam(team)
 
 		// Add GitHub team memberships.
-		for _, u := range sets.Subtract(wantLogins, gotLogins) {
+		gotMemberLogins := loginsFromUsers(gotMembers)
+		gotMemberEmails := emailsFromUsers(gotMembers)
+		for _, u := range team.GetUsers() {
+			if _, ok := gotMemberLogins[u.GetLogin()]; ok {
+				continue
+			}
+			if _, ok := gotMemberEmails[u.GetEmail()]; ok {
+				continue
+			}
+			if u.GetLogin() == "" {
+				logger.WarnContext(
+					ctx,
+					"skip adding membership by user email, please provide user login instead",
+					"user email", u.GetEmail())
+				continue
+			}
 			if _, _, err := ghClient.Teams.AddTeamMembershipByID(
 				ctx,
 				team.GetOrgId(),
 				team.GetTeamId(),
-				u,
+				u.GetLogin(),
 				&github.TeamAddTeamMembershipOptions{Role: "member"},
 			); err != nil {
 				retErr = errors.Join(
@@ -84,9 +100,28 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 				)
 			}
 		}
+
 		// Remove GitHub team memberships.
-		for _, u := range sets.Subtract(gotLogins, wantLogins) {
-			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
+		wantMemberLogins := loginsFromUsers(team.GetUsers())
+		wantMemberEmails := emailsFromUsers(team.GetUsers())
+		for _, u := range gotMembers {
+			if _, ok := wantMemberLogins[u.GetLogin()]; ok {
+				continue
+			}
+			if _, ok := wantMemberEmails[u.GetEmail()]; ok {
+				continue
+			}
+			if u.GetLogin() == "" {
+				// We don't cancel pending invitations since one invitation could
+				// involve multiple teams, see team_ids parameter in GitHub API
+				// https://docs.github.com/en/rest/orgs/members?apiVersion=2022-11-28#create-an-organization-invitation
+				logger.InfoContext(
+					ctx,
+					"skip removing membership by user email, it is probably a pending invitation",
+					"user email", u.GetEmail())
+				continue
+			}
+			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u.GetLogin()); err != nil {
 				retErr = errors.Join(
 					retErr,
 					fmt.Errorf("failed to remove GitHub team members for team(%d): %w", team.GetTeamId(), err),
@@ -97,35 +132,35 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 	return retErr
 }
 
-// currentTeamLogins returns a list of GitHub logins that are members or has
+// currentTeamMembers returns a list of GitHub users that are members or has
 // invitations to the given GitHub team.
 // TODO(#6): make the paginated GitHub API call generic.
-func (s *Synchronizer) currentTeamLogins(
+func (s *Synchronizer) currentTeamMembers(
 	ctx context.Context,
 	c *github.Client,
 	orgID, teamID int64,
-) ([]string, error) {
+) ([]*v1alpha1.GitHubUser, error) {
 	callMap := []func(
 		ctx context.Context,
 		c *github.Client,
 		orgID, teamID int64,
 		opt *github.ListOptions,
-	) ([]string, *github.Response, error){
+	) ([]*v1alpha1.GitHubUser, *github.Response, error){
 		listActiveTeamMembers,
 		listPendingTeamInvitations,
 	}
-	var res []string
+	var res []*v1alpha1.GitHubUser
 	for _, f := range callMap {
 		opt := &github.ListOptions{
 			PerPage: 100,
 		}
 		for {
-			logins, resp, err := f(ctx, c, orgID, teamID, opt)
+			users, resp, err := f(ctx, c, orgID, teamID, opt)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get team member/invitation logins: %w", err)
 			}
 
-			res = sets.Union(res, logins)
+			res = append(res, users...)
 			if resp.NextPage == 0 {
 				break // No more pages to fetch
 			}
@@ -135,7 +170,12 @@ func (s *Synchronizer) currentTeamLogins(
 	return res, nil
 }
 
-func listActiveTeamMembers(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
+func listActiveTeamMembers(
+	ctx context.Context,
+	c *github.Client,
+	orgID, teamID int64,
+	opt *github.ListOptions,
+) ([]*v1alpha1.GitHubUser, *github.Response, error) {
 	o := &github.TeamListTeamMembersOptions{
 		Role:        "all",
 		ListOptions: *opt,
@@ -144,23 +184,45 @@ func listActiveTeamMembers(ctx context.Context, c *github.Client, orgID, teamID 
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list team membership: %w", err)
 	}
-	logins := make([]string, 0, len(members))
+	users := make([]*v1alpha1.GitHubUser, 0, len(members))
 	for _, m := range members {
-		logins = append(logins, *m.Login)
+		u := &v1alpha1.GitHubUser{}
+		if m.Login != nil {
+			u.Login = *m.Login
+		}
+		if m.Email != nil {
+			u.Email = *m.Email
+		}
+		users = append(users, u)
 	}
-	return logins, resp, nil
+	return users, resp, nil
 }
 
-func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
+// listPendingTeamInvitations a list of GitHub
+func listPendingTeamInvitations(
+	ctx context.Context,
+	c *github.Client,
+	orgID, teamID int64,
+	opt *github.ListOptions,
+) ([]*v1alpha1.GitHubUser, *github.Response, error) {
 	invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, opt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list team invitations: %w", err)
 	}
-	logins := make([]string, 0, len(invitations))
+	users := make([]*v1alpha1.GitHubUser, 0, len(invitations))
 	for _, inv := range invitations {
-		logins = append(logins, *inv.Login)
+		u := &v1alpha1.GitHubUser{}
+		// It is possible that login is missing when an invitation is sent to an
+		// email.
+		if inv.Login != nil {
+			u.Login = *inv.Login
+		}
+		if inv.Email != nil {
+			u.Email = *inv.Email
+		}
+		users = append(users, u)
 	}
-	return logins, resp, nil
+	return users, resp, nil
 }
 
 func (s *Synchronizer) accessToken(ctx context.Context) (string, error) {
@@ -177,12 +239,26 @@ func (s *Synchronizer) accessToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
-// loginsFromTeam returns a list of GitHub logins/usernames that are in the
-// given team object.
-func loginsFromTeam(team *v1alpha1.GitHubTeam) []string {
-	res := make([]string, len(team.GetUsers()))
-	for i, m := range team.GetUsers() {
-		res[i] = m.GetLogin()
+// loginsFromUsers returns a set/map of GitHub logins/usernames that are in the
+// given user list.
+func loginsFromUsers(us []*v1alpha1.GitHubUser) map[string]struct{} {
+	res := make(map[string]struct{})
+	for _, m := range us {
+		if m.GetLogin() != "" {
+			res[m.GetLogin()] = struct{}{}
+		}
+	}
+	return res
+}
+
+// emailsFromUsers returns a set/map of GitHub user email that are in the
+// given user list.
+func emailsFromUsers(us []*v1alpha1.GitHubUser) map[string]struct{} {
+	res := make(map[string]struct{})
+	for _, m := range us {
+		if m.GetEmail() != "" {
+			res[m.GetEmail()] = struct{}{}
+		}
 	}
 	return res
 }

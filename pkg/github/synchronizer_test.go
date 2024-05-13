@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,13 +51,13 @@ type testCase struct {
 	tokenServerResqCode int
 	// For lists below, list[0] is for testTeamIDs[0], list[1] is for
 	// testTeamIDs[1].
-	teamMemberLogins     [][]string
-	currTeamMemberLogins [][]string
-	currTeamInvitations  [][]string
-	listMemberFail       []bool
-	listInvitationFail   []bool
-	wantTeamMemberLogins []map[string]struct{}
-	wantSyncErrSubStr    string
+	teamMemberLoginOrEmails [][]string
+	currTeamMemberLogins    [][]string
+	currTeamInvitations     [][]string
+	listMemberFail          []bool
+	listInvitationFail      []bool
+	wantTeamMemberLogins    []map[string]struct{}
+	wantSyncErrSubStr       string
 }
 
 func TestSynchronizer_Sync(t *testing.T) {
@@ -65,7 +66,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 	cases := []testCase{
 		{
 			name: "success_add_and_remove_members",
-			teamMemberLogins: [][]string{
+			teamMemberLoginOrEmails: [][]string{
 				{"test-login-a", "test-login-b", "test-login-c"},
 				{"test-login-a", "test-login-b"},
 			},
@@ -84,8 +85,39 @@ func TestSynchronizer_Sync(t *testing.T) {
 			},
 		},
 		{
+			name: "success_skip_pending_invitation_to_email",
+			teamMemberLoginOrEmails: [][]string{
+				{"test-login-a"},
+				{},
+			},
+			currTeamMemberLogins: [][]string{{}, {}},
+			currTeamInvitations: [][]string{
+				{"test-email@example.com"},
+				{},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{},
+			},
+		},
+		{
+			name: "success_skip_adding_user_email",
+			teamMemberLoginOrEmails: [][]string{
+				{"test-login-a", "test-email@example.com"},
+				{},
+			},
+			currTeamMemberLogins: [][]string{{}, {}},
+			currTeamInvitations:  [][]string{{}, {}},
+			tokenServerResqCode:  http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{},
+			},
+		},
+		{
 			name: "list_member_fail",
-			teamMemberLogins: [][]string{
+			teamMemberLoginOrEmails: [][]string{
 				{"test-login-a"},
 				{"test-login-a"},
 			},
@@ -107,7 +139,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 		},
 		{
 			name: "list_invitation_fail",
-			teamMemberLogins: [][]string{
+			teamMemberLoginOrEmails: [][]string{
 				{"test-login-a"},
 				{"test-login-a"},
 			},
@@ -129,7 +161,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 		},
 		{
 			name: "add_member_fail",
-			teamMemberLogins: [][]string{
+			teamMemberLoginOrEmails: [][]string{
 				{"test-login-a"},
 				{"test-login-a", "test-login-b", testBadUserLogin},
 			},
@@ -150,7 +182,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 		},
 		{
 			name: "remove_member_fail",
-			teamMemberLogins: [][]string{
+			teamMemberLoginOrEmails: [][]string{
 				{"test-login-a"},
 				{"test-login-a", "test-login-b", "test-login-c"},
 			},
@@ -170,11 +202,11 @@ func TestSynchronizer_Sync(t *testing.T) {
 			wantSyncErrSubStr: fmt.Sprintf("failed to remove GitHub team members for team(%d)", testTeamIDs[1]),
 		},
 		{
-			name:                 "get_access_token_fail",
-			teamMemberLogins:     [][]string{{"test-login-a", "test-login-b", "test-login-c"}},
-			tokenServerResqCode:  http.StatusUnauthorized,
-			wantTeamMemberLogins: []map[string]struct{}{nil},
-			wantSyncErrSubStr:    "failed to get access token",
+			name:                    "get_access_token_fail",
+			teamMemberLoginOrEmails: [][]string{{"test-login-a", "test-login-b", "test-login-c"}},
+			tokenServerResqCode:     http.StatusUnauthorized,
+			wantTeamMemberLogins:    []map[string]struct{}{nil},
+			wantSyncErrSubStr:       "failed to get access token",
 		},
 	}
 
@@ -186,8 +218,8 @@ func TestSynchronizer_Sync(t *testing.T) {
 			t.Parallel()
 
 			// Create fake github client.
-			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
-			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
+			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLoginOrEmails))
+			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLoginOrEmails))
 			ghClient := testGitHubClient(t, tc, gotTeamMemberLogins, teams)
 
 			// Create fake github app.
@@ -239,7 +271,7 @@ func testGitHubClient(
 
 	// List active memberships.
 	for i, logins := range tc.currTeamMemberLogins {
-		currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(tb, logins)
+		currTeamMemberLoginsBytes := testJSONMarshalGitHubUser(tb, logins)
 		mux.HandleFunc(
 			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/members"),
 			func(w http.ResponseWriter, r *http.Request) {
@@ -258,7 +290,7 @@ func testGitHubClient(
 
 	// List pending memberships.
 	for i, invites := range tc.currTeamInvitations {
-		currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(tb, invites)
+		currTeamInvitationsBytes := testJSONMarshalGitHubUser(tb, invites)
 		mux.HandleFunc(
 			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/invitations"),
 			func(w http.ResponseWriter, r *http.Request) {
@@ -272,7 +304,7 @@ func testGitHubClient(
 	}
 
 	// Update membership.
-	for i, ls := range tc.teamMemberLogins {
+	for i, ls := range tc.teamMemberLoginOrEmails {
 		for _, u := range testUserLogins {
 			mux.HandleFunc(
 				fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/memberships/", u),
@@ -289,7 +321,7 @@ func testGitHubClient(
 				},
 			)
 		}
-		teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
+		teams[i] = githubTeam(ls, testTeamIDs[i])
 	}
 
 	return client
@@ -322,10 +354,17 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	return ghApp
 }
 
-func teamWithUserLogins(arr []string, teamID int64) *v1alpha1.GitHubTeam {
+// Create a GitHub team with users given team ID and a list of mixed email and
+// login of users.The string will be treated as a GitHub user login unless it
+// contains '@' which will be treated as a GitHub user email.
+func githubTeam(arr []string, teamID int64) *v1alpha1.GitHubTeam {
 	users := make([]*v1alpha1.GitHubUser, len(arr))
 	for i, s := range arr {
-		users[i] = &v1alpha1.GitHubUser{Login: s}
+		if strings.Contains(s, "@") {
+			users[i] = &v1alpha1.GitHubUser{Email: s}
+		} else {
+			users[i] = &v1alpha1.GitHubUser{Login: s}
+		}
 	}
 	return &v1alpha1.GitHubTeam{
 		OrgId:  testOrgID,
@@ -334,13 +373,20 @@ func teamWithUserLogins(arr []string, teamID int64) *v1alpha1.GitHubTeam {
 	}
 }
 
-func testJSONMarshalGitHubUserLogins(tb testing.TB, arr []string) []byte {
+// Convert a list of mixed email and login of users into a list of GitHub users
+// and then marshal them to Json. The string will be treated as a GitHub user
+// login unless it contains '@' which will be treated as a GitHub user email.
+func testJSONMarshalGitHubUser(tb testing.TB, arr []string) []byte {
 	tb.Helper()
 
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
-		//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22.
-		logins[i] = &github.User{Login: &s} //#nosec G601 // loop variable is not reused.
+		if strings.Contains(s, "@") {
+			logins[i] = &github.User{Email: &s}
+		} else {
+			//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22.
+			logins[i] = &github.User{Login: &s} //#nosec G601 // loop variable is not reused.
+		}
 	}
 	res, err := json.Marshal(logins)
 	if err != nil {
