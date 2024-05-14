@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-github/v61/github"
 
 	"github.com/abcxyz/pkg/githubauth"
+	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/apis/v1alpha1"
 )
@@ -86,6 +87,8 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 		}
 		// Remove GitHub team memberships.
 		for _, u := range sets.Subtract(gotLogins, wantLogins) {
+			// If it is a pending invitation, RemoveTeamMembershipByID will cancel the
+			// pending invitation for the team and for that user.
 			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
 				retErr = errors.Join(
 					retErr,
@@ -146,19 +149,36 @@ func listActiveTeamMembers(ctx context.Context, c *github.Client, orgID, teamID 
 	}
 	logins := make([]string, 0, len(members))
 	for _, m := range members {
-		logins = append(logins, *m.Login)
+		// just checking, login should be provided for active members.
+		if m.GetLogin() != "" {
+			logins = append(logins, m.GetLogin())
+		}
 	}
 	return logins, resp, nil
 }
 
 func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
+	logger := logging.FromContext(ctx)
+
 	invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, opt)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list team invitations: %w", err)
 	}
 	logins := make([]string, 0, len(invitations))
 	for _, inv := range invitations {
-		logins = append(logins, *inv.Login)
+		// login could be missing if the invitation is sent to an email.
+		if inv.GetLogin() == "" {
+			logger.WarnContext(
+				ctx,
+				`skip checking invitation due to missing GitHub user login, please check
+the invitation manually to make sure it is valid`,
+				"invitation", inv,
+				"team_id", teamID,
+				"org_id", orgID,
+			)
+			continue
+		}
+		logins = append(logins, inv.GetLogin())
 	}
 	return logins, resp, nil
 }
