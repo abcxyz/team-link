@@ -382,7 +382,8 @@ func testJSONMarshalGitHubUser(tb testing.TB, arr []string) []byte {
 	logins := make([]*github.User, len(arr))
 	for i, s := range arr {
 		if strings.Contains(s, "@") {
-			logins[i] = &github.User{Email: &s}
+			//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22.
+			logins[i] = &github.User{Email: &s} //#nosec G601 // loop variable is not reused.
 		} else {
 			//nolint:exportloopref // loop variable is not reused in https://tip.golang.org/doc/go1.22.
 			logins[i] = &github.User{Login: &s} //#nosec G601 // loop variable is not reused.

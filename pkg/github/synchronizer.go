@@ -84,7 +84,7 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 				logger.WarnContext(
 					ctx,
 					"skip adding membership by user email, please provide user login instead",
-					"user email", u.GetEmail())
+					"user_email", u.GetEmail())
 				continue
 			}
 			if _, _, err := ghClient.Teams.AddTeamMembershipByID(
@@ -118,7 +118,7 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 				logger.InfoContext(
 					ctx,
 					"skip removing membership by user email, it is probably a pending invitation",
-					"user email", u.GetEmail())
+					"user_email", u.GetEmail())
 				continue
 			}
 			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u.GetLogin()); err != nil {
@@ -198,7 +198,6 @@ func listActiveTeamMembers(
 	return users, resp, nil
 }
 
-// listPendingTeamInvitations a list of GitHub
 func listPendingTeamInvitations(
 	ctx context.Context,
 	c *github.Client,
