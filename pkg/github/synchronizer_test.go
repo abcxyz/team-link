@@ -42,7 +42,7 @@ const (
 var (
 	testTeamIDs          = []int64{2345678, 3456789}
 	testMuxPatternPrefix = fmt.Sprintf("/organizations/%d/team/", testOrgID)
-	testUserLogins       = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin}
+	testUserLogins       = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin, ""}
 )
 
 type testCase struct {
@@ -81,6 +81,20 @@ func TestSynchronizer_Sync(t *testing.T) {
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}, "test-login-c": {}},
 				{"test-login-a": {}},
+			},
+		},
+		{
+			name: "success_skip_empty_user_login_in_invitation",
+			teamMemberLogins: [][]string{
+				{"test-login-a"},
+				{},
+			},
+			currTeamMemberLogins: [][]string{{}, {}},
+			currTeamInvitations:  [][]string{{""}, {}},
+			tokenServerResqCode:  http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}},
+				{},
 			},
 		},
 		{
@@ -284,6 +298,9 @@ func testGitHubClient(
 					if r.Method == http.MethodPut {
 						gotTeamMemberLogins[i][u] = struct{}{}
 					} else {
+						if _, ok := gotTeamMemberLogins[i][u]; !ok {
+							tb.Errorf("cannot remove user(%q), membership not exist", u)
+						}
 						delete(gotTeamMemberLogins[i], u)
 					}
 				},
