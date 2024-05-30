@@ -47,6 +47,7 @@ var (
 
 type testCase struct {
 	name                string
+	dryrun              bool
 	tokenServerResqCode int
 	// For lists below, list[0] is for testTeamIDs[0], list[1] is for
 	// testTeamIDs[1].
@@ -81,6 +82,27 @@ func TestSynchronizer_Sync(t *testing.T) {
 			wantTeamMemberLogins: []map[string]struct{}{
 				{"test-login-a": {}, "test-login-c": {}},
 				{"test-login-a": {}},
+			},
+		},
+		{
+			name:   "success_add_and_remove_members_dryrun",
+			dryrun: true,
+			teamMemberLogins: [][]string{
+				{"test-login-a", "test-login-b", "test-login-c"},
+				{"test-login-a", "test-login-b"},
+			},
+			currTeamMemberLogins: [][]string{
+				{"test-login-a", "test-login-d"},
+				{"test-login-a", "test-login-c"},
+			},
+			currTeamInvitations: [][]string{
+				{"test-login-b"},
+				{"test-login-b"},
+			},
+			tokenServerResqCode: http.StatusCreated,
+			wantTeamMemberLogins: []map[string]struct{}{
+				{"test-login-a": {}, "test-login-d": {}},
+				{"test-login-a": {}, "test-login-c": {}},
 			},
 		},
 		{
@@ -207,7 +229,15 @@ func TestSynchronizer_Sync(t *testing.T) {
 			// Create fake github app.
 			ghApp := testNewGitHubApp(t, tc.tokenServerResqCode)
 
-			s := NewSynchronizer(ghClient, ghApp)
+			opts := []Option{}
+			if tc.dryrun {
+				opts = append(opts, WithDryRun())
+			}
+			s, err := NewSynchronizer(ghClient, ghApp, opts...)
+			if err != nil {
+				t.Fatalf("failed to create synchronizer: %v", err)
+			}
+
 			gotSyncErr := s.Sync(ctx, teams)
 			if diff := testutil.DiffErrString(gotSyncErr, tc.wantSyncErrSubStr); diff != "" {
 				t.Errorf("Process(%+v) got unexpected error substring: %v", tc.name, diff)
