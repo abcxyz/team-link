@@ -34,14 +34,33 @@ import (
 type Synchronizer struct {
 	client    *github.Client
 	githubApp *githubauth.App
+	dryrun    bool
+}
+
+// Option to set up a synchronizer.
+type Option func(*Synchronizer) error
+
+// Enable dryrun mode for synchronizer, in dryrun mode, the synchronizer will
+// only log the membership updates instead of doing a real sync.
+func WithDryRun() Option {
+	return func(s *Synchronizer) error {
+		s.dryrun = true
+		return nil
+	}
 }
 
 // NewSynchronizer creates a new Synchronizer with provided clients and options.
-func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchronizer {
-	return &Synchronizer{
+func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App, opts ...Option) (*Synchronizer, error) {
+	s := &Synchronizer{
 		client:    ghClient,
 		githubApp: ghApp,
 	}
+	for _, o := range opts {
+		if err := o(s); err != nil {
+			return nil, fmt.Errorf("failed to set option: %w", err)
+		}
+	}
+	return s, nil
 }
 
 // Sync overides several GitHub teams' memberships with the provided team
@@ -49,6 +68,7 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App) *Synchroniz
 // TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
 // this since they are required when updating GitHub team memberships.
 func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) error {
+	logger := logging.FromContext(ctx)
 	// Configure Github auth token to the GitHub client.
 	t, err := s.accessToken(ctx)
 	if err != nil {
@@ -70,8 +90,21 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 		}
 		wantLogins := loginsFromTeam(team)
 
+		add := sets.Subtract(wantLogins, gotLogins)
+		remove := sets.Subtract(gotLogins, wantLogins)
+		if s.dryrun {
+			logger.InfoContext(
+				ctx,
+				"dryrun mode is on, skip updating memberships",
+				"team", team.GetTeamId(),
+				"users_to_add", add,
+				"users_to_remove", remove,
+			)
+			continue
+		}
+
 		// Add GitHub team memberships.
-		for _, u := range sets.Subtract(wantLogins, gotLogins) {
+		for _, u := range add {
 			if _, _, err := ghClient.Teams.AddTeamMembershipByID(
 				ctx,
 				team.GetOrgId(),
@@ -85,8 +118,8 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 				)
 			}
 		}
-		// Remove GitHub team memberships.
-		for _, u := range sets.Subtract(gotLogins, wantLogins) {
+		// Remove GitHub team memberships
+		for _, u := range remove {
 			// If it is a pending invitation, RemoveTeamMembershipByID will cancel the
 			// pending invitation for the team and for that user.
 			if _, err := ghClient.Teams.RemoveTeamMembershipByID(ctx, team.GetOrgId(), team.GetTeamId(), u); err != nil {
