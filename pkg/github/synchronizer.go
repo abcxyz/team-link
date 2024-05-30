@@ -97,8 +97,8 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 				ctx,
 				"dryrun mode is on, skip updating memberships",
 				"team", team.GetTeamId(),
-				"users to add", add,
-				"users to remove", remove,
+				"users_to_add", add,
+				"users_to_remove", remove,
 			)
 			continue
 		}
