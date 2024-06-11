@@ -95,7 +95,7 @@ type GitHubTeam struct {
 	OrgId int64 `protobuf:"varint,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	// Required. GitHub users to be added to the team.
 	Users []*GitHubUser `protobuf:"bytes,3,rep,name=users,proto3" json:"users,omitempty"`
-	// Required. Linked source team IDs. The actual value depending on the source
+	// Required. Linked source team IDs. The actual value depends on the source
 	// team service API, what value it uses to retrieve the source team.
 	SourceTeamIds []string `protobuf:"bytes,4,rep,name=source_team_ids,json=sourceTeamIds,proto3" json:"source_team_ids,omitempty"`
 }
@@ -236,6 +236,145 @@ func (x *GitHubUser) GetLabels() map[string]string {
 	return nil
 }
 
+// TeamMappings represents a list of destination(GitHub) to source team mappings.
+type TeamMappings struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Required. GitHub to source team mappings.
+	TeamMappings []*TeamMapping `protobuf:"bytes,1,rep,name=team_mappings,json=teamMappings,proto3" json:"team_mappings,omitempty"`
+}
+
+func (x *TeamMappings) Reset() {
+	*x = TeamMappings{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_team_link_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TeamMappings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeamMappings) ProtoMessage() {}
+
+func (x *TeamMappings) ProtoReflect() protoreflect.Message {
+	mi := &file_team_link_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeamMappings.ProtoReflect.Descriptor instead.
+func (*TeamMappings) Descriptor() ([]byte, []int) {
+	return file_team_link_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TeamMappings) GetTeamMappings() []*TeamMapping {
+	if x != nil {
+		return x.TeamMappings
+	}
+	return nil
+}
+
+// TeamMapping represents a mapping from a destination(GitHub) to a list of
+// source teams. It also contains other required information such as Github
+// organization.
+type TeamMapping struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Required. The ID of the GitHub team.
+	GithubTeamId int64 `protobuf:"varint,1,opt,name=github_team_id,json=githubTeamId,proto3" json:"github_team_id,omitempty"`
+	// Required. The ID of the GitHub organization.
+	GithubOrgId int64 `protobuf:"varint,2,opt,name=github_org_id,json=githubOrgId,proto3" json:"github_org_id,omitempty"`
+	// Required. Source team IDs. The actual value depends on the source team
+	// service API, what value it uses to retrieve the source team.
+	SourceTeamIds []string `protobuf:"bytes,3,rep,name=source_team_ids,json=sourceTeamIds,proto3" json:"source_team_ids,omitempty"`
+	// Optional. The name of the GitHub team, note it is changeable and is
+	// optional for readability.
+	GithubTeamName string `protobuf:"bytes,4,opt,name=github_team_name,json=githubTeamName,proto3" json:"github_team_name,omitempty"`
+	// Optional. The name of the GitHub organization, note it is changeable and is
+	// optional for readability.
+	GithubOrgName string `protobuf:"bytes,5,opt,name=github_org_name,json=githubOrgName,proto3" json:"github_org_name,omitempty"`
+}
+
+func (x *TeamMapping) Reset() {
+	*x = TeamMapping{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_team_link_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TeamMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeamMapping) ProtoMessage() {}
+
+func (x *TeamMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_team_link_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeamMapping.ProtoReflect.Descriptor instead.
+func (*TeamMapping) Descriptor() ([]byte, []int) {
+	return file_team_link_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TeamMapping) GetGithubTeamId() int64 {
+	if x != nil {
+		return x.GithubTeamId
+	}
+	return 0
+}
+
+func (x *TeamMapping) GetGithubOrgId() int64 {
+	if x != nil {
+		return x.GithubOrgId
+	}
+	return 0
+}
+
+func (x *TeamMapping) GetSourceTeamIds() []string {
+	if x != nil {
+		return x.SourceTeamIds
+	}
+	return nil
+}
+
+func (x *TeamMapping) GetGithubTeamName() string {
+	if x != nil {
+		return x.GithubTeamName
+	}
+	return ""
+}
+
+func (x *TeamMapping) GetGithubOrgName() string {
+	if x != nil {
+		return x.GithubOrgName
+	}
+	return ""
+}
+
 var File_team_link_proto protoreflect.FileDescriptor
 
 var file_team_link_proto_rawDesc = []byte{
@@ -263,10 +402,27 @@ var file_team_link_proto_rawDesc = []byte{
 	0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c,
 	0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a,
-	0x02, 0x38, 0x01, 0x42, 0x24, 0x5a, 0x22, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
-	0x6d, 0x2f, 0x74, 0x65, 0x61, 0x6d, 0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x2f, 0x61, 0x70, 0x69, 0x73,
-	0x2f, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x02, 0x38, 0x01, 0x22, 0x41, 0x0a, 0x0c, 0x54, 0x65, 0x61, 0x6d, 0x4d, 0x61, 0x70, 0x70, 0x69,
+	0x6e, 0x67, 0x73, 0x12, 0x31, 0x0a, 0x0d, 0x74, 0x65, 0x61, 0x6d, 0x5f, 0x6d, 0x61, 0x70, 0x70,
+	0x69, 0x6e, 0x67, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x54, 0x65, 0x61,
+	0x6d, 0x4d, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x52, 0x0c, 0x74, 0x65, 0x61, 0x6d, 0x4d, 0x61,
+	0x70, 0x70, 0x69, 0x6e, 0x67, 0x73, 0x22, 0xd1, 0x01, 0x0a, 0x0b, 0x54, 0x65, 0x61, 0x6d, 0x4d,
+	0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x12, 0x24, 0x0a, 0x0e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x5f, 0x74, 0x65, 0x61, 0x6d, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0c,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x54, 0x65, 0x61, 0x6d, 0x49, 0x64, 0x12, 0x22, 0x0a, 0x0d,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x5f, 0x6f, 0x72, 0x67, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x03, 0x52, 0x0b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x4f, 0x72, 0x67, 0x49, 0x64,
+	0x12, 0x26, 0x0a, 0x0f, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x74, 0x65, 0x61, 0x6d, 0x5f,
+	0x69, 0x64, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x09, 0x52, 0x0d, 0x73, 0x6f, 0x75, 0x72, 0x63,
+	0x65, 0x54, 0x65, 0x61, 0x6d, 0x49, 0x64, 0x73, 0x12, 0x28, 0x0a, 0x10, 0x67, 0x69, 0x74, 0x68,
+	0x75, 0x62, 0x5f, 0x74, 0x65, 0x61, 0x6d, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x04, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x0e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x54, 0x65, 0x61, 0x6d, 0x4e, 0x61,
+	0x6d, 0x65, 0x12, 0x26, 0x0a, 0x0f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x5f, 0x6f, 0x72, 0x67,
+	0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x4f, 0x72, 0x67, 0x4e, 0x61, 0x6d, 0x65, 0x42, 0x24, 0x5a, 0x22, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x65, 0x61, 0x6d, 0x2d, 0x6c, 0x69,
+	0x6e, 0x6b, 0x2f, 0x61, 0x70, 0x69, 0x73, 0x2f, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -281,21 +437,24 @@ func file_team_link_proto_rawDescGZIP() []byte {
 	return file_team_link_proto_rawDescData
 }
 
-var file_team_link_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_team_link_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_team_link_proto_goTypes = []interface{}{
-	(*SourceEvent)(nil), // 0: SourceEvent
-	(*GitHubTeam)(nil),  // 1: GitHubTeam
-	(*GitHubUser)(nil),  // 2: GitHubUser
-	nil,                 // 3: GitHubUser.LabelsEntry
+	(*SourceEvent)(nil),  // 0: SourceEvent
+	(*GitHubTeam)(nil),   // 1: GitHubTeam
+	(*GitHubUser)(nil),   // 2: GitHubUser
+	(*TeamMappings)(nil), // 3: TeamMappings
+	(*TeamMapping)(nil),  // 4: TeamMapping
+	nil,                  // 5: GitHubUser.LabelsEntry
 }
 var file_team_link_proto_depIdxs = []int32{
 	2, // 0: GitHubTeam.users:type_name -> GitHubUser
-	3, // 1: GitHubUser.labels:type_name -> GitHubUser.LabelsEntry
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 1: GitHubUser.labels:type_name -> GitHubUser.LabelsEntry
+	4, // 2: TeamMappings.team_mappings:type_name -> TeamMapping
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_team_link_proto_init() }
@@ -340,6 +499,30 @@ func file_team_link_proto_init() {
 				return nil
 			}
 		}
+		file_team_link_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TeamMappings); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_team_link_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TeamMapping); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -347,7 +530,7 @@ func file_team_link_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_team_link_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

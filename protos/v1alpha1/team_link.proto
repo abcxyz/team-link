@@ -33,7 +33,7 @@ message GitHubTeam {
   // Required. GitHub users to be added to the team.
   repeated GitHubUser users = 3;
 
-  // Required. Linked source team IDs. The actual value depending on the source
+  // Required. Linked source team IDs. The actual value depends on the source
   // team service API, what value it uses to retrieve the source team.
   repeated string source_team_ids = 4;
 }
@@ -51,4 +51,33 @@ message GitHubUser {
 
   // Optional. Any additional information such as type of the user (employee, vendor, etc.).
   map<string, string> labels = 15;
+}
+
+// TeamMappings represents a list of destination(GitHub) to source team mappings.
+message TeamMappings {
+  // Required. GitHub to source team mappings.
+  repeated TeamMapping team_mappings = 1;
+}
+
+// TeamMapping represents a mapping from a destination(GitHub) team to a list of
+// source teams. It also contains other required information such as Github
+// organization.
+message TeamMapping {
+  // Required. The ID of the GitHub team.
+  int64 github_team_id = 1;
+
+  // Required. The ID of the GitHub organization.
+  int64 github_org_id = 2;
+
+  // Required. Source team IDs. The actual value depends on the source team
+  // service API, what value it uses to retrieve the source team.
+  repeated string source_team_ids = 3;
+
+  // Optional. The name of the GitHub team, note it is changeable and is
+  // optional for context.
+  string github_team_name = 4;
+
+  // Optional. The name of the GitHub organization, note it is changeable and is
+  // optional for context.
+  string github_org_name = 5;
 }
