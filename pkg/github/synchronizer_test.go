@@ -377,7 +377,7 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	return ghApp
 }
 
-func teamWithUserLogins(arr []string, teamID int64, OrgID int64) *v1alpha1.GitHubTeam {
+func teamWithUserLogins(arr []string, teamID, OrgID int64) *v1alpha1.GitHubTeam {
 	users := make([]*v1alpha1.GitHubUser, len(arr))
 	for i, s := range arr {
 		users[i] = &v1alpha1.GitHubUser{Login: s}
