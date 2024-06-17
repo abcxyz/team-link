@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/google/go-github/v61/github"
 
@@ -69,15 +70,22 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App, opts ...Opt
 // this since they are required when updating GitHub team memberships.
 func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) error {
 	logger := logging.FromContext(ctx)
-	// Configure Github auth token to the GitHub client.
-	t, err := s.accessToken(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get access token: %w", err)
-	}
-	ghClient := s.client.WithAuthToken(t)
 
 	var retErr error
+	ghClientMap := make(map[int64]*github.Client)
 	for _, team := range teams {
+		// Get the GitHub client that uses the auth token from the right org
+		// installation.
+		if _, ok := ghClientMap[team.GetOrgId()]; !ok {
+			c, err := s.githubClient(ctx, team.GetOrgId())
+			if err != nil {
+				retErr = errors.Join(retErr, err)
+				continue
+			}
+			ghClientMap[team.GetOrgId()] = c
+		}
+		ghClient := ghClientMap[team.GetOrgId()]
+
 		// Get current team members' login from GitHub and expected team members'
 		// user from the team object.
 		gotLogins, err := s.currentTeamLogins(ctx, ghClient, team.GetOrgId(), team.GetTeamId())
@@ -216,18 +224,23 @@ the invitation manually to make sure it is valid`,
 	return logins, resp, nil
 }
 
-func (s *Synchronizer) accessToken(ctx context.Context) (string, error) {
+// githubClient returns a github client configured to use an installation access
+// token.
+func (s *Synchronizer) githubClient(ctx context.Context, orgID int64) (*github.Client, error) {
 	tr := &githubauth.TokenRequestAllRepos{
 		Permissions: map[string]string{
 			"members": "write",
 		},
 	}
-
-	token, err := s.githubApp.AccessTokenAllRepos(ctx, tr)
+	appInstallation, err := s.githubApp.InstallationForOrg(ctx, strconv.FormatInt(orgID, 10))
 	if err != nil {
-		return "", fmt.Errorf("failed to get access token: %w", err)
+		return nil, fmt.Errorf("failed get GitHub App installation: %w", err)
 	}
-	return token, nil
+	token, err := appInstallation.AccessTokenAllRepos(ctx, tr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub App installtion access token: %w", err)
+	}
+	return s.client.WithAuthToken(token), nil
 }
 
 // loginsFromTeam returns a list of GitHub logins/usernames that are in the

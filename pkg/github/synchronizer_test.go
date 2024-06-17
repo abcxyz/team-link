@@ -24,7 +24,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v61/github"
@@ -36,21 +35,21 @@ import (
 
 const (
 	testBadUserLogin = "bad_user_name"
-	testOrgID        = 1234567
+	testMuxPattern   = "/organizations/%d/team/"
 )
 
 var (
-	testTeamIDs          = []int64{2345678, 3456789}
-	testMuxPatternPrefix = fmt.Sprintf("/organizations/%d/team/", testOrgID)
-	testUserLogins       = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin, ""}
+	testTeamIDs    = []int64{2345678, 3456789}
+	testOrgIDs     = []int64{1234567, 2234567}
+	testUserLogins = []string{"test-login-a", "test-login-b", "test-login-c", "test-login-d", testBadUserLogin, ""}
 )
 
 type testCase struct {
 	name                string
 	dryrun              bool
 	tokenServerResqCode int
-	// For lists below, list[0] is for testTeamIDs[0], list[1] is for
-	// testTeamIDs[1].
+	// For lists below, list[0] is for testTeamIDs[0] in testOrgIDs[0], list[1]
+	// is for testTeamIDs[1] in testOrgIDs[1].
 	teamMemberLogins     [][]string
 	currTeamMemberLogins [][]string
 	currTeamInvitations  [][]string
@@ -210,7 +209,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 			teamMemberLogins:     [][]string{{"test-login-a", "test-login-b", "test-login-c"}},
 			tokenServerResqCode:  http.StatusUnauthorized,
 			wantTeamMemberLogins: []map[string]struct{}{nil},
-			wantSyncErrSubStr:    "failed to get access token",
+			wantSyncErrSubStr:    "failed to get GitHub App installtion access token",
 		},
 	}
 
@@ -285,7 +284,7 @@ func testGitHubClient(
 	for i, logins := range tc.currTeamMemberLogins {
 		currTeamMemberLoginsBytes := testJSONMarshalGitHubUserLogins(tb, logins)
 		mux.HandleFunc(
-			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/members"),
+			fmt.Sprint(fmt.Sprintf(testMuxPattern, testOrgIDs[i]), testTeamIDs[i], "/members"),
 			func(w http.ResponseWriter, r *http.Request) {
 				if len(tc.listMemberFail) > i && tc.listMemberFail[i] {
 					w.WriteHeader(http.StatusNotFound)
@@ -304,7 +303,7 @@ func testGitHubClient(
 	for i, invites := range tc.currTeamInvitations {
 		currTeamInvitationsBytes := testJSONMarshalGitHubUserLogins(tb, invites)
 		mux.HandleFunc(
-			fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/invitations"),
+			fmt.Sprint(fmt.Sprintf(testMuxPattern, testOrgIDs[i]), testTeamIDs[i], "/invitations"),
 			func(w http.ResponseWriter, r *http.Request) {
 				if len(tc.listInvitationFail) > i && tc.listInvitationFail[i] {
 					w.WriteHeader(http.StatusNotFound)
@@ -319,7 +318,7 @@ func testGitHubClient(
 	for i, ls := range tc.teamMemberLogins {
 		for _, u := range testUserLogins {
 			mux.HandleFunc(
-				fmt.Sprint(testMuxPatternPrefix, testTeamIDs[i], "/memberships/", u),
+				fmt.Sprint(fmt.Sprintf(testMuxPattern, testOrgIDs[i]), testTeamIDs[i], "/memberships/", u),
 				func(w http.ResponseWriter, r *http.Request) {
 					if u == testBadUserLogin {
 						w.WriteHeader(http.StatusNotFound)
@@ -336,7 +335,7 @@ func testGitHubClient(
 				},
 			)
 		}
-		teams[i] = teamWithUserLogins(ls, testTeamIDs[i])
+		teams[i] = teamWithUserLogins(ls, testTeamIDs[i], testOrgIDs[i])
 	}
 
 	return client
@@ -345,10 +344,23 @@ func testGitHubClient(
 func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	tb.Helper()
 
-	ser := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(statusCode)
-		fmt.Fprintf(w, `{"token":"this-is-the-token-from-github"}`)
-	}))
+	ser := func() *httptest.Server {
+		mux := http.NewServeMux()
+		for _, Org := range testOrgIDs {
+			mux.Handle(
+				fmt.Sprintf("GET /orgs/%d/installation", Org),
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprintf(w, `{"access_tokens_url": "http://%s/app/installations/123/access_tokens"}`, r.Host)
+				}),
+			)
+		}
+		mux.Handle("POST /app/installations/123/access_tokens", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(statusCode)
+			fmt.Fprintf(w, `{"token": "this-is-the-token-from-github"}`)
+		}))
+
+		return httptest.NewServer(mux)
+	}()
 	tb.Cleanup(func() {
 		ser.Close()
 	})
@@ -358,24 +370,20 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 		tb.Fatalf("failed to generate rsa private key: %v", err)
 	}
 
-	ghAppOpts := []githubauth.Option{
-		githubauth.WithJWTTokenCaching(1 * time.Minute),
-		githubauth.WithAccessTokenURLPattern(ser.URL + "/%s/access_tokens"),
-	}
-	ghApp, err := githubauth.NewApp("test-github-id", "test-github-id", pk, ghAppOpts...)
+	ghApp, err := githubauth.NewApp("test-github-id", pk, githubauth.WithBaseURL(ser.URL))
 	if err != nil {
 		tb.Fatalf("failed to create github app: %v", err)
 	}
 	return ghApp
 }
 
-func teamWithUserLogins(arr []string, teamID int64) *v1alpha1.GitHubTeam {
+func teamWithUserLogins(arr []string, teamID, OrgID int64) *v1alpha1.GitHubTeam {
 	users := make([]*v1alpha1.GitHubUser, len(arr))
 	for i, s := range arr {
 		users[i] = &v1alpha1.GitHubUser{Login: s}
 	}
 	return &v1alpha1.GitHubTeam{
-		OrgId:  testOrgID,
+		OrgId:  OrgID,
 		TeamId: teamID,
 		Users:  users,
 	}
