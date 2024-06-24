@@ -72,19 +72,14 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 	logger := logging.FromContext(ctx)
 
 	var retErr error
-	ghClientMap := make(map[int64]*github.Client)
 	for _, team := range teams {
 		// Get the GitHub client that uses the auth token from the right org
 		// installation.
-		if _, ok := ghClientMap[team.GetOrgId()]; !ok {
-			c, err := s.githubClient(ctx, team.GetOrgId())
-			if err != nil {
-				retErr = errors.Join(retErr, err)
-				continue
-			}
-			ghClientMap[team.GetOrgId()] = c
+		ghClient, err := s.githubClient(ctx, team.GetOrgId())
+		if err != nil {
+			retErr = errors.Join(retErr, err)
+			continue
 		}
-		ghClient := ghClientMap[team.GetOrgId()]
 
 		// Get current team members' login from GitHub and expected team members'
 		// user from the team object.
