@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package github defines the mechanism to update GitHub teams' memberships
+// Package github defines the mechanism to update GitHub teams' memberships
 // given a list of records of the expected team memberships.
 package github
 
@@ -28,6 +28,7 @@ import (
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/apis/v1alpha1"
+	"github.com/abcxyz/team-link/pkg/paging"
 )
 
 // Synchronizer that syncs github team memberships.
@@ -139,11 +140,7 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 // currentTeamLogins returns a list of GitHub logins that are members or has
 // invitations to the given GitHub team.
 // TODO(#6): make the paginated GitHub API call generic.
-func (s *Synchronizer) currentTeamLogins(
-	ctx context.Context,
-	c *github.Client,
-	orgID, teamID int64,
-) ([]string, error) {
+func (s *Synchronizer) currentTeamLogins(ctx context.Context, c *github.Client, orgID, teamID int64) ([]string, error) {
 	callMap := []func(
 		ctx context.Context,
 		c *github.Client,
@@ -153,23 +150,30 @@ func (s *Synchronizer) currentTeamLogins(
 		listActiveTeamMembers,
 		listPendingTeamInvitations,
 	}
+
 	var res []string
 	for _, f := range callMap {
-		opt := &github.ListOptions{
-			PerPage: 100,
+		logins, err := paging.Paginate(
+			&gitHubPageRequest{
+				github.ListOptions{
+					PerPage: 100,
+				},
+			},
+			func(request paging.PageRequest[*github.ListOptions]) (paging.Page[string], error) {
+				logins, response, err := f(ctx, c, orgID, teamID, request.Opt())
+				if err != nil {
+					return nil, err
+				}
+				return &gitHubPage[string]{
+					content: logins,
+					resp:    response,
+				}, nil
+			},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get team member/invitation logins: %w", err)
 		}
-		for {
-			logins, resp, err := f(ctx, c, orgID, teamID, opt)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get team member/invitation logins: %w", err)
-			}
-
-			res = sets.Union(res, logins)
-			if resp.NextPage == 0 {
-				break // No more pages to fetch
-			}
-			opt.Page = resp.NextPage
-		}
+		res = sets.Union(res, logins)
 	}
 	return res, nil
 }
