@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/google/go-github/v61/github"
@@ -140,7 +141,9 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 // invitations to the given GitHub team.
 // TODO(#6): make the paginated GitHub API call generic.
 func (s *Synchronizer) currentTeamLogins(ctx context.Context, c *github.Client, orgID, teamID int64) ([]string, error) {
-	activeMembers, err := Paginate(func(accum func(string), listOpts *github.ListOptions) (*github.Response, error) {
+	loginsMap := make(map[string]struct{}, 32)
+
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
 		opts := &github.TeamListTeamMembersOptions{
 			Role:        "all",
 			ListOptions: *listOpts,
@@ -153,34 +156,40 @@ func (s *Synchronizer) currentTeamLogins(ctx context.Context, c *github.Client, 
 
 		for _, m := range members {
 			// just checking, login should be provided for active members.
-			if m.GetLogin() != "" {
-				accum(m.GetLogin())
+			if v := m.GetLogin(); v != "" {
+				loginsMap[v] = struct{}{}
 			}
 		}
 		return resp, nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
-	pendingMembers, err := Paginate(func(accum func(string), listOpts *github.ListOptions) (*github.Response, error) {
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
 		invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, listOpts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list team invitations: %w", err)
 		}
+
 		for _, inv := range invitations {
 			// login could be missing if the invitation is sent to an email.
-			if inv.GetLogin() != "" {
-				accum(inv.GetLogin())
+			if v := inv.GetLogin(); v != "" {
+				loginsMap[v] = struct{}{}
 			}
 		}
 		return resp, nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
-	return sets.Union(activeMembers, pendingMembers), nil
+	// convert logins to a slice and sort
+	logins := make([]string, 0, len(loginsMap))
+	for k := range loginsMap {
+		logins = append(logins, k)
+	}
+	sort.Strings(logins)
+
+	return logins, nil
 }
 
 // githubClient returns a github client configured to use an installation access

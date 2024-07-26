@@ -1,44 +1,46 @@
+// Copyright 2024 The Authors (see AUTHORS file)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package github
 
 import (
-	"cmp"
 	"fmt"
-	"sort"
 
 	"github.com/google/go-github/v61/github"
 )
 
-func Paginate[T cmp.Ordered](f func(x func(T), opts *github.ListOptions) (*github.Response, error)) ([]T, error) {
-	tm := make(map[T]struct{}, 32)
-
-	accum := func(i T) {
-		if _, ok := tm[i]; !ok {
-			tm[i] = struct{}{}
-		}
-	}
-
+// paginate is a helper function that iterates through a series of
+// well-structured GitHub responses by continuously invoking `f` for each
+// `NextPage` token. It is the caller's responsibility to capture any values
+// inside the closer (e.g. append to a slice or map); this function does not
+// accumulate repsonses.
+func paginate(f func(opts *github.ListOptions) (*github.Response, error)) error {
 	opts := &github.ListOptions{
 		PerPage: 100,
 	}
 
 	for {
-		resp, err := f(accum, opts)
+		resp, err := f(opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to paginate: %w", err)
+			return fmt.Errorf("failed to paginate: %w", err)
 		}
+
 		if resp.NextPage == 0 {
 			break
 		}
 		opts.Page = resp.NextPage
 	}
 
-	t := make([]T, 0, len(tm))
-	for k := range tm {
-		t = append(t, k)
-	}
-	sort.Slice(t, func(i, j int) bool {
-		return t[i] < t[j]
-	})
-
-	return t, nil
+	return nil
 }
