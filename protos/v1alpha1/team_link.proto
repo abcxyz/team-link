@@ -19,7 +19,7 @@ option go_package = "github.com/team-link/apis/v1alpha1";
 // A representation of an event associated with creation/modification of a source team's memberships.
 message SourceEvent  {
   // Required. Source team ID.
-  int64 team_id = 1;
+  string team_id = 1;
 }
 
 // A snapshot of a GitHub team's memberships.
