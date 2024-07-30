@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/google/go-github/v61/github"
@@ -139,84 +140,56 @@ func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) e
 // currentTeamLogins returns a list of GitHub logins that are members or has
 // invitations to the given GitHub team.
 // TODO(#6): make the paginated GitHub API call generic.
-func (s *Synchronizer) currentTeamLogins(
-	ctx context.Context,
-	c *github.Client,
-	orgID, teamID int64,
-) ([]string, error) {
-	callMap := []func(
-		ctx context.Context,
-		c *github.Client,
-		orgID, teamID int64,
-		opt *github.ListOptions,
-	) ([]string, *github.Response, error){
-		listActiveTeamMembers,
-		listPendingTeamInvitations,
-	}
-	var res []string
-	for _, f := range callMap {
-		opt := &github.ListOptions{
-			PerPage: 100,
+func (s *Synchronizer) currentTeamLogins(ctx context.Context, c *github.Client, orgID, teamID int64) ([]string, error) {
+	loginsMap := make(map[string]struct{}, 32)
+
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
+		opts := &github.TeamListTeamMembersOptions{
+			Role:        "all",
+			ListOptions: *listOpts,
 		}
-		for {
-			logins, resp, err := f(ctx, c, orgID, teamID, opt)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get team member/invitation logins: %w", err)
+
+		members, resp, err := c.Teams.ListTeamMembersByID(ctx, orgID, teamID, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list team membership: %w", err)
+		}
+
+		for _, m := range members {
+			// just checking, login should be provided for active members.
+			if v := m.GetLogin(); v != "" {
+				loginsMap[v] = struct{}{}
 			}
+		}
+		return resp, nil
+	}); err != nil {
+		return nil, err
+	}
 
-			res = sets.Union(res, logins)
-			if resp.NextPage == 0 {
-				break // No more pages to fetch
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
+		invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, listOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list team invitations: %w", err)
+		}
+
+		for _, inv := range invitations {
+			// login could be missing if the invitation is sent to an email.
+			if v := inv.GetLogin(); v != "" {
+				loginsMap[v] = struct{}{}
 			}
-			opt.Page = resp.NextPage
 		}
+		return resp, nil
+	}); err != nil {
+		return nil, err
 	}
-	return res, nil
-}
 
-func listActiveTeamMembers(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
-	o := &github.TeamListTeamMembersOptions{
-		Role:        "all",
-		ListOptions: *opt,
+	// convert logins to a slice and sort
+	logins := make([]string, 0, len(loginsMap))
+	for k := range loginsMap {
+		logins = append(logins, k)
 	}
-	members, resp, err := c.Teams.ListTeamMembersByID(ctx, orgID, teamID, o)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list team membership: %w", err)
-	}
-	logins := make([]string, 0, len(members))
-	for _, m := range members {
-		// just checking, login should be provided for active members.
-		if m.GetLogin() != "" {
-			logins = append(logins, m.GetLogin())
-		}
-	}
-	return logins, resp, nil
-}
+	sort.Strings(logins)
 
-func listPendingTeamInvitations(ctx context.Context, c *github.Client, orgID, teamID int64, opt *github.ListOptions) ([]string, *github.Response, error) {
-	logger := logging.FromContext(ctx)
-
-	invitations, resp, err := c.Teams.ListPendingTeamInvitationsByID(ctx, orgID, teamID, opt)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list team invitations: %w", err)
-	}
-	logins := make([]string, 0, len(invitations))
-	for _, inv := range invitations {
-		// login could be missing if the invitation is sent to an email.
-		if inv.GetLogin() == "" {
-			logger.WarnContext(
-				ctx,
-				`skip checking invitation due to missing GitHub user login, please check
-the invitation manually to make sure it is valid`,
-				"invitation", inv,
-				"team_id", teamID,
-				"org_id", orgID,
-			)
-			continue
-		}
-		logins = append(logins, inv.GetLogin())
-	}
-	return logins, resp, nil
+	return logins, nil
 }
 
 // githubClient returns a github client configured to use an installation access
