@@ -41,7 +41,7 @@ type SourceEvent struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Required. Source team ID.
-	TeamId int64 `protobuf:"varint,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	TeamId string `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
 }
 
 func (x *SourceEvent) Reset() {
@@ -76,11 +76,11 @@ func (*SourceEvent) Descriptor() ([]byte, []int) {
 	return file_team_link_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SourceEvent) GetTeamId() int64 {
+func (x *SourceEvent) GetTeamId() string {
 	if x != nil {
 		return x.TeamId
 	}
-	return 0
+	return ""
 }
 
 // A snapshot of a GitHub team's memberships.
@@ -285,7 +285,7 @@ func (x *TeamMappings) GetTeamMappings() []*TeamMapping {
 	return nil
 }
 
-// TeamMapping represents a mapping from a destination(GitHub) to a list of
+// TeamMapping represents a mapping from a destination(GitHub) team to a list of
 // source teams. It also contains other required information such as Github
 // organization.
 type TeamMapping struct {
@@ -301,10 +301,10 @@ type TeamMapping struct {
 	// service API, what value it uses to retrieve the source team.
 	SourceTeamIds []string `protobuf:"bytes,3,rep,name=source_team_ids,json=sourceTeamIds,proto3" json:"source_team_ids,omitempty"`
 	// Optional. The name of the GitHub team, note it is changeable and is
-	// optional for readability.
+	// optional for context.
 	GithubTeamName string `protobuf:"bytes,4,opt,name=github_team_name,json=githubTeamName,proto3" json:"github_team_name,omitempty"`
 	// Optional. The name of the GitHub organization, note it is changeable and is
-	// optional for readability.
+	// optional for context.
 	GithubOrgName string `protobuf:"bytes,5,opt,name=github_org_name,json=githubOrgName,proto3" json:"github_org_name,omitempty"`
 }
 
@@ -381,7 +381,7 @@ var file_team_link_proto_rawDesc = []byte{
 	0x0a, 0x0f, 0x74, 0x65, 0x61, 0x6d, 0x5f, 0x6c, 0x69, 0x6e, 0x6b, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x22, 0x26, 0x0a, 0x0b, 0x53, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x45, 0x76, 0x65, 0x6e, 0x74,
 	0x12, 0x17, 0x0a, 0x07, 0x74, 0x65, 0x61, 0x6d, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x03, 0x52, 0x06, 0x74, 0x65, 0x61, 0x6d, 0x49, 0x64, 0x22, 0x87, 0x01, 0x0a, 0x0a, 0x47, 0x69,
+	0x09, 0x52, 0x06, 0x74, 0x65, 0x61, 0x6d, 0x49, 0x64, 0x22, 0x87, 0x01, 0x0a, 0x0a, 0x47, 0x69,
 	0x74, 0x48, 0x75, 0x62, 0x54, 0x65, 0x61, 0x6d, 0x12, 0x17, 0x0a, 0x07, 0x74, 0x65, 0x61, 0x6d,
 	0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x74, 0x65, 0x61, 0x6d, 0x49,
 	0x64, 0x12, 0x15, 0x0a, 0x06, 0x6f, 0x72, 0x67, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
