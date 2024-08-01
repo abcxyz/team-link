@@ -24,7 +24,7 @@ import (
 // well-structured GitHub responses by continuously invoking `f` for each
 // `NextPage` token. It is the caller's responsibility to capture any values
 // inside the closer (e.g. append to a slice or map); this function does not
-// accumulate repsonses.
+// accumulate responses.
 func paginate(f func(opts *github.ListOptions) (*github.Response, error)) error {
 	opts := &github.ListOptions{
 		PerPage: 100,
@@ -36,7 +36,7 @@ func paginate(f func(opts *github.ListOptions) (*github.Response, error)) error 
 			return fmt.Errorf("failed to paginate: %w", err)
 		}
 
-		if resp.NextPage == 0 {
+		if resp == nil || resp.NextPage == 0 {
 			break
 		}
 		opts.Page = resp.NextPage
