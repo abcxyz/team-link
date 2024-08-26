@@ -30,7 +30,7 @@ import (
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/testutil"
-	"github.com/abcxyz/team-link/apis/v1alpha1"
+	"github.com/abcxyz/team-link/apis/v1alpha2"
 )
 
 const (
@@ -222,7 +222,7 @@ func TestSynchronizer_Sync(t *testing.T) {
 
 			// Create fake github client.
 			gotTeamMemberLogins := make([]map[string]struct{}, len(tc.teamMemberLogins))
-			teams := make([]*v1alpha1.GitHubTeam, len(tc.teamMemberLogins))
+			teams := make([]*v1alpha2.GitHubTeam, len(tc.teamMemberLogins))
 			ghClient := testGitHubClient(t, tc, gotTeamMemberLogins, teams)
 
 			// Create fake github app.
@@ -257,7 +257,7 @@ func testGitHubClient(
 	tb testing.TB,
 	tc testCase,
 	gotTeamMemberLogins []map[string]struct{},
-	teams []*v1alpha1.GitHubTeam,
+	teams []*v1alpha2.GitHubTeam,
 ) *github.Client {
 	tb.Helper()
 
@@ -377,12 +377,12 @@ func testNewGitHubApp(tb testing.TB, statusCode int) *githubauth.App {
 	return ghApp
 }
 
-func teamWithUserLogins(arr []string, teamID, OrgID int64) *v1alpha1.GitHubTeam {
-	users := make([]*v1alpha1.GitHubUser, len(arr))
+func teamWithUserLogins(arr []string, teamID, OrgID int64) *v1alpha2.GitHubTeam {
+	users := make([]*v1alpha2.GitHubUser, len(arr))
 	for i, s := range arr {
-		users[i] = &v1alpha1.GitHubUser{Login: s}
+		users[i] = &v1alpha2.GitHubUser{Login: s}
 	}
-	return &v1alpha1.GitHubTeam{
+	return &v1alpha2.GitHubTeam{
 		OrgId:  OrgID,
 		TeamId: teamID,
 		Users:  users,
