@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/team-link/apis/v1alpha2";
+option go_package = "github.com/abcxyz/team-link/apis/v1alpha2";
 
 // A representation of an event associated with creation/modification of a source team's memberships.
 message SourceEvent  {
