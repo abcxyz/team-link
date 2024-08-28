@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package github defines the mechanism to update GitHub teams' memberships
+// Package github defines the mechanism to update GitHub teams' memberships
 // given a list of records of the expected team memberships.
 package github
 
@@ -28,7 +28,7 @@ import (
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
-	"github.com/abcxyz/team-link/apis/v1alpha1"
+	"github.com/abcxyz/team-link/apis/v1alpha2"
 )
 
 // Synchronizer that syncs github team memberships.
@@ -42,7 +42,7 @@ type Synchronizer struct {
 // Option to set up a synchronizer.
 type Option func(*Synchronizer) error
 
-// Enable dryrun mode for synchronizer, in dryrun mode, the synchronizer will
+// WithDryRun enables dryrun mode for synchronizer, in dryrun mode, the synchronizer will
 // only log the membership updates instead of doing a real sync.
 func WithDryRun() Option {
 	return func(s *Synchronizer) error {
@@ -65,11 +65,11 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App, opts ...Opt
 	return s, nil
 }
 
-// Sync overides several GitHub teams' memberships with the provided team
+// Sync overrides several GitHub teams' memberships with the provided team
 // membership snapshots.
 // TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
 // this since they are required when updating GitHub team memberships.
-func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha1.GitHubTeam) error {
+func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha2.GitHubTeam) error {
 	logger := logging.FromContext(ctx)
 
 	var retErr error
@@ -213,7 +213,7 @@ func (s *Synchronizer) githubClient(ctx context.Context, orgID int64) (*github.C
 
 // loginsFromTeam returns a list of GitHub logins/usernames that are in the
 // given team object.
-func loginsFromTeam(team *v1alpha1.GitHubTeam) []string {
+func loginsFromTeam(team *v1alpha2.GitHubTeam) []string {
 	res := make([]string, len(team.GetUsers()))
 	for i, m := range team.GetUsers() {
 		res[i] = m.GetLogin()
