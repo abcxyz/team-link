@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate protoc -I../../protos/v1alpha1 --go_out=. --go-grpc_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative team_link.proto
+//go:generate protoc -I../../protos/v1alpha2 --go_out=. --go-grpc_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative team_link.proto
 
-// Package v1alpha1 contains versioned team link contracts.
+// Package v1alpha2 contains versioned team link contracts.
 package v1alpha2
