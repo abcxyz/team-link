@@ -20,18 +20,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/abcxyz/team-link/apis/v1alpha2"
+	api "github.com/abcxyz/team-link/apis/v1alpha2"
 )
 
-type SyncerFunc func(ctx context.Context) (v1alpha2.TeamSynchronizer, error)
+type SyncerFunc func(ctx context.Context) (api.TeamSynchronizer, error)
 
 type TeamLinkService struct {
-	sourceTeamClient v1alpha2.SourceTeamClient
-	githubMapper     v1alpha2.GitHubMapper
+	sourceTeamClient api.SourceTeamClient
+	githubMapper     api.GitHubMapper
 	syncerFunc       SyncerFunc
 }
 
-func New(sourceTeamClient v1alpha2.SourceTeamClient, githubMapper v1alpha2.GitHubMapper, syncerFunc SyncerFunc) *TeamLinkService {
+func New(sourceTeamClient api.SourceTeamClient, githubMapper api.GitHubMapper, syncerFunc SyncerFunc) *TeamLinkService {
 	return &TeamLinkService{
 		sourceTeamClient: sourceTeamClient,
 		githubMapper:     githubMapper,
@@ -40,7 +40,7 @@ func New(sourceTeamClient v1alpha2.SourceTeamClient, githubMapper v1alpha2.GitHu
 }
 
 // SyncTeam syncs a single team to GitHub.
-func (t *TeamLinkService) SyncTeam(ctx context.Context, srcEvent *v1alpha2.SourceEvent) error {
+func (t *TeamLinkService) SyncTeam(ctx context.Context, srcEvent *api.SourceEvent) error {
 	syncer, err := t.syncerFunc(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get syncer: %w", err)
@@ -56,14 +56,14 @@ func (t *TeamLinkService) SyncAllTeams(ctx context.Context) error {
 	}
 	var merr error
 	for _, srcTeamID := range t.githubMapper.SourceTeamIDs(ctx) {
-		if err := t.syncTeam(ctx, &v1alpha2.SourceEvent{TeamId: srcTeamID}, syncer); err != nil {
+		if err := t.syncTeam(ctx, &api.SourceEvent{TeamId: srcTeamID}, syncer); err != nil {
 			merr = errors.Join(merr, fmt.Errorf("failed to sync source team ID %s: %w", srcTeamID, err))
 		}
 	}
 	return merr
 }
 
-func (t *TeamLinkService) syncTeam(ctx context.Context, srcEvent *v1alpha2.SourceEvent, syncer v1alpha2.TeamSynchronizer) error {
+func (t *TeamLinkService) syncTeam(ctx context.Context, srcEvent *api.SourceEvent, syncer api.TeamSynchronizer) error {
 	// resolve might return a list of teams and an error. The error is non-nil if something went
 	// wrong with some of the teams. In this case, we still want to sync the teams that were resolved
 	// successfully.
@@ -77,7 +77,7 @@ func (t *TeamLinkService) syncTeam(ctx context.Context, srcEvent *v1alpha2.Sourc
 	return merr
 }
 
-func (t *TeamLinkService) resolve(ctx context.Context, event *v1alpha2.SourceEvent) ([]*v1alpha2.GitHubTeam, error) {
+func (t *TeamLinkService) resolve(ctx context.Context, event *api.SourceEvent) ([]*api.GitHubTeam, error) {
 	// Get dest teams by source group.
 	teams, err := t.githubMapper.GitHubTeams(ctx, event.GetTeamId())
 	if len(teams) == 0 {
@@ -86,7 +86,7 @@ func (t *TeamLinkService) resolve(ctx context.Context, event *v1alpha2.SourceEve
 	retErr := err
 
 	// For each of the team, get its descendants from source.
-	res := make([]*v1alpha2.GitHubTeam, 0, len(teams))
+	res := make([]*api.GitHubTeam, 0, len(teams))
 	for _, team := range teams {
 		teamUsers, err := t.descendants(ctx, team)
 		if err != nil {
@@ -94,7 +94,7 @@ func (t *TeamLinkService) resolve(ctx context.Context, event *v1alpha2.SourceEve
 			// Skip as there is error when fetching descendants.
 			continue
 		}
-		res = append(res, &v1alpha2.GitHubTeam{
+		res = append(res, &api.GitHubTeam{
 			TeamId:        team.GetTeamId(),
 			OrgId:         team.GetOrgId(),
 			SourceTeamIds: team.GetSourceTeamIds(),
@@ -106,8 +106,8 @@ func (t *TeamLinkService) resolve(ctx context.Context, event *v1alpha2.SourceEve
 
 // descendants fetches all the descendants of the given team and maps them to GitHub users.
 // Any duplicate GitHub users will be removed.
-func (t *TeamLinkService) descendants(ctx context.Context, team *v1alpha2.GitHubTeam) ([]*v1alpha2.GitHubUser, error) {
-	var teamUsers []*v1alpha2.GitHubUser
+func (t *TeamLinkService) descendants(ctx context.Context, team *api.GitHubTeam) ([]*api.GitHubUser, error) {
+	var teamUsers []*api.GitHubUser
 	var merr error
 	for _, teamID := range team.GetSourceTeamIds() {
 		users, err := t.sourceTeamClient.Descendants(ctx, teamID)
@@ -126,8 +126,8 @@ func (t *TeamLinkService) descendants(ctx context.Context, team *v1alpha2.GitHub
 }
 
 // githubUsers maps each source team user to its corresponding GitHub user and returns nil if an error occurs.
-func (t *TeamLinkService) githubUsers(ctx context.Context, users []string) ([]*v1alpha2.GitHubUser, error) {
-	githubUsers := make([]*v1alpha2.GitHubUser, 0, len(users))
+func (t *TeamLinkService) githubUsers(ctx context.Context, users []string) ([]*api.GitHubUser, error) {
+	githubUsers := make([]*api.GitHubUser, 0, len(users))
 	var merr error
 	for _, user := range users {
 		githubUser, err := t.githubMapper.GitHubUser(ctx, user)
@@ -145,8 +145,8 @@ func (t *TeamLinkService) githubUsers(ctx context.Context, users []string) ([]*v
 }
 
 // uniqueUsers returns a list of unique GitHub users from the given list of users.
-func uniqueUsers(users []*v1alpha2.GitHubUser) []*v1alpha2.GitHubUser {
-	var uniqueUsers []*v1alpha2.GitHubUser
+func uniqueUsers(users []*api.GitHubUser) []*api.GitHubUser {
+	var uniqueUsers []*api.GitHubUser
 	userSet := make(map[string]struct{})
 	for _, u := range users {
 		if _, ok := userSet[u.GetEmail()]; !ok {

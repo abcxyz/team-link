@@ -28,7 +28,7 @@ import (
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/testutil"
-	"github.com/abcxyz/team-link/apis/v1alpha2"
+	api "github.com/abcxyz/team-link/apis/v1alpha2"
 	tlgithub "github.com/abcxyz/team-link/pkg/github"
 )
 
@@ -64,7 +64,7 @@ func TestGet(t *testing.T) {
 		syncOpts        []tlgithub.Option
 		wantErrSubstr   string
 		wantAccessCount int
-		wantSyncer      v1alpha2.TeamSynchronizer
+		wantSyncer      api.TeamSynchronizer
 	}{
 		{
 			name:            "success",

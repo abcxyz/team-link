@@ -28,7 +28,7 @@ import (
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
-	"github.com/abcxyz/team-link/apis/v1alpha2"
+	api "github.com/abcxyz/team-link/apis/v1alpha2"
 )
 
 // Synchronizer that syncs github team memberships.
@@ -69,7 +69,7 @@ func NewSynchronizer(ghClient *github.Client, ghApp *githubauth.App, opts ...Opt
 // membership snapshots.
 // TODO(#3): populate the users' GitHub logins in the GitHubTeam object before
 // this since they are required when updating GitHub team memberships.
-func (s *Synchronizer) Sync(ctx context.Context, teams []*v1alpha2.GitHubTeam) error {
+func (s *Synchronizer) Sync(ctx context.Context, teams []*api.GitHubTeam) error {
 	logger := logging.FromContext(ctx)
 
 	var retErr error
@@ -213,7 +213,7 @@ func (s *Synchronizer) githubClient(ctx context.Context, orgID int64) (*github.C
 
 // loginsFromTeam returns a list of GitHub logins/usernames that are in the
 // given team object.
-func loginsFromTeam(team *v1alpha2.GitHubTeam) []string {
+func loginsFromTeam(team *api.GitHubTeam) []string {
 	res := make([]string, len(team.GetUsers()))
 	for i, m := range team.GetUsers() {
 		res[i] = m.GetLogin()

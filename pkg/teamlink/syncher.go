@@ -24,7 +24,7 @@ import (
 
 	"github.com/abcxyz/pkg/cache"
 	"github.com/abcxyz/pkg/githubauth"
-	"github.com/abcxyz/team-link/apis/v1alpha2"
+	api "github.com/abcxyz/team-link/apis/v1alpha2"
 	tlgithub "github.com/abcxyz/team-link/pkg/github"
 )
 
@@ -62,8 +62,8 @@ func NewConfiguredSyncer(
 	}
 }
 
-// Get initializes a v1alpha2.TeamSynchronizer and returns it.
-func (r *ConfiguredSyncer) Get(ctx context.Context) (v1alpha2.TeamSynchronizer, error) {
+// Get initializes a api.TeamSynchronizer and returns it.
+func (r *ConfiguredSyncer) Get(ctx context.Context) (api.TeamSynchronizer, error) {
 	privateKey, err := r.privateKey(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get GitHub app private key: %w", err)

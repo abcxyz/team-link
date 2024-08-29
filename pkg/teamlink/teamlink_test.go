@@ -24,19 +24,19 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/abcxyz/pkg/testutil"
-	"github.com/abcxyz/team-link/apis/v1alpha2"
+	api "github.com/abcxyz/team-link/apis/v1alpha2"
 )
 
 func TestTeamLinkService_SyncTeam(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name             string
-		sourceTeamClient v1alpha2.SourceTeamClient
-		githubMapper     v1alpha2.GitHubMapper
+		sourceTeamClient api.SourceTeamClient
+		githubMapper     api.GitHubMapper
 		syncerFuncErr    error
 		syncer           *testSynchronizer
 		teamID           string
-		want             []*v1alpha2.GitHubTeam
+		want             []*api.GitHubTeam
 		wantErr          string
 	}{
 		{
@@ -49,7 +49,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -71,7 +71,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -97,12 +97,12 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 			},
 			syncer: &testSynchronizer{},
 			teamID: "sourceTeam1",
-			want: []*v1alpha2.GitHubTeam{
+			want: []*api.GitHubTeam{
 				{
 					TeamId:        42455,
 					OrgId:         80703,
 					SourceTeamIds: []string{"sourceTeam1"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 56489,
 							Login:  "githubUser1",
@@ -127,7 +127,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -149,7 +149,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -188,7 +188,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -210,7 +210,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -246,7 +246,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				err: fmt.Errorf("sourceTeamClient error"),
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -268,7 +268,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -306,7 +306,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -328,7 +328,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -369,7 +369,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -391,7 +391,7 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -429,14 +429,14 @@ func TestTeamLinkService_SyncTeam(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			syncerFunc := func(ctx context.Context) (v1alpha2.TeamSynchronizer, error) {
+			syncerFunc := func(ctx context.Context) (api.TeamSynchronizer, error) {
 				if tc.syncerFuncErr != nil {
 					return nil, tc.syncerFuncErr
 				}
 				return tc.syncer, nil
 			}
 			teamLinkService := New(tc.sourceTeamClient, tc.githubMapper, syncerFunc)
-			err := teamLinkService.SyncTeam(ctx, &v1alpha2.SourceEvent{TeamId: tc.teamID})
+			err := teamLinkService.SyncTeam(ctx, &api.SourceEvent{TeamId: tc.teamID})
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want):\n%s", diff)
 			}
@@ -455,11 +455,11 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name             string
-		sourceTeamClient v1alpha2.SourceTeamClient
-		githubMapper     v1alpha2.GitHubMapper
+		sourceTeamClient api.SourceTeamClient
+		githubMapper     api.GitHubMapper
 		syncerFuncErr    error
 		syncer           *testSynchronizer
-		want             []*v1alpha2.GitHubTeam
+		want             []*api.GitHubTeam
 		wantErr          string
 	}{
 		{
@@ -472,7 +472,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -494,7 +494,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -519,12 +519,12 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			syncer: &testSynchronizer{},
-			want: []*v1alpha2.GitHubTeam{
+			want: []*api.GitHubTeam{
 				{
 					TeamId:        42455,
 					OrgId:         80703,
 					SourceTeamIds: []string{"sourceTeam1"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 56489,
 							Login:  "githubUser1",
@@ -541,7 +541,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 					TeamId:        64134,
 					OrgId:         80703,
 					SourceTeamIds: []string{"sourceTeam2"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 36397,
 							Login:  "githubUser3",
@@ -558,7 +558,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 					TeamId:        65286,
 					OrgId:         77172,
 					SourceTeamIds: []string{"sourceTeam3"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 56489,
 							Login:  "githubUser1",
@@ -583,7 +583,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -605,7 +605,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -643,7 +643,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -665,7 +665,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -700,7 +700,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				err: fmt.Errorf("sourceTeamClient error"),
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -722,7 +722,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -759,7 +759,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -781,7 +781,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -810,12 +810,12 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 			},
 			syncer:  &testSynchronizer{},
 			wantErr: "error getting some or all github users for source team ID sourceTeam1: error mapping source user to their github user sourceUser1: error mapping sourceUser1",
-			want: []*v1alpha2.GitHubTeam{
+			want: []*api.GitHubTeam{
 				{
 					TeamId:        64134,
 					OrgId:         80703,
 					SourceTeamIds: []string{"sourceTeam2"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 36397,
 							Login:  "githubUser3",
@@ -840,7 +840,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 				},
 			},
 			githubMapper: &testGitHubMapper{
-				userMap: map[string]*v1alpha2.GitHubUser{
+				userMap: map[string]*api.GitHubUser{
 					"sourceUser1": {
 						UserId: 56489,
 						Login:  "githubUser1",
@@ -862,7 +862,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 						Email:  "sourceUser4@example.com",
 					},
 				},
-				teamMap: map[string][]*v1alpha2.GitHubTeam{
+				teamMap: map[string][]*api.GitHubTeam{
 					"sourceTeam1": {
 						{
 							TeamId:        42455,
@@ -891,12 +891,12 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 			},
 			syncer:  &testSynchronizer{},
 			wantErr: "error mapping sourceTeam1",
-			want: []*v1alpha2.GitHubTeam{
+			want: []*api.GitHubTeam{
 				{
 					TeamId:        64134,
 					OrgId:         80703,
 					SourceTeamIds: []string{"sourceTeam2"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 36397,
 							Login:  "githubUser3",
@@ -913,7 +913,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 					TeamId:        65286,
 					OrgId:         77172,
 					SourceTeamIds: []string{"sourceTeam3"},
-					Users: []*v1alpha2.GitHubUser{
+					Users: []*api.GitHubUser{
 						{
 							UserId: 56489,
 							Login:  "githubUser1",
@@ -935,7 +935,7 @@ func TestTeamLinkService_SyncAll(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			syncerFunc := func(ctx context.Context) (v1alpha2.TeamSynchronizer, error) {
+			syncerFunc := func(ctx context.Context) (api.TeamSynchronizer, error) {
 				if tc.syncerFuncErr != nil {
 					return nil, tc.syncerFuncErr
 				}
@@ -974,13 +974,13 @@ func (tsc *testSourceTeamClient) Descendants(ctx context.Context, sourceTeamID s
 }
 
 type testGitHubMapper struct {
-	userMap         map[string]*v1alpha2.GitHubUser
-	teamMap         map[string][]*v1alpha2.GitHubTeam
+	userMap         map[string]*api.GitHubUser
+	teamMap         map[string][]*api.GitHubTeam
 	githubUserErrs  map[string]error
 	githubTeamsErrs map[string]error
 }
 
-func (tgm *testGitHubMapper) GitHubUser(ctx context.Context, sourceUserID string) (*v1alpha2.GitHubUser, error) {
+func (tgm *testGitHubMapper) GitHubUser(ctx context.Context, sourceUserID string) (*api.GitHubUser, error) {
 	if err, ok := tgm.githubUserErrs[sourceUserID]; ok {
 		return nil, err
 	}
@@ -991,7 +991,7 @@ func (tgm *testGitHubMapper) GitHubUser(ctx context.Context, sourceUserID string
 	return user, nil
 }
 
-func (tgm *testGitHubMapper) GitHubTeams(ctx context.Context, sourceTeamID string) ([]*v1alpha2.GitHubTeam, error) {
+func (tgm *testGitHubMapper) GitHubTeams(ctx context.Context, sourceTeamID string) ([]*api.GitHubTeam, error) {
 	if err, ok := tgm.githubTeamsErrs[sourceTeamID]; ok {
 		return nil, err
 	}
@@ -1017,11 +1017,11 @@ func (tgm *testGitHubMapper) SourceTeamIDs(ctx context.Context) []string {
 }
 
 type testSynchronizer struct {
-	requestSyncs []*v1alpha2.GitHubTeam
+	requestSyncs []*api.GitHubTeam
 	err          error
 }
 
-func (ts *testSynchronizer) Sync(ctx context.Context, teams []*v1alpha2.GitHubTeam) error {
+func (ts *testSynchronizer) Sync(ctx context.Context, teams []*api.GitHubTeam) error {
 	if ts.err != nil {
 		return ts.err
 	}
