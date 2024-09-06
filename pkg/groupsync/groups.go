@@ -95,12 +95,22 @@ type Member interface {
 	// IsUser returns whether this Member is a User.
 	IsUser() bool
 
-	// Group returns the underlying group if this Member is a group.
-	// Otherwise, it returns an error.
+	// Group returns the underlying group if this Member is a group and never an error.
+	// Otherwise, if this member is a user, then it always returns an error and never a group.
+	// A common pattern is to use IsGroup as a guard before using this method:
+	//
+	//   if member.IsGroup() {
+	//      group, _ := member.Group()
+	//   }
 	Group() (*Group, error)
 
-	// User returns the underlying user if this Member is a user.
-	// Otherwise, it returns an error.
+	// User returns the underlying user if this Member is a user and never an error.
+	// Otherwise, if this member is a group, then it always returns an error and never a user.
+	// A common pattern is to use IsUser as a guard before using this method:
+	//
+	//   if member.IsUser() {
+	//      user, _ := member.User()
+	//   }
 	User() (*User, error)
 }
 
