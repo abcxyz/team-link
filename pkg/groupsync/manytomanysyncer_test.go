@@ -32,8 +32,8 @@ func TestSync(t *testing.T) {
 		name              string
 		sourceSystem      string
 		targetSystem      string
-		sourceGroupClient ReadGroupClient
-		targetGroupClient ReadWriteGroupClient
+		sourceGroupClient GroupReader
+		targetGroupClient GroupReadWriter
 		sourceGroupMapper OneToManyGroupMapper
 		targetGroupMapper OneToManyGroupMapper
 		userMapper        UserMapper
@@ -981,8 +981,8 @@ func TestSyncAll(t *testing.T) {
 		name              string
 		sourceSystem      string
 		targetSystem      string
-		sourceGroupClient ReadGroupClient
-		targetGroupClient ReadWriteGroupClient
+		sourceGroupClient GroupReader
+		targetGroupClient GroupReadWriter
 		sourceGroupMapper OneToManyGroupMapper
 		targetGroupMapper OneToManyGroupMapper
 		userMapper        UserMapper

@@ -20,8 +20,8 @@ import (
 	"fmt"
 )
 
-// ReadGroupClient provides read operations for a group system.
-type ReadGroupClient interface {
+// GroupReader provides read operations for a group system.
+type GroupReader interface {
 	// Descendants retrieve all users (children, recursively) of a group.
 	Descendants(ctx context.Context, groupID string) ([]*User, error)
 
@@ -35,16 +35,16 @@ type ReadGroupClient interface {
 	GetUser(ctx context.Context, userID string) (*User, error)
 }
 
-// WriteGroupClient provides write operations for a group system.
-type WriteGroupClient interface {
+// GroupWriter provides write operations for a group system.
+type GroupWriter interface {
 	// SetMembers replaces the members of the group with the given ID with the given members.
 	SetMembers(ctx context.Context, groupID string, members []Member) error
 }
 
-// ReadWriteGroupClient provides both read and write operations for a group system.
-type ReadWriteGroupClient interface {
-	ReadGroupClient
-	WriteGroupClient
+// GroupReadWriter provides both read and write operations for a group system.
+type GroupReadWriter interface {
+	GroupReader
+	GroupWriter
 }
 
 // OneToManyGroupMapper maps group IDs to lists of group IDs.
@@ -71,7 +71,7 @@ type User struct {
 	ID string `json:"id,omitempty"`
 	// Attributes represent arbitrary attributes about the user
 	// in the given group system. This field is typically set by
-	// the corresponding ReadGroupClient when retrieving the user.
+	// the corresponding GroupReader when retrieving the user.
 	Attributes any `json:"attributes,omitempty"`
 }
 
@@ -81,13 +81,13 @@ type Group struct {
 	ID string `json:"id,omitempty"`
 	// Attributes represent arbitrary attributes about the group
 	// in the given group system. This field is typically set by
-	// the corresponding ReadGroupClient when retrieving the group.
+	// the corresponding GroupReader when retrieving the group.
 	Attributes any `json:"attributes,omitempty"`
 }
 
 // Member represents a member of a group. A member may either be
-// a User or another Group. An instance of Member always be either
-// a User or a Group but not both.
+// a User or another Group. An instance of Member will always be
+// either a User or a Group but not both.
 type Member interface {
 	// IsGroup returns whether this Member is a Group.
 	IsGroup() bool

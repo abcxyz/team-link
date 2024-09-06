@@ -31,32 +31,32 @@ import (
 //     forming the target member set.
 //  4. The target member set is then synced to the target group.
 type ManyToManySyncer struct {
-	sourceSystem      string
-	targetSystem      string
-	sourceGroupClient ReadGroupClient
-	targetGroupClient ReadWriteGroupClient
-	sourceGroupMapper OneToManyGroupMapper
-	targetGroupMapper OneToManyGroupMapper
-	userMapper        UserMapper
+	sourceSystem          string
+	targetSystem          string
+	sourceGroupReader     GroupReader
+	targetGroupReadWriter GroupReadWriter
+	sourceGroupMapper     OneToManyGroupMapper
+	targetGroupMapper     OneToManyGroupMapper
+	userMapper            UserMapper
 }
 
 // NewManyToManySyncer creates a new ManyToManySyncer.
 func NewManyToManySyncer(
 	sourceSystem, targetSystem string,
-	sourceGroupClient ReadGroupClient,
-	targetGroupClient ReadWriteGroupClient,
+	sourceGroupClient GroupReader,
+	targetGroupClient GroupReadWriter,
 	sourceGroupMapper OneToManyGroupMapper,
 	targetGroupMapper OneToManyGroupMapper,
 	userMapper UserMapper,
 ) *ManyToManySyncer {
 	return &ManyToManySyncer{
-		sourceSystem:      sourceSystem,
-		targetSystem:      targetSystem,
-		sourceGroupClient: sourceGroupClient,
-		targetGroupClient: targetGroupClient,
-		sourceGroupMapper: sourceGroupMapper,
-		targetGroupMapper: targetGroupMapper,
-		userMapper:        userMapper,
+		sourceSystem:          sourceSystem,
+		targetSystem:          targetSystem,
+		sourceGroupReader:     sourceGroupClient,
+		targetGroupReadWriter: targetGroupClient,
+		sourceGroupMapper:     sourceGroupMapper,
+		targetGroupMapper:     targetGroupMapper,
+		userMapper:            userMapper,
 	}
 }
 
@@ -118,7 +118,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 
 		// targetMembers is now the canonical set of members for the target group ID.
 		// Set the target group's members to targetMembers.
-		if err := f.targetGroupClient.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
+		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 			merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 		}
 	}
@@ -145,7 +145,7 @@ func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupIDs []str
 	var merr error
 	userMap := make(map[string]*User)
 	for _, sourceGroupID := range sourceGroupIDs {
-		sourceUsers, err := f.sourceGroupClient.Descendants(ctx, sourceGroupID)
+		sourceUsers, err := f.sourceGroupReader.Descendants(ctx, sourceGroupID)
 		if err != nil {
 			merr = errors.Join(merr, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupID, err))
 			continue
@@ -170,7 +170,7 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 			continue
 		}
-		targetUser, err := f.targetGroupClient.GetUser(ctx, targetUserID)
+		targetUser, err := f.targetGroupReadWriter.GetUser(ctx, targetUserID)
 		if err != nil {
 			merr = fmt.Errorf("error fetching user for user id %s: %w", targetUserID, err)
 			continue
