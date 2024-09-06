@@ -132,6 +132,7 @@ func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error fetching source group IDs: %w", err)
 	}
+	// TODO(https://github.com/abcxyz/team-link/issues/43): consider syncing each sourceGroupID async.
 	var merr error
 	for _, sourceGroupID := range sourceGroupIDs {
 		if err := f.Sync(ctx, sourceGroupID); err != nil {
