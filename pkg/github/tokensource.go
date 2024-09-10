@@ -40,6 +40,7 @@ func NewAppTokenSource(keyProvider KeyProvider, appID string) *AppTokenSource {
 }
 
 func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, error) {
+	// TODO(https://github.com/abcxyz/team-link/issues/45): Consider caching the tokens we mint in this method.
 	privateKey, err := s.keyProvider.Key(ctx)
 	if err != nil {
 		return "", fmt.Errorf("unable to get GitHub app private key: %w", err)

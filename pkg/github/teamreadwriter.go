@@ -155,18 +155,17 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 	}
 
 	currentLogins := toIDMap(currentMembers)
-	memberLogins := toIDMap(members)
+	newLogins := toIDMap(members)
 
-	add := sets.SubtractMapKeys(memberLogins, currentLogins)
-	remove := sets.SubtractMapKeys(currentLogins, memberLogins)
+	add := sets.SubtractMapKeys(newLogins, currentLogins)
+	remove := sets.SubtractMapKeys(currentLogins, newLogins)
 	var merr error
 	// Add GitHub team memberships.
 	for _, member := range add {
 		if member.IsUser() {
 			user, _ := member.User()
 			membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
-			_, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, user.ID, membershipOpt)
-			if err != nil {
+			if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, user.ID, membershipOpt); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to add GitHub team members for team(%d): %w", teamID, err))
 			}
 		}
