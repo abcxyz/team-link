@@ -138,8 +138,7 @@ func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync
 
 // SetMembers replaces the members of the GitHub team with the given ID with the given members.
 // The ID must be of the form 'orgID:teamID'. Any members of the GitHub team not found in the given members list
-// will be added. Likewise, any members of the given members list that are not currently member of then team will
-// be added.
+// will be removed. Likewise, any members of the given list that are not currently members of the team will be added.
 func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members []groupsync.Member) error {
 	orgID, teamID, err := parseID(groupID)
 	if err != nil {
