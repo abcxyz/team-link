@@ -30,12 +30,14 @@ type KeyProvider interface {
 type AppTokenSource struct {
 	keyProvider KeyProvider
 	appID       string
+	appOpts     []githubauth.Option
 }
 
-func NewAppTokenSource(keyProvider KeyProvider, appID string) *AppTokenSource {
+func NewAppTokenSource(keyProvider KeyProvider, appID string, appOpts ...githubauth.Option) *AppTokenSource {
 	return &AppTokenSource{
 		keyProvider: keyProvider,
 		appID:       appID,
+		appOpts:     appOpts,
 	}
 }
 
@@ -45,10 +47,7 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 	if err != nil {
 		return "", fmt.Errorf("unable to get GitHub app private key: %w", err)
 	}
-	app, err := githubauth.NewApp(
-		s.appID,
-		string(privateKey),
-	)
+	app, err := githubauth.NewApp(s.appID, privateKey, s.appOpts...)
 	if err != nil {
 		return "", fmt.Errorf("unable to create GitHub app: %w", err)
 	}
