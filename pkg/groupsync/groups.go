@@ -89,6 +89,9 @@ type Group struct {
 // a User or another Group. An instance of Member will always be
 // either a User or a Group but not both.
 type Member interface {
+	// ID is the member's ID int the group system.
+	ID() string
+
 	// IsGroup returns whether this Member is a Group.
 	IsGroup() bool
 
@@ -119,6 +122,11 @@ type UserMember struct {
 	Usr *User
 }
 
+// ID is the user's ID in the group system.
+func (u *UserMember) ID() string {
+	return u.Usr.ID
+}
+
 // IsUser returns whether this Member is a User. Always returns true.
 func (u *UserMember) IsUser() bool {
 	return true
@@ -142,6 +150,11 @@ func (u *UserMember) User() (*User, error) {
 // GroupMember represents a group membership of a group.
 type GroupMember struct {
 	Grp *Group
+}
+
+// ID is the group's ID in the group system.
+func (g *GroupMember) ID() string {
+	return g.Grp.ID
 }
 
 // IsGroup returns whether this Member is a Group. Always returns true.
