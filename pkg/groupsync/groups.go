@@ -181,21 +181,20 @@ func (g *GroupMember) User() (*User, error) {
 // group ID using the given memberFunc. This function serves mostly as
 // a utility function when implementing ReadGroupClients for when there
 // is no special logic for fetching descendants.
-func Descendants(ctx context.Context, rootGroupID string, memberFunc func(context.Context, string) ([]Member, error)) ([]*User, error) {
+func Descendants(ctx context.Context, groupID string, memberFunc func(context.Context, string) ([]Member, error)) ([]*User, error) {
 	// Need to do a BFS traversal of the group structure
 	var queue []string
-	queue = append(queue, rootGroupID)
+	queue = append(queue, groupID)
 
 	// we want to maintain the invariant that every ID in the queue
 	// has been marked as 'seen'
 	seenBefore := make(map[string]struct{})
-	seenBefore[rootGroupID] = struct{}{}
+	seenBefore[groupID] = struct{}{}
 
 	var merr error
 	var users []*User
 	for len(queue) > 0 {
-		groupID := queue[0]
-		queue = queue[1:]
+		groupID, queue = queue[0], queue[1:]
 		members, err := memberFunc(ctx, groupID)
 		if err != nil {
 			merr = errors.Join(merr, fmt.Errorf("error fetching group members: %s, %w", groupID, err))
