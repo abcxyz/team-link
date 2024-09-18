@@ -37,8 +37,8 @@ func ConcurrentSync(ctx context.Context, syncer v1alpha3.GroupSyncer, sourceGrou
 	for i := 0; i < runtime.NumCPU(); i++ {
 		waitGroup.Add(1)
 		go func() {
-      defer waitGroup.Done() // More conventional
-			for id := range groupIDs { // Make the style consistent
+			defer waitGroup.Done()
+			for id := range groupIDs {
 				if err := syncer.Sync(ctx, id); err != nil {
 					errs <- fmt.Errorf("failed to sync id %s: %w", id, err)
 				}
