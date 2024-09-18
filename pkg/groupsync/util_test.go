@@ -17,6 +17,8 @@ package groupsync
 import (
 	"context"
 	"fmt"
+	"sort"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -74,6 +76,7 @@ func TestConcurrentSync(t *testing.T) {
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want) = %v", diff)
 			}
+			sort.Strings(tc.syncer.receivedIds)
 			if diff := cmp.Diff(tc.syncer.receivedIds, tc.want); diff != "" {
 				t.Errorf("unexpected result (-got, +want) = %v", diff)
 			}
@@ -84,6 +87,7 @@ func TestConcurrentSync(t *testing.T) {
 type fakeSyncer struct {
 	receivedIds []string
 	idErrs      map[string]error
+	mutex       sync.Mutex
 }
 
 func (f *fakeSyncer) SourceSystem() string {
@@ -98,7 +102,9 @@ func (f *fakeSyncer) Sync(_ context.Context, sourceGroupID string) error {
 	if err, ok := f.idErrs[sourceGroupID]; ok {
 		return err
 	}
+	f.mutex.Lock()
 	f.receivedIds = append(f.receivedIds, sourceGroupID)
+	f.mutex.Unlock()
 	return nil
 }
 
