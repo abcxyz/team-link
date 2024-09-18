@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v61/github"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/pkg/groupsync"
@@ -83,7 +84,6 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 	}
 
 	users := make(map[string]*github.User, 32)
-
 	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
 		opts := &github.TeamListTeamMembersOptions{
 			Role:        "all",
@@ -106,9 +106,32 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 		return nil, err
 	}
 
+	childTeams := make(map[int64]*github.Team, len(users))
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
+		members, resp, err := client.Teams.ListChildTeamsByParentID(ctx, orgID, teamID, listOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list team membership: %w", err)
+		}
+
+		for _, m := range members {
+			if v := m.GetID(); v != 0 {
+				childTeams[v] = m
+			}
+		}
+		return resp, nil
+	}); err != nil {
+		return nil, err
+	}
+
 	members := make([]groupsync.Member, 0, len(users))
 	for _, user := range users {
 		members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: user.GetLogin(), Attributes: user}})
+	}
+	for _, team := range childTeams {
+		members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{
+			ID:         encode(team.GetOrganization().GetID(), team.GetID()),
+			Attributes: team,
+		}})
 	}
 	return members, nil
 }
@@ -153,28 +176,58 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 		return fmt.Errorf("could not get current members: %w", err)
 	}
 
-	currentLogins := toIDMap(currentMembers)
-	newLogins := toIDMap(members)
+	currentMemberIDs := toIDMap(currentMembers)
+	newMemberIDs := toIDMap(members)
 
-	add := sets.SubtractMapKeys(newLogins, currentLogins)
-	remove := sets.SubtractMapKeys(currentLogins, newLogins)
+	addMembers := sets.SubtractMapKeys(newMemberIDs, currentMemberIDs)
+	removeMembers := sets.SubtractMapKeys(currentMemberIDs, newMemberIDs)
 	var merr error
 	// Add GitHub team memberships.
-	for _, member := range add {
+	for _, member := range addMembers {
 		if member.IsUser() {
 			user, _ := member.User()
 			membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
 			if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, user.ID, membershipOpt); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to add GitHub team members for team(%d): %w", teamID, err))
 			}
+		} else {
+			group, _ := member.Group()
+			childOrgID, childTeamID, err := parseID(group.ID)
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("could not parse group ID %s: %w", group.ID, err))
+				continue
+			}
+			if childOrgID != orgID {
+				merr = errors.Join(merr, fmt.Errorf("cannot add team from another org as a child team"))
+				continue
+			}
+			if err := addSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to add child team: %w", err))
+				continue
+			}
 		}
 	}
 	// Remove GitHub team memberships
-	for _, member := range remove {
+	for _, member := range removeMembers {
 		if member.IsUser() {
 			user, _ := member.User()
 			if _, err := client.Teams.RemoveTeamMembershipByID(ctx, orgID, teamID, user.ID); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to remove GitHub team members for team(%d): %w", teamID, err))
+			}
+		} else {
+			group, _ := member.Group()
+			childOrgID, childTeamID, err := parseID(group.ID)
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("could not parse group ID %s: %w", group.ID, err))
+				continue
+			}
+			if childOrgID != orgID {
+				merr = errors.Join(merr, fmt.Errorf("cannot add team from another org as a child team"))
+				continue
+			}
+			if err := removeSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to remove child team: %w", err))
+				continue
 			}
 		}
 	}
@@ -223,4 +276,34 @@ func toIDMap(members []groupsync.Member) map[string]groupsync.Member {
 		}
 	}
 	return memberIDs
+}
+
+func addSubTeam(ctx context.Context, client *github.Client, orgID, teamID, subTeamID int64) error {
+	subteam, _, err := client.Teams.GetTeamByID(ctx, orgID, subTeamID)
+	if err != nil {
+		return fmt.Errorf("error fetching team %d: %w", subTeamID, err)
+	}
+	patch := github.NewTeam{
+		Name:         subteam.GetName(),
+		ParentTeamID: proto.Int64(teamID),
+	}
+	_, _, err = client.Teams.EditTeamByID(ctx, orgID, subTeamID, patch, false)
+	if err != nil {
+		return fmt.Errorf("error adding team %d as a subteam of team %d: %w", subTeamID, teamID, err)
+	}
+	return nil
+}
+
+func removeSubTeam(ctx context.Context, client *github.Client, orgID, teamID, subTeamID int64) error {
+	subTeam, _, err := client.Teams.GetTeamByID(ctx, orgID, subTeamID)
+	if err != nil {
+		return fmt.Errorf("error fetching team %d: %w", subTeamID, err)
+	}
+	patch := github.NewTeam{
+		Name: subTeam.GetName(),
+	}
+	if _, _, err := client.Teams.EditTeamByID(ctx, orgID, subTeamID, patch, true); err != nil {
+		return fmt.Errorf("error removing team %d as a subteam of team %d: %w", subTeamID, teamID, err)
+	}
+	return nil
 }
