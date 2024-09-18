@@ -132,7 +132,7 @@ func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error fetching source group IDs: %w", err)
 	}
-	if err = ConcurrentSync(ctx, f, sourceGroupIDs); err != nil {
+	if err := ConcurrentSync(ctx, f, sourceGroupIDs); err != nil {
 		return fmt.Errorf("failed to sync one or more IDs: %w", err)
 	}
 	return nil
