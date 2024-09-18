@@ -1217,7 +1217,7 @@ func TestSyncAll(t *testing.T) {
 				},
 				"99": {},
 			},
-			wantErr: "error syncing source group 1",
+			wantErr: "failed to sync one or more IDs",
 		},
 		{
 			name:         "sync_all_total_failure",
@@ -1314,7 +1314,7 @@ func TestSyncAll(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error syncing source group",
+			wantErr: "failed to sync one or more IDs",
 		},
 	}
 

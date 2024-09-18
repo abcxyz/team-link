@@ -20,7 +20,7 @@ import (
 	"fmt"
 )
 
-// ManyToManySyncer adheres to the v1alpha4.GroupSyncer interface.
+// ManyToManySyncer adheres to the v1alpha3.GroupSyncer interface.
 // This syncer allows for syncing many source groups to many target groups.
 // It adheres to the following policy when syncing a source group ID:
 //
@@ -132,14 +132,10 @@ func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error fetching source group IDs: %w", err)
 	}
-	// TODO(https://github.com/abcxyz/team-link/issues/43): consider syncing each sourceGroupID async.
-	var merr error
-	for _, sourceGroupID := range sourceGroupIDs {
-		if err := f.Sync(ctx, sourceGroupID); err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error syncing source group %s: %w", sourceGroupID, err))
-		}
+	if err = ConcurrentSync(ctx, f, sourceGroupIDs); err != nil {
+		return fmt.Errorf("failed to sync one or more IDs: %w", err)
 	}
-	return merr
+	return nil
 }
 
 func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupIDs []string) ([]*User, error) {
