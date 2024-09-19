@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1217,7 +1218,7 @@ func TestSyncAll(t *testing.T) {
 				},
 				"99": {},
 			},
-			wantErr: "error syncing source group 1",
+			wantErr: "failed to sync one or more IDs",
 		},
 		{
 			name:         "sync_all_total_failure",
@@ -1314,7 +1315,7 @@ func TestSyncAll(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error syncing source group",
+			wantErr: "failed to sync one or more IDs",
 		},
 	}
 
@@ -1361,6 +1362,7 @@ type testReadWriteGroupClient struct {
 	getMembersErrs  map[string]error
 	getUserErrs     map[string]error
 	setMembersErrs  map[string]error
+	mutex           sync.RWMutex
 }
 
 func (tc *testReadWriteGroupClient) Descendants(ctx context.Context, groupID string) ([]*User, error) {
@@ -1382,6 +1384,8 @@ func (tc *testReadWriteGroupClient) GetGroup(ctx context.Context, groupID string
 }
 
 func (tc *testReadWriteGroupClient) GetMembers(ctx context.Context, groupID string) ([]Member, error) {
+	tc.mutex.RLock()
+	defer tc.mutex.RUnlock()
 	if err, ok := tc.getMembersErrs[groupID]; ok {
 		return nil, err
 	}
@@ -1404,10 +1408,13 @@ func (tc *testReadWriteGroupClient) GetUser(ctx context.Context, userID string) 
 }
 
 func (tc *testReadWriteGroupClient) SetMembers(ctx context.Context, groupID string, members []Member) error {
+	tc.mutex.Lock()
+	defer tc.mutex.Unlock()
 	if err, ok := tc.setMembersErrs[groupID]; ok {
 		return err
 	}
-	if _, ok := tc.groupMembers[groupID]; !ok {
+	_, ok := tc.groupMembers[groupID]
+	if !ok {
 		return fmt.Errorf("group %s not found", groupID)
 	}
 	// sort members so we have deterministic ordering for comparisons
