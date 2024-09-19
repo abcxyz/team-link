@@ -99,12 +99,12 @@ func (f *fakeSyncer) TargetSystem() string {
 }
 
 func (f *fakeSyncer) Sync(_ context.Context, sourceGroupID string) error {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	if err, ok := f.idErrs[sourceGroupID]; ok {
 		return err
 	}
-	f.mutex.Lock()
 	f.receivedIds = append(f.receivedIds, sourceGroupID)
-	f.mutex.Unlock()
 	return nil
 }
 

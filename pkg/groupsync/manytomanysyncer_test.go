@@ -1384,12 +1384,12 @@ func (tc *testReadWriteGroupClient) GetGroup(ctx context.Context, groupID string
 }
 
 func (tc *testReadWriteGroupClient) GetMembers(ctx context.Context, groupID string) ([]Member, error) {
+	tc.mutex.RLock()
+	defer tc.mutex.RUnlock()
 	if err, ok := tc.getMembersErrs[groupID]; ok {
 		return nil, err
 	}
-	tc.mutex.RLock()
 	members, ok := tc.groupMembers[groupID]
-	tc.mutex.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("group %s not found", groupID)
 	}
@@ -1408,12 +1408,12 @@ func (tc *testReadWriteGroupClient) GetUser(ctx context.Context, userID string) 
 }
 
 func (tc *testReadWriteGroupClient) SetMembers(ctx context.Context, groupID string, members []Member) error {
+	tc.mutex.Lock()
+	defer tc.mutex.Unlock()
 	if err, ok := tc.setMembersErrs[groupID]; ok {
 		return err
 	}
-	tc.mutex.RLock()
 	_, ok := tc.groupMembers[groupID]
-	tc.mutex.RUnlock()
 	if !ok {
 		return fmt.Errorf("group %s not found", groupID)
 	}
@@ -1431,9 +1431,7 @@ func (tc *testReadWriteGroupClient) SetMembers(ctx context.Context, groupID stri
 		}
 		return u1.ID < u2.ID
 	})
-	tc.mutex.Lock()
 	tc.groupMembers[groupID] = members
-	tc.mutex.Unlock()
 	return nil
 }
 
