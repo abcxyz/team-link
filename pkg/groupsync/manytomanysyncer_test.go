@@ -1366,6 +1366,8 @@ type testReadWriteGroupClient struct {
 }
 
 func (tc *testReadWriteGroupClient) Descendants(ctx context.Context, groupID string) ([]*User, error) {
+	tc.mutex.RLock()
+	defer tc.mutex.RUnlock()
 	if err, ok := tc.descendantsErrs[groupID]; ok {
 		return nil, err
 	}
@@ -1373,6 +1375,8 @@ func (tc *testReadWriteGroupClient) Descendants(ctx context.Context, groupID str
 }
 
 func (tc *testReadWriteGroupClient) GetGroup(ctx context.Context, groupID string) (*Group, error) {
+	tc.mutex.RLock()
+	defer tc.mutex.RUnlock()
 	if err, ok := tc.getGroupErrs[groupID]; ok {
 		return nil, err
 	}
@@ -1397,6 +1401,8 @@ func (tc *testReadWriteGroupClient) GetMembers(ctx context.Context, groupID stri
 }
 
 func (tc *testReadWriteGroupClient) GetUser(ctx context.Context, userID string) (*User, error) {
+	tc.mutex.RLock()
+	defer tc.mutex.RUnlock()
 	if err, ok := tc.getUserErrs[userID]; ok {
 		return nil, err
 	}
