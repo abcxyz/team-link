@@ -144,6 +144,7 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 		name        string
 		tokenSource OrgTokenSource
 		data        *GitHubData
+		opts        []Opt
 		groupID     string
 		want        []groupsync.Member
 		wantErr     string
@@ -378,6 +379,114 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "subteams_excluded_if_disabled",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				teams: map[string]map[string]*github.Team{
+					"8583": { // org1
+						"2797": &github.Team{
+							ID:   proto.Int64(2797),
+							Name: proto.String("team1"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"9350": &github.Team{
+							ID:   proto.Int64(9350),
+							Name: proto.String("team2"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"7347": &github.Team{
+							ID:     proto.Int64(7347),
+							Name:   proto.String("team2_sub_team"),
+							Parent: &github.Team{ID: proto.Int64(9350)},
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+					"4701": { // org2
+						"3387": &github.Team{
+							ID:   proto.Int64(3387),
+							Name: proto.String("team3"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(4701),
+								Name: proto.String("org2"),
+							},
+						},
+					},
+				},
+				teamMembers: map[string]map[string]map[string]struct{}{
+					"8583": { // org1
+						"2797": {
+							"user2": struct{}{},
+						},
+						"9350": {
+							"user1": struct{}{},
+							"user3": struct{}{},
+						},
+						"7347": {},
+					},
+					"4701": { // org2
+						"3387": {
+							"user1": struct{}{},
+						},
+					},
+				},
+			},
+			opts:    []Opt{WithoutSubTeamsAsMembers()},
+			groupID: "8583:9350",
+			want: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -391,7 +500,7 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, tc.opts...)
 
 			got, err := groupRW.GetMembers(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -738,12 +847,14 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name        string
-		tokenSource OrgTokenSource
-		data        *GitHubData
-		groupID     string
-		wantMembers []groupsync.Member
-		wantErr     string
+		name         string
+		tokenSource  OrgTokenSource
+		data         *GitHubData
+		opts         []Opt
+		groupID      string
+		inputMembers []groupsync.Member
+		wantMembers  []groupsync.Member
+		wantErr      string
 	}{
 		{
 			name: "success_add",
@@ -819,6 +930,38 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:2797",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
@@ -926,6 +1069,18 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:9350",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
@@ -1013,6 +1168,28 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:9350",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
@@ -1130,6 +1307,59 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:2797",
+			inputMembers: []groupsync.Member{
+				&groupsync.GroupMember{
+					Grp: &groupsync.Group{
+						ID: "8583:7347",
+						Attributes: &github.Team{
+							ID:   proto.Int64(7347),
+							Name: proto.String("team1_sub_team"),
+							Parent: &github.Team{
+								ID:   proto.Int64(2797),
+								Name: proto.String("team1"),
+								Organization: &github.Organization{
+									ID:   proto.Int64(8583),
+									Name: proto.String("org1"),
+								},
+							},
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.GroupMember{
 					Grp: &groupsync.Group{
@@ -1274,6 +1504,18 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:9350",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
@@ -1385,6 +1627,49 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 			groupID: "8583:9350",
+			inputMembers: []groupsync.Member{
+				&groupsync.GroupMember{
+					Grp: &groupsync.Group{
+						ID: "8583:3487",
+						Attributes: &github.Team{
+							ID:   proto.Int64(3487),
+							Name: proto.String("team2_sub_team2"),
+							Parent: &github.Team{
+								ID:   proto.Int64(9350),
+								Name: proto.String("team2"),
+								Organization: &github.Organization{
+									ID:   proto.Int64(8583),
+									Name: proto.String("org1"),
+								},
+							},
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+			},
 			wantMembers: []groupsync.Member{
 				&groupsync.GroupMember{
 					Grp: &groupsync.Group{
@@ -1429,6 +1714,176 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "success_add_subteams_disabled",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				teams: map[string]map[string]*github.Team{
+					"8583": { // org1
+						"2797": &github.Team{
+							ID:   proto.Int64(2797),
+							Name: proto.String("team1"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"9350": &github.Team{
+							ID:   proto.Int64(9350),
+							Name: proto.String("team2"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"7347": &github.Team{
+							ID:   proto.Int64(7347),
+							Name: proto.String("team1_sub_team"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+					"4701": { // org2
+						"3387": &github.Team{
+							ID:   proto.Int64(3387),
+							Name: proto.String("team3"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(4701),
+								Name: proto.String("org2"),
+							},
+						},
+					},
+				},
+				teamMembers: map[string]map[string]map[string]struct{}{
+					"8583": { // org1
+						"2797": {
+							"user2": struct{}{},
+						},
+						"9350": {
+							"user1": struct{}{},
+							"user3": struct{}{},
+						},
+					},
+					"4701": { // org2
+						"3387": {
+							"user1": struct{}{},
+						},
+					},
+				},
+			},
+			opts:    []Opt{WithoutSubTeamsAsMembers()},
+			groupID: "8583:2797",
+			inputMembers: []groupsync.Member{
+				&groupsync.GroupMember{
+					Grp: &groupsync.Group{
+						ID: "8583:7347",
+						Attributes: &github.Team{
+							ID:   proto.Int64(7347),
+							Name: proto.String("team1_sub_team"),
+							Parent: &github.Team{
+								ID:   proto.Int64(2797),
+								Name: proto.String("team1"),
+								Organization: &github.Organization{
+									ID:   proto.Int64(8583),
+									Name: proto.String("org1"),
+								},
+							},
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1442,9 +1897,9 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, tc.opts...)
 
-			err := groupRW.SetMembers(ctx, tc.groupID, tc.wantMembers)
+			err := groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want) = %v", diff)
 			}
