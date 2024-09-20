@@ -35,19 +35,40 @@ type OrgTokenSource interface {
 	TokenForOrg(ctx context.Context, orgID int64) (string, error)
 }
 
+type Opt func(writer *TeamReadWriter)
+
+// WithoutSubTeamsAsMembers toggles off treating subteams as members of their parent team.
+// When this option is used TeamReadWriter.GetMembers will only return user members of the team.
+// Similarly, TeamReadWriter.SetMembers will only consider user members when setting members.
+func WithoutSubTeamsAsMembers() Opt {
+	return func(writer *TeamReadWriter) {
+		writer.includeSubTeams = false
+	}
+}
+
 // TeamReadWriter adheres to the groupsync.GroupReadWriter interface
 // and provides mechanisms for manipulating GitHub Teams.
 type TeamReadWriter struct {
-	orgTokenSource OrgTokenSource
-	client         *github.Client
+	orgTokenSource  OrgTokenSource
+	client          *github.Client
+	includeSubTeams bool
 }
 
-// NewTeamReadWriter creates a new TeamReadWriter.
-func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client) *TeamReadWriter {
-	return &TeamReadWriter{
-		orgTokenSource: orgTokenSource,
-		client:         client,
+// NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
+// subteams as members of their parent team and will treat them as such when executing
+// calls to TeamReadWriter.GetMembers and TeamReadWriter.SetMembers. This behavior can
+// be disabled by supply the WithoutSubTeamsAsMembers option, in which case only users
+// will be considered as members of a team.
+func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *TeamReadWriter {
+	t := &TeamReadWriter{
+		orgTokenSource:  orgTokenSource,
+		client:          client,
+		includeSubTeams: true,
 	}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
 }
 
 // GetGroup retrieves the GitHub team with the given ID. The ID must be of the form 'orgID:teamID'.
@@ -106,33 +127,36 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 		return nil, err
 	}
 
-	childTeams := make(map[int64]*github.Team, len(users))
-	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
-		members, resp, err := client.Teams.ListChildTeamsByParentID(ctx, orgID, teamID, listOpts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list team membership: %w", err)
-		}
-
-		for _, m := range members {
-			if v := m.GetID(); v != 0 {
-				childTeams[v] = m
-			}
-		}
-		return resp, nil
-	}); err != nil {
-		return nil, err
-	}
-
 	members := make([]groupsync.Member, 0, len(users))
 	for _, user := range users {
 		members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: user.GetLogin(), Attributes: user}})
 	}
-	for _, team := range childTeams {
-		members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{
-			ID:         encode(team.GetOrganization().GetID(), team.GetID()),
-			Attributes: team,
-		}})
+
+	if g.includeSubTeams {
+		childTeams := make(map[int64]*github.Team, len(users))
+		if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
+			members, resp, err := client.Teams.ListChildTeamsByParentID(ctx, orgID, teamID, listOpts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list team membership: %w", err)
+			}
+
+			for _, m := range members {
+				if v := m.GetID(); v != 0 {
+					childTeams[v] = m
+				}
+			}
+			return resp, nil
+		}); err != nil {
+			return nil, err
+		}
+		for _, team := range childTeams {
+			members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{
+				ID:         encode(team.GetOrganization().GetID(), team.GetID()),
+				Attributes: team,
+			}})
+		}
 	}
+
 	return members, nil
 }
 
@@ -190,7 +214,7 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 			if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, user.ID, membershipOpt); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to add GitHub team members for team(%d): %w", teamID, err))
 			}
-		} else {
+		} else if member.IsGroup() && g.includeSubTeams {
 			group, _ := member.Group()
 			childOrgID, childTeamID, err := parseID(group.ID)
 			if err != nil {
@@ -214,7 +238,7 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 			if _, err := client.Teams.RemoveTeamMembershipByID(ctx, orgID, teamID, user.ID); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to remove GitHub team members for team(%d): %w", teamID, err))
 			}
-		} else {
+		} else if member.IsGroup() && g.includeSubTeams {
 			group, _ := member.Group()
 			childOrgID, childTeamID, err := parseID(group.ID)
 			if err != nil {
