@@ -20,30 +20,50 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v61/github"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/abcxyz/pkg/cache"
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-const IDSep = ":"
+const (
+	IDSep = ":"
+	// DefaultCacheDuration is the default time to live for the user and team caches.
+	// We don't expect user info (e.g. username etc.) nor team info (team name etc.)
+	// to change frequently so a time to live of 1 day is the default.
+	DefaultCacheDuration = time.Hour * 24
+)
 
 type OrgTokenSource interface {
 	// TokenForOrg returns a token that grants access to the given Org's resources.
 	TokenForOrg(ctx context.Context, orgID int64) (string, error)
 }
 
-type Opt func(writer *TeamReadWriter)
+type Config struct {
+	includeSubTeams bool
+	cacheDuration   time.Duration
+}
+
+type Opt func(writer *Config)
 
 // WithoutSubTeamsAsMembers toggles off treating subteams as members of their parent team.
 // When this option is used TeamReadWriter.GetMembers will only return user members of the team.
 // Similarly, TeamReadWriter.SetMembers will only consider user members when setting members.
 func WithoutSubTeamsAsMembers() Opt {
-	return func(writer *TeamReadWriter) {
-		writer.includeSubTeams = false
+	return func(config *Config) {
+		config.includeSubTeams = false
+	}
+}
+
+// WithCacheDuration set the time to live for the user and team cache entries.
+func WithCacheDuration(duration time.Duration) Opt {
+	return func(config *Config) {
+		config.cacheDuration = duration
 	}
 }
 
@@ -52,6 +72,8 @@ func WithoutSubTeamsAsMembers() Opt {
 type TeamReadWriter struct {
 	orgTokenSource  OrgTokenSource
 	client          *github.Client
+	userCache       *cache.Cache[*github.User]
+	teamCache       *cache.Cache[*github.Team]
 	includeSubTeams bool
 }
 
@@ -61,13 +83,19 @@ type TeamReadWriter struct {
 // be disabled by supply the WithoutSubTeamsAsMembers option, in which case only users
 // will be considered as members of a team.
 func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *TeamReadWriter {
+	config := &Config{
+		includeSubTeams: true,
+		cacheDuration:   DefaultCacheDuration,
+	}
+	for _, opt := range opts {
+		opt(config)
+	}
 	t := &TeamReadWriter{
 		orgTokenSource:  orgTokenSource,
 		client:          client,
-		includeSubTeams: true,
-	}
-	for _, opt := range opts {
-		opt(t)
+		includeSubTeams: config.includeSubTeams,
+		userCache:       cache.New[*github.User](config.cacheDuration),
+		teamCache:       cache.New[*github.Team](config.cacheDuration),
 	}
 	return t
 }
@@ -76,17 +104,22 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching team", "team_id", groupID)
-	orgID, teamID, err := parseID(groupID)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
-	}
-	client, err := g.githubClientForOrg(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("could not get github client: %w", err)
-	}
-	team, _, err := client.Teams.GetTeamByID(ctx, orgID, teamID)
-	if err != nil {
-		return nil, fmt.Errorf("could not get team: %w", err)
+	team, ok := g.teamCache.Lookup(groupID)
+	if !ok {
+		orgID, teamID, err := parseID(groupID)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
+		}
+		client, err := g.githubClientForOrg(ctx, orgID)
+		if err != nil {
+			return nil, fmt.Errorf("could not get github client: %w", err)
+		}
+		ghTeam, _, err := client.Teams.GetTeamByID(ctx, orgID, teamID)
+		if err != nil {
+			return nil, fmt.Errorf("could not get team: %w", err)
+		}
+		team = ghTeam
+		g.teamCache.Set(groupID, ghTeam)
 	}
 	group := &groupsync.Group{
 		ID:         encode(team.GetOrganization().GetID(), team.GetID()),
@@ -181,9 +214,14 @@ func (g *TeamReadWriter) Descendants(ctx context.Context, groupID string) ([]*gr
 func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync.User, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching user", "user_id", userID)
-	ghUser, _, err := g.client.Users.Get(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
+	ghUser, ok := g.userCache.Lookup(userID)
+	if !ok {
+		user, _, err := g.client.Users.Get(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
+		}
+		ghUser = user
+		g.userCache.Set(userID, ghUser)
 	}
 	user := &groupsync.User{
 		ID:         ghUser.GetLogin(),
