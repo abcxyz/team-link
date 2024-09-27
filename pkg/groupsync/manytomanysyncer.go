@@ -85,9 +85,16 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		)
 		return fmt.Errorf("error fetching target group IDs: %s, %w", sourceGroupID, err)
 	}
+	logger.InfoContext(ctx, "found the following target group IDs to sync",
+		"source_group_id", sourceGroupID,
+		"target_group_ids", targetGroupIDs,
+	)
 
 	var merr error
 	for _, targetGroupID := range targetGroupIDs {
+		logger.InfoContext(ctx, "syncing target group ID",
+			"target_group_id", targetGroupID,
+		)
 		// get all source group IDs associated with the current target GroupID
 		sourceGroupIDs, err := f.targetGroupMapper.MappedGroupIDs(ctx, targetGroupID)
 		if err != nil {
@@ -102,6 +109,10 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 				continue
 			}
 		}
+		logger.InfoContext(ctx, "found source group ID(s) for target Group ID",
+			"target_group_id", targetGroupID,
+			"source_group_ids", sourceGroupIDs,
+		)
 
 		// get the union of all users that are members of each source group
 		sourceUsers, err := f.sourceUsers(ctx, sourceGroupIDs)
@@ -117,6 +128,10 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 				continue
 			}
 		}
+		logger.InfoContext(ctx, "found descendant(s) for source group ID(s)",
+			"source_group_ids", sourceGroupIDs,
+			"source_users", sourceUsers,
+		)
 
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
@@ -132,6 +147,10 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 				continue
 			}
 		}
+		logger.InfoContext(ctx, "mapped source users to target users",
+			"source_users", sourceUsers,
+			"target_users", targetUsers,
+		)
 
 		// map each targetUser to Member type
 		targetMembers := make([]Member, 0, len(targetUsers))
@@ -141,6 +160,10 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 
 		// targetMembers is now the canonical set of members for the target group ID.
 		// Set the target group's members to targetMembers.
+		logger.InfoContext(ctx, "setting target group ID members to target users",
+			"target_group_id", targetGroupID,
+			"target_users", targetUsers,
+		)
 		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 			logger.WarnContext(ctx, "failed setting target group members",
 				"target_group_id", targetGroupID,
