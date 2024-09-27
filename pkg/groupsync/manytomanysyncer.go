@@ -18,6 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/abcxyz/pkg/logging"
 )
 
 // ManyToManySyncer adheres to the v1alpha3.GroupSyncer interface.
@@ -72,9 +74,15 @@ func (f *ManyToManySyncer) TargetSystem() string {
 
 // Sync syncs the source group with the given ID to the target group system.
 func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "starting sync", "source_group_id", sourceGroupID)
 	// get target group IDs for this source group ID
 	targetGroupIDs, err := f.sourceGroupMapper.MappedGroupIDs(ctx, sourceGroupID)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to map source group ID to target groups IDs",
+			"source_group_id", sourceGroupID,
+			"error", err,
+		)
 		return fmt.Errorf("error fetching target group IDs: %s, %w", sourceGroupID, err)
 	}
 
@@ -83,6 +91,11 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// get all source group IDs associated with the current target GroupID
 		sourceGroupIDs, err := f.targetGroupMapper.MappedGroupIDs(ctx, targetGroupID)
 		if err != nil {
+			logger.WarnContext(ctx, "error getting one ore more source group IDs for target group ID",
+				"target_group_id", targetGroupID,
+				"source_group_ids", sourceGroupIDs,
+				"error", err,
+			)
 			merr = errors.Join(merr, fmt.Errorf("error getting associated source group ids: %w", err))
 			if len(sourceGroupIDs) == 0 {
 				// nothing left to do. move on to the next targetGroupID.
@@ -93,6 +106,11 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// get the union of all users that are members of each source group
 		sourceUsers, err := f.sourceUsers(ctx, sourceGroupIDs)
 		if err != nil {
+			logger.WarnContext(ctx, "error getting one or more source users for source group IDs",
+				"source_group_ids", sourceGroupIDs,
+				"source_users", sourceUsers,
+				"error", err,
+			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more source users: %w", err))
 			if len(sourceUsers) == 0 {
 				// nothing left to do. move on to the next targetGroupID.
@@ -103,6 +121,11 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
 		if err != nil {
+			logger.WarnContext(ctx, "error mapping one or more source users to their target user",
+				"source_users", sourceUsers,
+				"target_users", targetUsers,
+				"error", err,
+			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more target users: %w", err))
 			if len(targetUsers) == 0 {
 				// nothing left to do. move on to the next targetGroupID.
@@ -119,6 +142,10 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// targetMembers is now the canonical set of members for the target group ID.
 		// Set the target group's members to targetMembers.
 		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
+			logger.WarnContext(ctx, "error setting target group members",
+				"target_group_id", targetGroupID,
+				"err", err,
+			)
 			merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 		}
 	}

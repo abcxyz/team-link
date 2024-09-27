@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-github/v61/github"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
@@ -73,6 +74,8 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 
 // GetGroup retrieves the GitHub team with the given ID. The ID must be of the form 'orgID:teamID'.
 func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching team", "team_id", groupID)
 	orgID, teamID, err := parseID(groupID)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
@@ -95,6 +98,8 @@ func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsy
 // GetMembers retrieves the direct members (children) of the GitHub team with given ID.
 // The ID must be of the form 'orgID:teamID'.
 func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]groupsync.Member, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching members for team", "team_id", groupID)
 	orgID, teamID, err := parseID(groupID)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
@@ -163,6 +168,8 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 // Descendants retrieve all users (children, recursively) of the GitHub team with the given ID.
 // The ID must be of the form 'orgID:teamID'.
 func (g *TeamReadWriter) Descendants(ctx context.Context, groupID string) ([]*groupsync.User, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching descendants for team", "team_id", groupID)
 	users, err := groupsync.Descendants(ctx, groupID, g.GetMembers)
 	if err != nil {
 		return nil, fmt.Errorf("could not get descendants: %w", err)
@@ -172,6 +179,8 @@ func (g *TeamReadWriter) Descendants(ctx context.Context, groupID string) ([]*gr
 
 // GetUser retrieves the GitHub user with the given ID. The ID is the GitHub user's login.
 func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync.User, error) {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching user", "user_id", userID)
 	ghUser, _, err := g.client.Users.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
@@ -187,6 +196,11 @@ func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync
 // The ID must be of the form 'orgID:teamID'. Any members of the GitHub team not found in the given members list
 // will be removed. Likewise, any members of the given list that are not currently members of the team will be added.
 func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members []groupsync.Member) error {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "setting members for team",
+		"team_id", groupID,
+		"members", members,
+	)
 	orgID, teamID, err := parseID(groupID)
 	if err != nil {
 		return fmt.Errorf("could not parse groupID %s: %w", groupID, err)
