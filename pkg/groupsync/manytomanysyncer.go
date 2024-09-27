@@ -144,7 +144,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 			logger.WarnContext(ctx, "error setting target group members",
 				"target_group_id", targetGroupID,
-				"err", err,
+				"error", err,
 			)
 			merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 		}
