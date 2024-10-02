@@ -257,7 +257,7 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "current team members",
 		"team_id", groupID,
-		"member_ids", mapKeys(addMembers),
+		"current_member_ids", mapKeys(currentMemberIDs),
 	)
 	logger.InfoContext(ctx, "authoritative team members",
 		"team_id", groupID,
