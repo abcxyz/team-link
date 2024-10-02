@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -102,10 +103,10 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 
 // GetGroup retrieves the GitHub team with the given ID. The ID must be of the form 'orgID:teamID'.
 func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
-	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "fetching team", "team_id", groupID)
 	team, ok := g.teamCache.Lookup(groupID)
 	if !ok {
+		logger := logging.FromContext(ctx)
+		logger.InfoContext(ctx, "fetching team", "team_id", groupID)
 		orgID, teamID, err := parseID(groupID)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
@@ -212,10 +213,10 @@ func (g *TeamReadWriter) Descendants(ctx context.Context, groupID string) ([]*gr
 
 // GetUser retrieves the GitHub user with the given ID. The ID is the GitHub user's login.
 func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync.User, error) {
-	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "fetching user", "user_id", userID)
 	ghUser, ok := g.userCache.Lookup(userID)
 	if !ok {
+		logger := logging.FromContext(ctx)
+		logger.InfoContext(ctx, "fetching user", "user_id", userID)
 		user, _, err := g.client.Users.Get(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
@@ -234,11 +235,6 @@ func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync
 // The ID must be of the form 'orgID:teamID'. Any members of the GitHub team not found in the given members list
 // will be removed. Likewise, any members of the given list that are not currently members of the team will be added.
 func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members []groupsync.Member) error {
-	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "setting members for team",
-		"team_id", groupID,
-		"members", members,
-	)
 	orgID, teamID, err := parseID(groupID)
 	if err != nil {
 		return fmt.Errorf("could not parse groupID %s: %w", groupID, err)
@@ -257,6 +253,25 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 
 	addMembers := sets.SubtractMapKeys(newMemberIDs, currentMemberIDs)
 	removeMembers := sets.SubtractMapKeys(currentMemberIDs, newMemberIDs)
+
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "current team members",
+		"team_id", groupID,
+		"member_ids", mapKeys(addMembers),
+	)
+	logger.InfoContext(ctx, "authoritative team members",
+		"team_id", groupID,
+		"authoritative_member_ids", mapKeys(newMemberIDs),
+	)
+	logger.InfoContext(ctx, "members to add",
+		"team_id", groupID,
+		"add_member_ids", mapKeys(addMembers),
+	)
+	logger.InfoContext(ctx, "members to remove",
+		"team_id", groupID,
+		"remove_member_ids", mapKeys(removeMembers),
+	)
+
 	var merr error
 	// Add GitHub team memberships.
 	for _, member := range addMembers {
@@ -382,4 +397,13 @@ func removeSubTeam(ctx context.Context, client *github.Client, orgID, teamID, su
 		return fmt.Errorf("error removing team %d as a subteam of team %d: %w", subTeamID, teamID, err)
 	}
 	return nil
+}
+
+func mapKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
 }
