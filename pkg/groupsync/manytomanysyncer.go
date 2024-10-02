@@ -116,10 +116,11 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 
 		// get the union of all users that are members of each source group
 		sourceUsers, err := f.sourceUsers(ctx, sourceGroupIDs)
+		sourceUserIds := userIDs(sourceUsers)
 		if err != nil {
 			logger.WarnContext(ctx, "failed getting one or more source users for source group IDs",
 				"source_group_ids", sourceGroupIDs,
-				"source_users", sourceUsers,
+				"source_user_ids", sourceUserIds,
 				"error", err,
 			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more source users: %w", err))
@@ -130,15 +131,16 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		}
 		logger.InfoContext(ctx, "found descendant(s) for source group ID(s)",
 			"source_group_ids", sourceGroupIDs,
-			"source_users", sourceUsers,
+			"source_user_ids", sourceUserIds,
 		)
 
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
+		targetUserIds := userIDs(targetUsers)
 		if err != nil {
 			logger.WarnContext(ctx, "failed mapping one or more source users to their target user",
-				"source_users", sourceUsers,
-				"target_users", targetUsers,
+				"source_user_ids", sourceUserIds,
+				"target_user_ids", targetUserIds,
 				"error", err,
 			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more target users: %w", err))
@@ -148,8 +150,8 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			}
 		}
 		logger.InfoContext(ctx, "mapped source users to target users",
-			"source_users", sourceUsers,
-			"target_users", targetUsers,
+			"source_user_ids", sourceUserIds,
+			"target_user_ids", targetUserIds,
 		)
 
 		// map each targetUser to Member type
@@ -162,7 +164,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// Set the target group's members to targetMembers.
 		logger.InfoContext(ctx, "setting target group ID members to target users",
 			"target_group_id", targetGroupID,
-			"target_users", targetUsers,
+			"target_user_ids", targetUserIds,
 		)
 		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 			logger.WarnContext(ctx, "failed setting target group members",
@@ -225,4 +227,12 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 		targetUsers = append(targetUsers, targetUser)
 	}
 	return targetUsers, merr
+}
+
+func userIDs(users []*User) []string {
+	ids := make([]string, 0, len(users))
+	for _, user := range users {
+		ids = append(ids, user.ID)
+	}
+	return ids
 }
