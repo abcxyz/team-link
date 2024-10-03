@@ -442,12 +442,7 @@ func TestSync(t *testing.T) {
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {
-					&UserMember{Usr: &User{ID: "qr"}},
-					&UserMember{Usr: &User{ID: "st"}},
-					&UserMember{Usr: &User{ID: "xy"}},
-					&UserMember{Usr: &User{ID: "zw"}},
-				},
+				"98": {},
 				"99": {
 					&UserMember{Usr: &User{ID: "qr"}},
 					&UserMember{Usr: &User{ID: "st"}},
@@ -632,14 +627,8 @@ func TestSync(t *testing.T) {
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {
-					&UserMember{Usr: &User{ID: "st"}},
-					&UserMember{Usr: &User{ID: "zw"}},
-				},
-				"99": {
-					&UserMember{Usr: &User{ID: "st"}},
-					&UserMember{Usr: &User{ID: "zw"}},
-				},
+				"98": {},
+				"99": {},
 			},
 			wantErr: "error getting one or more target users",
 		},
