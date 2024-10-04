@@ -36,7 +36,7 @@ type ManyToManySyncer struct {
 	sourceSystem          string
 	targetSystem          string
 	sourceGroupReader     GroupReader
-	targetGroupReadWriter GroupReadWriter
+	targetGroupReadWriter GroupWriter
 	sourceGroupMapper     OneToManyGroupMapper
 	targetGroupMapper     OneToManyGroupMapper
 	userMapper            UserMapper
@@ -46,7 +46,7 @@ type ManyToManySyncer struct {
 func NewManyToManySyncer(
 	sourceSystem, targetSystem string,
 	sourceGroupClient GroupReader,
-	targetGroupClient GroupReadWriter,
+	targetGroupClient GroupWriter,
 	sourceGroupMapper OneToManyGroupMapper,
 	targetGroupMapper OneToManyGroupMapper,
 	userMapper UserMapper,
@@ -213,12 +213,7 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 			continue
 		}
-		targetUser, err := f.targetGroupReadWriter.GetUser(ctx, targetUserID)
-		if err != nil {
-			merr = fmt.Errorf("error fetching user for user id %s: %w", targetUserID, err)
-			continue
-		}
-		targetUsers = append(targetUsers, targetUser)
+		targetUsers = append(targetUsers, &User{ID: targetUserID})
 	}
 	return targetUsers, merr
 }
