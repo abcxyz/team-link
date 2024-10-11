@@ -1714,7 +1714,6 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "success_add_subteams_disabled",
 			tokenSource: &fakeTokenSource{
@@ -1850,6 +1849,120 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 						},
 					},
 				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ids_are_treated_case_insensitively",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				teams: map[string]map[string]*github.Team{
+					"8583": { // org1
+						"2797": &github.Team{
+							ID:   proto.Int64(2797),
+							Name: proto.String("team1"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"9350": &github.Team{
+							ID:   proto.Int64(9350),
+							Name: proto.String("team2"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+					"4701": { // org2
+						"3387": &github.Team{
+							ID:   proto.Int64(3387),
+							Name: proto.String("team3"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(4701),
+								Name: proto.String("org2"),
+							},
+						},
+					},
+				},
+				teamMembers: map[string]map[string]map[string]struct{}{
+					"8583": { // org1
+						"2797": {
+							"user1": struct{}{},
+							"user2": struct{}{},
+							"user3": struct{}{},
+						},
+						"9350": {
+							"user1": struct{}{},
+							"user3": struct{}{},
+						},
+					},
+					"4701": { // org2
+						"3387": {
+							"user1": struct{}{},
+						},
+					},
+				},
+			},
+			groupID: "8583:2797",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{Usr: &groupsync.User{ID: "User1"}},
+				&groupsync.UserMember{Usr: &groupsync.User{ID: "UseR2"}},
+				&groupsync.UserMember{Usr: &groupsync.User{ID: "USER3"}},
 			},
 			wantMembers: []groupsync.Member{
 				&groupsync.UserMember{
@@ -2043,7 +2156,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 		}
 		orgID := r.PathValue("org_id")
 		teamID := r.PathValue("team_id")
-		username := r.PathValue("username")
+		username := strings.ToLower(r.PathValue("username"))
 		teamMembers, ok := githubData.teamMembers[orgID]
 		if !ok {
 			w.WriteHeader(404)
@@ -2087,7 +2200,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 		}
 		orgID := r.PathValue("org_id")
 		teamID := r.PathValue("team_id")
-		username := r.PathValue("username")
+		username := strings.ToLower(r.PathValue("username"))
 		teamMembers, ok := githubData.teamMembers[orgID]
 		if !ok {
 			w.WriteHeader(404)
@@ -2214,24 +2327,6 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 
 func sortByID(members []groupsync.Member) {
 	slices.SortFunc(members, func(a, b groupsync.Member) int {
-		if a.IsUser() {
-			userA, _ := a.User()
-			if b.IsUser() {
-				userB, _ := b.User()
-				return strings.Compare(userA.ID, userB.ID)
-			} else {
-				groupB, _ := b.Group()
-				return strings.Compare(userA.ID, groupB.ID)
-			}
-		} else {
-			groupA, _ := a.Group()
-			if b.IsUser() {
-				userB, _ := b.User()
-				return strings.Compare(groupA.ID, userB.ID)
-			} else {
-				groupB, _ := b.Group()
-				return strings.Compare(groupA.ID, groupB.ID)
-			}
-		}
+		return strings.Compare(a.ID(), b.ID())
 	})
 }
