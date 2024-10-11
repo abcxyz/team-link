@@ -248,8 +248,10 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 		return fmt.Errorf("could not get current members: %w", err)
 	}
 
-	currentMemberIDs := toIDMap(currentMembers)
-	newMemberIDs := toIDMap(members)
+	// GitHub usernames and team names are case-insensitive. So we should map each id
+	// to lower case before determining who to add and remove.
+	currentMemberIDs := toIDMap(currentMembers, strings.ToLower)
+	newMemberIDs := toIDMap(members, strings.ToLower)
 
 	addMembers := sets.SubtractMapKeys(newMemberIDs, currentMemberIDs)
 	removeMembers := sets.SubtractMapKeys(currentMemberIDs, newMemberIDs)
@@ -355,15 +357,15 @@ func encode(orgID, teamID int64) string {
 	return fmt.Sprintf("%d%s%d", orgID, IDSep, teamID)
 }
 
-func toIDMap(members []groupsync.Member) map[string]groupsync.Member {
+func toIDMap(members []groupsync.Member, idMapper func(string) string) map[string]groupsync.Member {
 	memberIDs := make(map[string]groupsync.Member, len(members))
 	for _, m := range members {
 		if m.IsUser() {
 			user, _ := m.User()
-			memberIDs[user.ID] = m
+			memberIDs[idMapper(user.ID)] = m
 		} else {
 			group, _ := m.Group()
-			memberIDs[group.ID] = m
+			memberIDs[idMapper(group.ID)] = m
 		}
 	}
 	return memberIDs
