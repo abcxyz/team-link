@@ -64,10 +64,13 @@ func (g GroupReader) Descendants(ctx context.Context, groupID string) ([]*groups
 			return nil
 		},
 	)
-	return members, err //nolint:wrapcheck
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch descendants: %w", err)
+	}
+	return members, nil
 }
 
-// GetGroup retrieves the Group with the given ID. The ID must be of the form `groups/{group}`.
+// GetGroup retrieves the Group with the given ID. The ID must be of the form: groups/{group}.
 func (g GroupReader) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
 	group, err := g.identity.Groups.Get(groupID).Context(ctx).Do()
 	if err != nil {
@@ -106,7 +109,7 @@ func (g GroupReader) GetMembers(ctx context.Context, groupID string) ([]groupsyn
 	return members, nil
 }
 
-// GetUser retrieves the User with the given ID. Should be of the form.
+// GetUser retrieves the User with the given ID. Should be of the form: users/{userid}.
 func (g GroupReader) GetUser(ctx context.Context, userID string) (*groupsync.User, error) {
 	user, err := g.admin.Users.Get(userID).Context(ctx).Do()
 	if err != nil {
