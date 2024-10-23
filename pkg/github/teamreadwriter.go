@@ -283,9 +283,14 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 				merr = errors.Join(merr, fmt.Errorf("failed to add user(%s) add user to team(%s): %w", user.ID, groupID, err))
 			}
 		} else if member.IsGroup() && g.includeSubTeams {
-			group, _ := member.Group()
-			if err := g.addSubTeamToTeam(ctx, client, orgID, teamID, group.ID); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to add subteam(%s) add user to team(%s): %w", group.ID, groupID, err))
+			subteam, _ := member.Group()
+			childTeamID, err := validateGroupID(orgID, subteam.ID)
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("subteamID invalid: %w", err))
+				continue
+			}
+			if err := g.addSubTeamToTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to add subteam(%s) add user to team(%s): %w", subteam.ID, groupID, err))
 			}
 		}
 	}
@@ -298,7 +303,12 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 			}
 		} else if member.IsGroup() && g.includeSubTeams {
 			subteam, _ := member.Group()
-			if err := g.removeSubTeamFromTeam(ctx, client, orgID, teamID, subteam.ID); err != nil {
+			childTeamID, err := validateGroupID(orgID, subteam.ID)
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("subteamID invalid: %w", err))
+				continue
+			}
+			if err := g.removeSubTeamFromTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to remove subteam(%s) add user to team(%s): %w", subteam.ID, groupID, err))
 			}
 		}
@@ -322,28 +332,14 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 	return nil
 }
 
-func (g *TeamReadWriter) addSubTeamToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, groupID string) error {
-	childOrgID, childTeamID, err := parseID(groupID)
-	if err != nil {
-		return fmt.Errorf("could not parse group ID %s: %w", groupID, err)
-	}
-	if childOrgID != orgID {
-		return fmt.Errorf("cannot add team from another org as a child team")
-	}
+func (g *TeamReadWriter) addSubTeamToTeam(ctx context.Context, client *github.Client, orgID, teamID, childTeamID int64) error {
 	if err := addSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
 		return fmt.Errorf("failed to add child team: %w", err)
 	}
 	return nil
 }
 
-func (g *TeamReadWriter) removeSubTeamFromTeam(ctx context.Context, client *github.Client, orgID, teamID int64, groupID string) error {
-	childOrgID, childTeamID, err := parseID(groupID)
-	if err != nil {
-		return fmt.Errorf("could not parse group ID %s: %w", groupID, err)
-	}
-	if childOrgID != orgID {
-		return fmt.Errorf("cannot remove team from another org as a child team")
-	}
+func (g *TeamReadWriter) removeSubTeamFromTeam(ctx context.Context, client *github.Client, orgID, teamID, childTeamID int64) error {
 	if err := removeSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
 		return fmt.Errorf("failed to remove child team: %w", err)
 	}
@@ -365,6 +361,17 @@ func parseID(groupID string) (int64, int64, error) {
 		return 0, 0, fmt.Errorf("could not parse %s as a github team ID: %w", idComponents[1], err)
 	}
 	return orgID, teamID, nil
+}
+
+func validateGroupID(orgID int64, groupID string) (int64, error) {
+	childOrgID, childTeamID, err := parseID(groupID)
+	if err != nil {
+		return 0, fmt.Errorf("could not parse group ID %s: %w", groupID, err)
+	}
+	if childOrgID != orgID {
+		return 0, fmt.Errorf("child team orgID must match parent orgID")
+	}
+	return childTeamID, nil
 }
 
 // encode encodes the GitHub org ID and team ID as single ID string.
