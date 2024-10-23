@@ -342,7 +342,7 @@ func (g *TeamReadWriter) removeSubTeamFromTeam(ctx context.Context, client *gith
 		return fmt.Errorf("could not parse group ID %s: %w", groupID, err)
 	}
 	if childOrgID != orgID {
-		return fmt.Errorf("cannot add team from another org as a child team")
+		return fmt.Errorf("cannot remove team from another org as a child team")
 	}
 	if err := removeSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
 		return fmt.Errorf("failed to remove child team: %w", err)
