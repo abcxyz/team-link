@@ -46,8 +46,9 @@ type OrgTokenSource interface {
 }
 
 type Config struct {
-	includeSubTeams bool
-	cacheDuration   time.Duration
+	includeSubTeams         bool
+	inviteToOrgIfNotAMember bool
+	cacheDuration           time.Duration
 }
 
 type Opt func(writer *Config)
@@ -68,65 +69,96 @@ func WithCacheDuration(duration time.Duration) Opt {
 	}
 }
 
+// WithInviteToOrgIfNotAMember toggles sending an invitation to the user if they are not a
+// member of the org being synced to. If the TeamReadWriter is trying to add a user to a team,
+// it will first check if they are a member of the org the team belongs. If the user does not
+// belong to the org, then the TeamReadWriter will send an invitation to org instead of attempting
+// to directly add them to the team.
+//
+// When enabled, this option may result in several API calls made per user being synced, and thus
+// consideration should be made to rate limiting effects when enabling this option.
+func WithInviteToOrgIfNotAMember() Opt {
+	return func(config *Config) {
+		config.inviteToOrgIfNotAMember = true
+	}
+}
+
 // TeamReadWriter adheres to the groupsync.GroupReadWriter interface
 // and provides mechanisms for manipulating GitHub Teams.
 type TeamReadWriter struct {
-	orgTokenSource  OrgTokenSource
-	client          *github.Client
-	userCache       *cache.Cache[*github.User]
-	teamCache       *cache.Cache[*github.Team]
-	includeSubTeams bool
+	orgTokenSource          OrgTokenSource
+	client                  *github.Client
+	userCache               *cache.Cache[*github.User]
+	teamCache               *cache.Cache[*github.Team]
+	orgMembershipCache      *cache.Cache[bool]
+	includeSubTeams         bool
+	inviteToOrgIfNotAMember bool
 }
 
 // NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
 // subteams as members of their parent team and will treat them as such when executing
 // calls to TeamReadWriter.GetMembers and TeamReadWriter.SetMembers. This behavior can
 // be disabled by supply the WithoutSubTeamsAsMembers option, in which case only users
-// will be considered as members of a team.
+// will be considered as members of a team. By default, TeamReadWriter does not attempt
+// to add users to an org if they are not already members. This can be enabled by
+// WithInviteToOrgIfNotAMember option.
 func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *TeamReadWriter {
 	config := &Config{
-		includeSubTeams: true,
-		cacheDuration:   DefaultCacheDuration,
+		includeSubTeams:         true,
+		inviteToOrgIfNotAMember: false,
+		cacheDuration:           DefaultCacheDuration,
 	}
 	for _, opt := range opts {
 		opt(config)
 	}
 	t := &TeamReadWriter{
-		orgTokenSource:  orgTokenSource,
-		client:          client,
-		includeSubTeams: config.includeSubTeams,
-		userCache:       cache.New[*github.User](config.cacheDuration),
-		teamCache:       cache.New[*github.Team](config.cacheDuration),
+		orgTokenSource:          orgTokenSource,
+		client:                  client,
+		includeSubTeams:         config.includeSubTeams,
+		inviteToOrgIfNotAMember: config.inviteToOrgIfNotAMember,
+		userCache:               cache.New[*github.User](config.cacheDuration),
+		teamCache:               cache.New[*github.Team](config.cacheDuration),
+		orgMembershipCache:      cache.New[bool](config.cacheDuration),
 	}
 	return t
 }
 
 // GetGroup retrieves the GitHub team with the given ID. The ID must be of the form 'orgID:teamID'.
 func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
-	team, ok := g.teamCache.Lookup(groupID)
-	if !ok {
-		logger := logging.FromContext(ctx)
-		logger.InfoContext(ctx, "fetching team", "team_id", groupID)
-		orgID, teamID, err := parseID(groupID)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
-		}
-		client, err := g.githubClientForOrg(ctx, orgID)
-		if err != nil {
-			return nil, fmt.Errorf("could not get github client: %w", err)
-		}
-		ghTeam, _, err := client.Teams.GetTeamByID(ctx, orgID, teamID)
-		if err != nil {
-			return nil, fmt.Errorf("could not get team: %w", err)
-		}
-		team = ghTeam
-		g.teamCache.Set(groupID, ghTeam)
+	orgID, teamID, err := parseID(groupID)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse groupID %s: %w", groupID, err)
 	}
-	group := &groupsync.Group{
+	client, err := g.githubClientForOrg(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get github client: %w", err)
+	}
+	team, err := g.getGitHubTeam(ctx, client, orgID, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get team: %w", err)
+	}
+	return &groupsync.Group{
 		ID:         encode(team.GetOrganization().GetID(), team.GetID()),
 		Attributes: team,
+	}, nil
+}
+
+func (g *TeamReadWriter) getGitHubTeam(ctx context.Context, client *github.Client, orgID, teamID int64) (*github.Team, error) {
+	cacheKey := encode(orgID, teamID)
+	if team, ok := g.teamCache.Lookup(cacheKey); ok {
+		return team, nil
 	}
-	return group, nil
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching team",
+		"org_id", orgID,
+		"team_id", teamID,
+	)
+	team, _, err := client.Teams.GetTeamByID(ctx, orgID, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get team: %w", err)
+	}
+	g.teamCache.Set(cacheKey, team)
+	return team, nil
 }
 
 // GetMembers retrieves the direct members (children) of the GitHub team with given ID.
@@ -213,21 +245,27 @@ func (g *TeamReadWriter) Descendants(ctx context.Context, groupID string) ([]*gr
 
 // GetUser retrieves the GitHub user with the given ID. The ID is the GitHub user's login.
 func (g *TeamReadWriter) GetUser(ctx context.Context, userID string) (*groupsync.User, error) {
-	ghUser, ok := g.userCache.Lookup(userID)
-	if !ok {
-		logger := logging.FromContext(ctx)
-		logger.InfoContext(ctx, "fetching user", "user_id", userID)
-		user, _, err := g.client.Users.Get(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
-		}
-		ghUser = user
-		g.userCache.Set(userID, ghUser)
+	user, err := g.getGitHubUser(ctx, g.client, userID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get user: %w", err)
 	}
-	user := &groupsync.User{
-		ID:         ghUser.GetLogin(),
-		Attributes: ghUser,
+	return &groupsync.User{
+		ID:         user.GetLogin(),
+		Attributes: user,
+	}, nil
+}
+
+func (g *TeamReadWriter) getGitHubUser(ctx context.Context, client *github.Client, userID string) (*github.User, error) {
+	if user, ok := g.userCache.Lookup(userID); ok {
+		return user, nil
 	}
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "fetching user", "user_id", userID)
+	user, _, err := client.Users.Get(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
+	}
+	g.userCache.Set(userID, user)
 	return user, nil
 }
 
@@ -325,9 +363,20 @@ func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*
 }
 
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
-	membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
-	if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
-		return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
+	orgIDStr := strconv.FormatInt(orgID, 10)
+	isMember, err := g.isOrgMember(ctx, client, orgIDStr, userID)
+	if err != nil {
+		return fmt.Errorf("could not check if user is a member of organization %d: %w", orgID, err)
+	}
+	if isMember {
+		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
+		if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
+			return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
+		}
+	} else {
+		if err := g.inviteToOrg(ctx, client, orgIDStr, teamID, userID); err != nil {
+			return fmt.Errorf("failed to invite GitHub user(%s) to org(%d): %w", userID, orgID, err)
+		}
 	}
 	return nil
 }
@@ -342,6 +391,45 @@ func (g *TeamReadWriter) addSubTeamToTeam(ctx context.Context, client *github.Cl
 func (g *TeamReadWriter) removeSubTeamFromTeam(ctx context.Context, client *github.Client, orgID, teamID, childTeamID int64) error {
 	if err := removeSubTeam(ctx, client, orgID, teamID, childTeamID); err != nil {
 		return fmt.Errorf("failed to remove child team: %w", err)
+	}
+	return nil
+}
+
+func (g *TeamReadWriter) isOrgMember(ctx context.Context, client *github.Client, orgID, username string) (bool, error) {
+	if !g.inviteToOrgIfNotAMember {
+		// if inviting to org is not enabled then we will just assume the user is part of the org
+		return true, nil
+	}
+	cacheKey := fmt.Sprintf("%s:%s", orgID, username)
+	if isMember, ok := g.orgMembershipCache.Lookup(cacheKey); ok {
+		return isMember, nil
+	}
+	// check if the user is a member of the org
+	isMember, _, err := client.Organizations.IsMember(ctx, orgID, username)
+	if err != nil {
+		return false, fmt.Errorf("could not check if user is a member of organization %s: %w", orgID, err)
+	}
+	if isMember {
+		// only cache positive memberships as:
+		// member -> non-member (ok if this state transition is stale)
+		// non-member -> member (we want to recognize this state transition immediately, thus no caching)
+		g.orgMembershipCache.Set(cacheKey, isMember)
+	}
+	return isMember, nil
+}
+
+func (g *TeamReadWriter) inviteToOrg(ctx context.Context, client *github.Client, orgID string, teamID int64, username string) error {
+	user, err := g.getGitHubUser(ctx, client, username)
+	if err != nil {
+		return fmt.Errorf("failed to fetch user(%s) info: %w", username, err)
+	}
+	invitation := &github.CreateOrgInvitationOptions{
+		InviteeID: user.ID,
+		Role:      proto.String("direct_member"),
+		TeamID:    []int64{teamID},
+	}
+	if _, _, err := client.Organizations.CreateOrgInvitation(ctx, orgID, invitation); err != nil {
+		return fmt.Errorf("could not create invitation for user %s to organization %s: %w", username, orgID, err)
 	}
 	return nil
 }
