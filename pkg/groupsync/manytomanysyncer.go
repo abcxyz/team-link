@@ -213,7 +213,10 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 			continue
 		}
-		targetUsers = append(targetUsers, &User{ID: targetUserID})
+		// ignore empty user IDs
+		if targetUserID != "" {
+			targetUsers = append(targetUsers, &User{ID: targetUserID})
+		}
 	}
 	return targetUsers, merr
 }
