@@ -16,5 +16,11 @@ package groupsync
 
 import "errors"
 
+type Error string
+
+func (e Error) Error() string {
+  return string(e)
+}
+
 // ErrTargetUserIDNotFound denotes when the user ID for the target system cannot be found.
-var ErrTargetUserIDNotFound = errors.New("target user ID not found")
+const ErrTargetUserIDNotFound = Error("target user ID not found")
