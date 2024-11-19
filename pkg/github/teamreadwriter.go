@@ -351,7 +351,7 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 			}
 		}
 	}
-	return nil
+	return merr
 }
 
 func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*github.Client, error) {
