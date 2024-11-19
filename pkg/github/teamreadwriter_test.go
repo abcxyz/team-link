@@ -854,7 +854,8 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 		groupID      string
 		inputMembers []groupsync.Member
 		wantMembers  []groupsync.Member
-		wantErr      string
+		wantSetErr   string
+		wantGetErr   string
 	}{
 		{
 			name: "success_add",
@@ -1221,9 +1222,10 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 					4701: "org_2_test_token",
 				},
 			},
-			data:    &GitHubData{},
-			groupID: "invalidID",
-			wantErr: "could not parse groupID invalidID",
+			data:       &GitHubData{},
+			groupID:    "invalidID",
+			wantSetErr: "could not parse groupID invalidID",
+			wantGetErr: "could not parse groupID invalidID",
 		},
 		{
 			name: "success_add_subteam",
@@ -1997,6 +1999,156 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "fail_add",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				teams: map[string]map[string]*github.Team{
+					"8583": { // org1
+						"2797": &github.Team{
+							ID:   proto.Int64(2797),
+							Name: proto.String("team1"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+						"9350": &github.Team{
+							ID:   proto.Int64(9350),
+							Name: proto.String("team2"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(8583),
+								Name: proto.String("org1"),
+							},
+						},
+					},
+					"4701": { // org2
+						"3387": &github.Team{
+							ID:   proto.Int64(3387),
+							Name: proto.String("team3"),
+							Organization: &github.Organization{
+								ID:   proto.Int64(4701),
+								Name: proto.String("org2"),
+							},
+						},
+					},
+				},
+				teamMembers: map[string]map[string]map[string]struct{}{
+					"8583": { // org1
+						"2797": {
+							"user2": struct{}{},
+						},
+						"9350": {
+							"user1": struct{}{},
+							"user3": struct{}{},
+						},
+					},
+					"4701": { // org2
+						"3387": {
+							"user1": struct{}{},
+						},
+					},
+				},
+			},
+			groupID: "8583:2797",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "fakeuser",
+						Attributes: &github.User{
+							ID:    proto.Int64(9999),
+							Login: proto.String("fakeuser"),
+							Email: proto.String("fakeuser@example.com"),
+						},
+					},
+				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+					},
+				},
+			},
+			wantSetErr: "failed to add user(fakeuser)",
+		},
 	}
 
 	for _, tc := range cases {
@@ -2013,12 +2165,12 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 			groupRW := NewTeamReadWriter(tc.tokenSource, client, tc.opts...)
 
 			err := groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
-			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
+			if diff := testutil.DiffErrString(err, tc.wantSetErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want) = %v", diff)
 			}
 
 			gotMembers, err := groupRW.GetMembers(ctx, tc.groupID)
-			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
+			if diff := testutil.DiffErrString(err, tc.wantGetErr); diff != "" {
 				t.Errorf("unexpected error : %v", err)
 			}
 
