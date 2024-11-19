@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +29,7 @@ import (
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/pkg/utils"
 )
 
 const (
@@ -297,19 +297,19 @@ func (g *TeamReadWriter) SetMembers(ctx context.Context, groupID string, members
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "current team members",
 		"team_id", groupID,
-		"current_member_ids", mapKeys(currentMemberIDs),
+		"current_member_ids", utils.MapKeys(currentMemberIDs),
 	)
 	logger.InfoContext(ctx, "authoritative team members",
 		"team_id", groupID,
-		"authoritative_member_ids", mapKeys(newMemberIDs),
+		"authoritative_member_ids", utils.MapKeys(newMemberIDs),
 	)
 	logger.InfoContext(ctx, "members to add",
 		"team_id", groupID,
-		"add_member_ids", mapKeys(addMembers),
+		"add_member_ids", utils.MapKeys(addMembers),
 	)
 	logger.InfoContext(ctx, "members to remove",
 		"team_id", groupID,
-		"remove_member_ids", mapKeys(removeMembers),
+		"remove_member_ids", utils.MapKeys(removeMembers),
 	)
 
 	var merr error
@@ -508,13 +508,4 @@ func removeSubTeam(ctx context.Context, client *github.Client, orgID, teamID, su
 		return fmt.Errorf("error removing team %d as a subteam of team %d: %w", subTeamID, teamID, err)
 	}
 	return nil
-}
-
-func mapKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return keys
 }
