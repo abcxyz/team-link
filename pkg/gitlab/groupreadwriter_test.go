@@ -148,14 +148,14 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -235,21 +235,21 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"4": {},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
 					"2": {
-						"4": struct{}{},
+						"4": {},
 					},
 					"4": {},
 					"3": {},
@@ -330,21 +330,21 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"4": {},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
 					"2": {
-						"4": struct{}{},
+						"4": {},
 					},
 					"4": {},
 					"3": {},
@@ -455,14 +455,14 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -538,23 +538,23 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"4": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
 					"2": {
-						"4": struct{}{},
+						"4": {},
 					},
 					"4": {},
 					"3": {},
@@ -629,23 +629,23 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"4": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
 					"2": {
-						"4": struct{}{},
+						"4": {},
 					},
 					"4": {},
 					"3": {},
@@ -826,14 +826,14 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -944,14 +944,14 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1022,14 +1022,14 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1126,14 +1126,14 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1244,19 +1244,19 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
-					"2": {"3": struct{}{}},
+					"2": {"3": {}},
 					"3": {},
 				},
 			},
@@ -1347,19 +1347,19 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
 					"1": {},
-					"2": {"3": struct{}{}},
+					"2": {"3": {}},
 					"3": {},
 				},
 			},
@@ -1465,14 +1465,14 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 				},
 				groupMembers: map[string]map[string]struct{}{
 					"1": {
-						"user2": struct{}{},
+						"user2": {},
 					},
 					"2": {
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": {},
+						"user3": {},
 					},
 					"3": {
-						"user1": struct{}{},
+						"user1": {},
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
