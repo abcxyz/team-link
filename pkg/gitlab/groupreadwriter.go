@@ -111,7 +111,7 @@ func (rw *GroupReadWriter) getGitLabUser(ctx context.Context, userID string) (*g
 	return user, nil
 }
 
-// GetGroup retrieves the GitLab group with the given ID. The ID is the GitLab group's full path, e.g. `foo/bar/baz`.
+// GetGroup retrieves the GitLab group with the given ID. The ID is the GitLab group's integer ID.
 func (rw *GroupReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsync.Group, error) {
 	group, err := rw.getGitLabGroup(ctx, groupID)
 	if err != nil {
@@ -198,7 +198,7 @@ func (rw *GroupReadWriter) GetMembers(ctx context.Context, groupID string) ([]gr
 }
 
 // Descendants retrieve all users (children, recursively) of the GitLab group with the given ID.
-// The ID must be the full path of the group, e.g. `foo/bar/baz`
+// The ID is the group's integer ID.
 func (rw *GroupReadWriter) Descendants(ctx context.Context, groupID string) ([]*groupsync.User, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching descendants for group", "group_id", groupID)
@@ -210,7 +210,7 @@ func (rw *GroupReadWriter) Descendants(ctx context.Context, groupID string) ([]*
 }
 
 // SetMembers replaces the members of the GitLab group with the given ID with the given members.
-// The ID must be the full path of the group. Any members of the GitLab group not found in the given members list
+// The ID is the group's integer ID. Any members of the GitLab group not found in the given members list
 // will be removed. Likewise, any members of the given list that are not currently members of the group will be added.
 func (rw *GroupReadWriter) SetMembers(ctx context.Context, groupID string, members []groupsync.Member) error {
 	currentMembers, err := rw.GetMembers(ctx, groupID)
@@ -277,7 +277,10 @@ func (rw *GroupReadWriter) SetMembers(ctx context.Context, groupID string, membe
 
 func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID, userID string) error {
 	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "adding user to group", "group_id", groupID, "user_id", userID)
+	logger.InfoContext(ctx, "adding user to group",
+		"group_id", groupID,
+		"user_id", userID,
+	)
 
 	gid, err := strconv.Atoi(groupID)
 	if err != nil {
@@ -296,7 +299,10 @@ func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID, userID s
 
 func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID string, user *groupsync.User) error {
 	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "adding user to group", "group_id", groupID, "user_id", user.ID)
+	logger.InfoContext(ctx, "adding user to group",
+		"group_id", groupID,
+		"user_id", user.ID,
+	)
 
 	gid, err := strconv.Atoi(groupID)
 	if err != nil {
@@ -318,7 +324,10 @@ func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID stri
 
 func (rw *GroupReadWriter) transferSubGroup(ctx context.Context, group *groupsync.Group, newParentGroupID *string) error {
 	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "transferring subgroup to new parent", "group_id", group.ID, "new_parent_id", newParentGroupID)
+	logger.InfoContext(ctx, "transferring subgroup to new parent",
+		"group_id", group.ID,
+		"new_parent_id", newParentGroupID,
+	)
 
 	groupAttributes, ok := group.Attributes.(*gitlab.Group)
 	if !ok {

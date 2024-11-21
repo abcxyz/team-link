@@ -1701,7 +1701,12 @@ func fakeGitLab(gitlabData *GitLabData) *httptest.Server {
 			fmt.Fprintf(w, "failed to read request body")
 			return
 		}
-		username := payload["username"].(string)
+		username, ok := payload["username"].(string)
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user not found")
+			return
+		}
 		members, ok := gitlabData.groupMembers[groupID]
 		if !ok {
 			w.WriteHeader(404)
