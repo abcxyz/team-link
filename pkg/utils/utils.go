@@ -24,8 +24,3 @@ func MapKeys[V any](m map[string]V) []string {
 	slices.Sort(keys)
 	return keys
 }
-
-// ToPtr is a helper function to convert a type to a pointer of that same type.
-func ToPtr[T any](i T) *T {
-	return &i
-}

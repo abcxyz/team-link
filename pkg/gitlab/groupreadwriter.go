@@ -25,6 +25,7 @@ import (
 
 	"github.com/abcxyz/pkg/cache"
 	"github.com/abcxyz/pkg/logging"
+	"github.com/abcxyz/pkg/pointer"
 	"github.com/abcxyz/pkg/sets"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 	"github.com/abcxyz/team-link/pkg/utils"
@@ -97,17 +98,25 @@ func (rw *GroupReadWriter) GetUser(ctx context.Context, userID string) (*groupsy
 }
 
 func (rw *GroupReadWriter) getGitLabUser(ctx context.Context, userID string) (*gitlab.User, error) {
-	if user, ok := rw.userCache.Lookup(userID); ok {
+	user, err := rw.userCache.WriteThruLookup(userID, func() (*gitlab.User, error) {
+		logger := logging.FromContext(ctx)
+		logger.InfoContext(ctx, "fetching user", "user_id", userID)
+		users, _, err := rw.client.Users.ListUsers(&gitlab.ListUsersOptions{Username: &userID})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
+		}
+		if len(users) == 0 {
+			return nil, fmt.Errorf("no user exists with username %s", userID)
+		}
+		if len(users) > 1 {
+			return nil, fmt.Errorf("multiple users exist with username %s: this should not be possible", userID)
+		}
+		user := users[0]
 		return user, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup gitlab user: %w", err)
 	}
-	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "fetching user", "user_id", userID)
-	users, _, err := rw.client.Users.ListUsers(&gitlab.ListUsersOptions{Username: &userID})
-	if err != nil || len(users) == 0 {
-		return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
-	}
-	user := users[0]
-	rw.userCache.Set(userID, user)
 	return user, nil
 }
 
@@ -124,35 +133,30 @@ func (rw *GroupReadWriter) GetGroup(ctx context.Context, groupID string) (*group
 }
 
 func (rw *GroupReadWriter) getGitLabGroup(ctx context.Context, groupID string) (*gitlab.Group, error) {
-	if group, ok := rw.groupCache.Lookup(groupID); ok {
+	group, err := rw.groupCache.WriteThruLookup(groupID, func() (*gitlab.Group, error) {
+		logger := logging.FromContext(ctx)
+		logger.InfoContext(ctx, "fetching group", "group_id", groupID)
+		group, _, err := rw.client.Groups.GetGroup(groupID, &gitlab.GetGroupOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch group %s: %w", groupID, err)
+		}
 		return group, nil
-	}
-	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "fetching group", "group_id", groupID)
-	id, err := strconv.Atoi(groupID)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert string group_id to integer: %w", err)
+		return nil, fmt.Errorf("failed to lookup gitlab group: %w", err)
 	}
-	group, _, err := rw.client.Groups.GetGroup(id, &gitlab.GetGroupOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch group %s: %w", groupID, err)
-	}
-	rw.groupCache.Set(groupID, group)
 	return group, nil
 }
 
+// GetMembers retrieves the direct members (and optionally subgroups) of the GitLab group with given ID.
+// The ID is the GitLab group's integer ID.
 func (rw *GroupReadWriter) GetMembers(ctx context.Context, groupID string) ([]groupsync.Member, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching members for group", "group_id", groupID)
 
-	gid, err := strconv.Atoi(groupID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert string group_id to integer: %w", err)
-	}
-
 	users := make(map[string]*gitlab.GroupMember, 32)
 	if err := paginate(func(listOpts *gitlab.ListOptions) (*gitlab.Response, error) {
-		userMembers, resp, err := rw.client.Groups.ListGroupMembers(gid, &gitlab.ListGroupMembersOptions{ListOptions: *listOpts})
+		userMembers, resp, err := rw.client.Groups.ListGroupMembers(groupID, &gitlab.ListGroupMembersOptions{ListOptions: *listOpts})
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch group members for %s: %w", groupID, err)
 		}
@@ -173,7 +177,7 @@ func (rw *GroupReadWriter) GetMembers(ctx context.Context, groupID string) ([]gr
 	if rw.includeSubGroups {
 		groups := make(map[string]*gitlab.Group, 32)
 		if err := paginate(func(listOpts *gitlab.ListOptions) (*gitlab.Response, error) {
-			subgroups, resp, err := rw.client.Groups.ListSubGroups(gid, &gitlab.ListSubGroupsOptions{})
+			subgroups, resp, err := rw.client.Groups.ListSubGroups(groupID, &gitlab.ListSubGroupsOptions{})
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch subgroups for %s: %w", groupID, err)
 			}
@@ -282,16 +286,10 @@ func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID, userID s
 		"user_id", userID,
 	)
 
-	gid, err := strconv.Atoi(groupID)
-	if err != nil {
-		return fmt.Errorf("failed to convert string group_id to integer: %w", err)
-	}
-
-	_, _, err = rw.client.GroupMembers.AddGroupMember(gid, &gitlab.AddGroupMemberOptions{
+	if _, _, err := rw.client.GroupMembers.AddGroupMember(groupID, &gitlab.AddGroupMemberOptions{
 		Username:    &userID,
-		AccessLevel: utils.ToPtr(gitlab.DeveloperPermissions),
-	})
-	if err != nil {
+		AccessLevel: pointer.To(gitlab.DeveloperPermissions),
+	}); err != nil {
 		return fmt.Errorf("failed to add GitLab user(%s) for group(%s): %w", userID, groupID, err)
 	}
 	return nil
@@ -304,19 +302,13 @@ func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID stri
 		"user_id", user.ID,
 	)
 
-	gid, err := strconv.Atoi(groupID)
-	if err != nil {
-		return fmt.Errorf("failed to convert string group_id to integer: %w", err)
-	}
-
 	// extract integer user ID from member attributes because RemoveGroupMember does not support usernames
 	memberAttributes, ok := user.Attributes.(*gitlab.GroupMember)
 	if !ok {
 		return fmt.Errorf("failed to extract GitLab GroupMember attributes from user(%s)", user.ID)
 	}
 	userID := memberAttributes.ID
-	_, err = rw.client.GroupMembers.RemoveGroupMember(gid, userID, &gitlab.RemoveGroupMemberOptions{})
-	if err != nil {
+	if _, err := rw.client.GroupMembers.RemoveGroupMember(groupID, userID, &gitlab.RemoveGroupMemberOptions{}); err != nil {
 		return fmt.Errorf("failed to remove GitLab user(%s) for group(%s): %w", user.ID, groupID, err)
 	}
 	return nil

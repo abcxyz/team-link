@@ -69,7 +69,7 @@ func TestGroupReadWriter_GetGroup(t *testing.T) {
 			name:    "invalid_id",
 			data:    &GitLabData{},
 			groupID: "invalidID",
-			wantErr: "invalid syntax",
+			wantErr: "failed to fetch group invalidID",
 		},
 	}
 
@@ -192,7 +192,7 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 			name:    "invalid_id",
 			data:    &GitLabData{},
 			groupID: "invalidID",
-			wantErr: "invalid syntax",
+			wantErr: "failed to fetch group members for invalidID",
 		},
 		{
 			name: "subgroups_are_included",
@@ -495,7 +495,7 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 			name:    "invalid_id",
 			data:    &GitLabData{},
 			groupID: "invalidID",
-			wantErr: "invalid syntax",
+			wantErr: "failed to fetch group members for invalidID",
 		},
 		{
 			name: "subgroups_are_included",
@@ -1088,7 +1088,7 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 			name:    "invalid_id",
 			data:    &GitLabData{},
 			groupID: "invalidID",
-			wantErr: "invalid syntax",
+			wantErr: "failed to fetch group members for invalidID",
 		},
 		{
 			name: "success_add_subgroup",
