@@ -108,7 +108,7 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 	})
 
 	f.StringVar(&cli.StringVar{
-		Name:    "des-system-auth-token",
+		Name:    "dst-system-auth-token",
 		Target:  &c.destinationToken,
 		Aliases: []string{"dt", "dst-token"},
 		Example: "user-mapping-config.textproto",
