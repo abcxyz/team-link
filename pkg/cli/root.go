@@ -24,7 +24,7 @@ import (
 // rootCmd defines the starting command structure.
 var rootCmd = func() cli.Command {
 	return &cli.RootCommand{
-		Name: "tlclt",
+		Name: "tlctl",
 		Commands: map[string]cli.CommandFactory{
 			"sync": func() cli.Command {
 				return &cli.RootCommand{
