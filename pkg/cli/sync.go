@@ -25,7 +25,7 @@ import (
 
 var (
 	_                        cli.Command = (*SyncCommand)(nil)
-	allowedSourceSystem                  = []string{"GOOGLEGROUP"}
+	allowedSourceSystem                  = []string{"GOOGLEGROUPS"}
 	allowedDestinationSystem             = []string{"GITHUB"}
 )
 
@@ -85,7 +85,7 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 	f.StringVar(&cli.StringVar{
 		Name:    "group-mapping-config",
 		Target:  &c.groupMappingConfig,
-		Aliases: []string{"g", "gc", "group-config", "g-config"},
+		Aliases: []string{"gc"},
 		Example: "group-mapping-config.textproto",
 		Usage: `The group mapping config that contains group id mapping ` +
 			`from source system to destination system`,
@@ -94,7 +94,7 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 	f.StringVar(&cli.StringVar{
 		Name:    "user-mapping-config",
 		Target:  &c.userMappingConfig,
-		Aliases: []string{"u", "uc", "user-config", "u-config"},
+		Aliases: []string{"uc"},
 		Example: "user-mapping-config.textproto",
 		Usage: `The group mapping config that contains group id mapping ` +
 			`from source system to destination system`,
@@ -128,11 +128,11 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("unexpected arguments: %q", args)
 	}
 
-	if _, ok := slices.BinarySearch(allowedSourceSystem, strings.ToUpper(c.source)); !ok {
+	if ok := slices.Contains(allowedSourceSystem, strings.ToUpper(c.source)); !ok {
 		return fmt.Errorf("source system %s not in allowed list: %s", c.source, strings.Join(allowedSourceSystem, ","))
 	}
 
-	if _, ok := slices.BinarySearch(allowedDestinationSystem, strings.ToUpper(c.destination)); !ok {
+	if ok := slices.Contains(allowedDestinationSystem, strings.ToUpper(c.destination)); !ok {
 		return fmt.Errorf("destination system %s not in allowed list: %s", c.destination, strings.Join(allowedDestinationSystem, ","))
 	}
 
