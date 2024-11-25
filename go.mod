@@ -3,7 +3,7 @@ module github.com/abcxyz/team-link
 go 1.22
 
 require (
-	github.com/abcxyz/pkg v1.1.1
+	github.com/abcxyz/pkg v1.1.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v61 v61.0.0
 	github.com/xanzy/go-gitlab v0.114.0
@@ -26,6 +26,10 @@ require (
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/posener/complete/v2 v2.1.0 // indirect
+	github.com/posener/script v1.2.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
 	go.opentelemetry.io/otel v1.29.0 // indirect
