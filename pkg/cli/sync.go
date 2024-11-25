@@ -54,9 +54,11 @@ Usage: {{ COMMAND }} [options]
 
   tlctl sync run \
 	-src GoogleGroup \
-	-dest GitHub \
+	-dst GitHub \
 	-group-mapping-config your-group-config.textproto \
-	-user-mapping-config your-user-confif.textproto
+	-user-mapping-config your-user-confif.textproto \
+	-src-system-auth-token your-src-token \
+	-dst-system-auth-token your-dst-token
 `
 }
 
@@ -101,7 +103,7 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 	})
 
 	f.StringVar(&cli.StringVar{
-		Name:    "source-system-auth-token",
+		Name:    "src-system-auth-token",
 		Target:  &c.sourceToken,
 		Aliases: []string{"st", "src-token"},
 		Usage:   `Token to authenticate with source system to read membership information`,
