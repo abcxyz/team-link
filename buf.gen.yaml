@@ -1,0 +1,15 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/abcxyz/team-link/apis/v1alpha3
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: apis/v1alpha3
+    opt: paths=source_relative
+  - remote: buf.build/connectrpc/go
+    out: apis/v1alpha3
+    opt: paths=source_relative
+inputs:
+  - directory: proto
