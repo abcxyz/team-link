@@ -9,7 +9,7 @@ message GitHubTeam {
 
 message GoogleGroupToGitHubTeamMapping {
     required GoogleGroup google_group = 1;
-    required GitHubTeam gith_hub_team = 2;
+    required GitHubTeam git_hub_team = 2;
 }
 
 message GoogleGroupToGitHubTeamMappings {
