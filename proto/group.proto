@@ -1,0 +1,17 @@
+message GoogleGroup {
+    required string group_id = 1;
+}
+
+message GitHubTeam {
+    required int64 ord_id = 1;
+    required int64 team_id = 2;
+}
+
+message GoogleGroupToGitHubTeamMapping {
+    required GoogleGroup google_group = 1;
+    required GitHubTeam git_hub_team = 2;
+}
+
+message GoogleGroupToGitHubTeamMappings {
+    repeated GoogleGroupToGitHubTeamMapping mappings = 1;
+}
