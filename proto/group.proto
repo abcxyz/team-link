@@ -3,7 +3,7 @@ message GoogleGroup {
 }
 
 message GitHubTeam {
-    required int64 ord_id = 1;
+    required int64 org_id = 1;
     required int64 team_id = 2;
 }
 
