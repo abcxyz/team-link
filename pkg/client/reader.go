@@ -21,6 +21,7 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudidentity/v1"
 
+	tltypes "github.com/abcxyz/team-link/internal"
 	"github.com/abcxyz/team-link/pkg/googlegroups"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
@@ -43,7 +44,7 @@ func NewGoogleGroupsReader(ctx context.Context) (groupsync.GroupReader, error) {
 
 // NewReader creates a GroupReader base on provided source type.
 func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
-	if source == "GOOGLEGROUPS" {
+	if source == tltypes.SystemTypeGoogleGroups {
 		return NewGoogleGroupsReader(ctx)
 	}
 	return nil, fmt.Errorf("source type %s not allowd", source)
