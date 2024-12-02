@@ -55,7 +55,7 @@ func (g *GoogleGroupToGitHubMapper) MappedGroupIDs(ctx context.Context, groupID 
 	return githubTeamIDs, nil
 }
 
-// newGoogleGroupToGitHubMapper creates a GoogleGroupToGitHubMapper using the provided mapping file
+// newGoogleGroupToGitHubMapper creates a GoogleGroupToGitHubMapper using the provided mapping file.
 func newGoogleGroupToGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
@@ -67,8 +67,8 @@ func newGoogleGroupToGitHubMapper(groupMappingFile string) (groupsync.OneToManyG
 	}
 	mappings := make(map[string][]string)
 	for _, v := range tm.GetMappings() {
-		if _, ok := mappings[*v.GoogleGroup.GroupId]; !ok {
-			mappings[*v.GoogleGroup.GroupId] = []string{github.Encode(*v.GitHubTeam.OrgId, *v.GitHubTeam.TeamId)}
+		if _, ok := mappings[v.GetGoogleGroup().GetGroupId()]; !ok {
+			mappings[*v.GoogleGroup.GroupId] = []string{github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())}
 		} else {
 			mappings[*v.GoogleGroup.GroupId] = append(mappings[*v.GoogleGroup.GroupId], github.Encode(*v.GitHubTeam.OrgId, *v.GitHubTeam.TeamId))
 		}
@@ -79,7 +79,7 @@ func newGoogleGroupToGitHubMapper(groupMappingFile string) (groupsync.OneToManyG
 }
 
 // NewOneToManyGroupMapper creates a groupsync.OneToManyMapper base on the input source
-// and destination system type using provided groupMappingFile
+// and destination system type using provided groupMappingFile.
 func NewOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
 		return newGoogleGroupToGitHubMapper(groupMappingFile)
