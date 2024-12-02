@@ -68,9 +68,9 @@ func newGoogleGroupToGitHubMapper(groupMappingFile string) (groupsync.OneToManyG
 	mappings := make(map[string][]string)
 	for _, v := range tm.GetMappings() {
 		if _, ok := mappings[v.GetGoogleGroup().GetGroupId()]; !ok {
-			mappings[*v.GoogleGroup.GroupId] = []string{github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())}
+			mappings[v.GetGoogleGroup().GetGroupId()] = []string{github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())}
 		} else {
-			mappings[*v.GoogleGroup.GroupId] = append(mappings[*v.GoogleGroup.GroupId], github.Encode(*v.GitHubTeam.OrgId, *v.GitHubTeam.TeamId))
+			mappings[v.GetGoogleGroup().GetGroupId()] = append(mappings[*v.GoogleGroup.GroupId], github.Encode(*v.GitHubTeam.OrgId, *v.GitHubTeam.TeamId))
 		}
 	}
 	return &GoogleGroupToGitHubMapper{
