@@ -41,6 +41,7 @@ func NewGoogleGroupsReader(ctx context.Context) (groupsync.GroupReader, error) {
 	return googlegroups.NewGroupReader(cs, as), nil
 }
 
+// NewReader creates a GroupReader base on provided source type.
 func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
 	if source == "GOOGLEGROUPS" {
 		return NewGoogleGroupsReader(ctx)
