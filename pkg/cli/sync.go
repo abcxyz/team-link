@@ -21,12 +21,13 @@ import (
 	"strings"
 
 	"github.com/abcxyz/pkg/cli"
+	tltypes "github.com/abcxyz/team-link/internal"
 )
 
 var (
 	_                        cli.Command = (*SyncCommand)(nil)
-	allowedSourceSystem                  = []string{"GOOGLEGROUPS"}
-	allowedDestinationSystem             = []string{"GITHUB"}
+	allowedSourceSystem                  = []string{tltypes.SystemTypeGoogleGroups}
+	allowedDestinationSystem             = []string{tltypes.SystemTypeGitHub}
 )
 
 type SyncCommand struct {

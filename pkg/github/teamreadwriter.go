@@ -138,13 +138,13 @@ func (g *TeamReadWriter) GetGroup(ctx context.Context, groupID string) (*groupsy
 		return nil, fmt.Errorf("could not get team: %w", err)
 	}
 	return &groupsync.Group{
-		ID:         encode(team.GetOrganization().GetID(), team.GetID()),
+		ID:         Encode(team.GetOrganization().GetID(), team.GetID()),
 		Attributes: team,
 	}, nil
 }
 
 func (g *TeamReadWriter) getGitHubTeam(ctx context.Context, client *github.Client, orgID, teamID int64) (*github.Team, error) {
-	cacheKey := encode(orgID, teamID)
+	cacheKey := Encode(orgID, teamID)
 	if team, ok := g.teamCache.Lookup(cacheKey); ok {
 		return team, nil
 	}
@@ -222,7 +222,7 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 		}
 		for _, team := range childTeams {
 			members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{
-				ID:         encode(team.GetOrganization().GetID(), team.GetID()),
+				ID:         Encode(team.GetOrganization().GetID(), team.GetID()),
 				Attributes: team,
 			}})
 		}
@@ -462,8 +462,8 @@ func validateGroupID(orgID int64, groupID string) (int64, error) {
 	return childTeamID, nil
 }
 
-// encode encodes the GitHub org ID and team ID as single ID string.
-func encode(orgID, teamID int64) string {
+// Encode encodes the GitHub org ID and team ID as single ID string.
+func Encode(orgID, teamID int64) string {
 	return fmt.Sprintf("%d%s%d", orgID, IDSep, teamID)
 }
 

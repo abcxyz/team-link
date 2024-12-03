@@ -1,0 +1,20 @@
+mappings: [
+  {
+    google_group: {
+      group_id: "test_id_1"
+    }
+    git_hub_team: {
+      org_id: 93787867
+      team_id: 8007146
+    }
+  },
+  {
+    google_group: {
+      group_id: "test_id_2"
+    }
+    git_hub_team: {
+      org_id: 93787867
+      team_id: 8007146
+    }
+  }
+]
