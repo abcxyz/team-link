@@ -25,7 +25,7 @@ import (
 	tltypes "github.com/abcxyz/team-link/internal"
 )
 
-func TestCreateBidirectionGoogleGroupGitHubMapper(t *testing.T) {
+func TestCreateBidirectionalGoogleGroupGitHubMapper(t *testing.T) {
 	t.Parallel()
 	defaultWritePath := "test.textproto"
 	cases := []struct {
@@ -115,7 +115,7 @@ mappings: [
 			}
 			defer os.Remove(tempFile.Name())
 
-			// Write textprto to temp dir.
+			// Write textproto to temp dir.
 			_, err = tempFile.WriteString(tc.content)
 			if err != nil {
 				t.Fatal("failed to write tempFile: %w", err)
