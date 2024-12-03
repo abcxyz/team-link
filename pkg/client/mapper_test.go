@@ -25,14 +25,15 @@ import (
 	tltypes "github.com/abcxyz/team-link/internal"
 )
 
-func TestCreateGoogleGroupToGithubMapper(t *testing.T) {
+func TestCreateBidirectionGoogleGroupGitHubMapper(t *testing.T) {
 	t.Parallel()
 	defaultWritePath := "test.textproto"
 	cases := []struct {
 		name                          string
 		fileReadpath                  string
 		content                       string
-		wantGoogleGroupToGitHubMapper *GoogleGroupToGitHubMapper
+		wantGoogleGroupToGitHubMapper GroupMapper
+		wantGitHubToGoogleGroupMapper GroupMapper
 		wantErr                       string
 	}{
 		{
@@ -65,14 +66,27 @@ mappings: [
       org_id: 1
       team_id: 4
     }
+  },
+  {
+    google_group: {
+      group_id: "test_id_3"
+    }
+    git_hub_team: {
+      org_id: 1
+      team_id: 4
+    }
   }
 ]
 `,
-			wantGoogleGroupToGitHubMapper: &GoogleGroupToGitHubMapper{
-				GoogleGroupToGitHubTeam: map[string][]string{
-					"test_id_1": {"1:2", "1:3"},
-					"test_id_2": {"1:4"},
-				},
+			wantGoogleGroupToGitHubMapper: map[string][]string{
+				"test_id_1": {"1:2", "1:3"},
+				"test_id_2": {"1:4"},
+				"test_id_3": {"1:4"},
+			},
+			wantGitHubToGoogleGroupMapper: map[string][]string{
+				"1:2": {"test_id_1"},
+				"1:3": {"test_id_1"},
+				"1:4": {"test_id_2", "test_id_3"},
 			},
 		},
 		{
@@ -92,34 +106,39 @@ mappings: [
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			// ctx := context.Background()
 			td := t.TempDir()
 
-			// Create a file in the temporary directory
+			// Create a defaultWritePath in the temp dir.
 			tempFile, err := os.CreateTemp(td, defaultWritePath)
 			if err != nil {
 				t.Fatal("failed to create tempFile: %w", err)
 			}
 			defer os.Remove(tempFile.Name())
 
-			// Write some data to the file
+			// Write textprto to temp dir.
 			_, err = tempFile.WriteString(tc.content)
 			if err != nil {
 				t.Fatal("failed to write tempFile: %w", err)
 			}
 
+			// if tc.fileReadPath is provided, default file path
+			// won't be used, this enable test to read for non-exist
+			// path.
 			if tc.fileReadpath == "" {
 				tc.fileReadpath = tempFile.Name()
 			}
-			res, err := NewOneToManyGroupMapper(tltypes.SystemTypeGoogleGroups, tltypes.SystemTypeGitHub, tc.fileReadpath)
+			gotGGToGH, gotGHtoGG, err := NewBidirectionalNewOneToManyGroupMapper(tltypes.SystemTypeGoogleGroups, tltypes.SystemTypeGitHub, tc.fileReadpath)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected err: %s", diff)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(res, tc.wantGoogleGroupToGitHubMapper, protocmp.Transform()); diff != "" {
-				t.Errorf("got unexpected response:\n%s", diff)
+			if diff := cmp.Diff(gotGGToGH, tc.wantGoogleGroupToGitHubMapper, protocmp.Transform()); diff != "" {
+				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
+			}
+			if diff := cmp.Diff(gotGHtoGG, tc.wantGitHubToGoogleGroupMapper, protocmp.Transform()); diff != "" {
+				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})
 	}

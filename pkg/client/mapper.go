@@ -28,63 +28,78 @@ import (
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-type GoogleGroupToGitHubMapper struct {
-	GoogleGroupToGitHubTeam map[string][]string
-}
+// GroupMapper implements groupsync.OneToManyGroupMapper
+// For now it was be used as Mapper between GoogleGroup
+// and GitHubTeam.
+// Both GoogleGroupMapper and GitHubMapper have similar
+// variables and functions, this way we don't need to repeatly
+// write similar function for both on them.
+type GroupMapper map[string][]string
 
-// AllGroupIDs returns the set of groupIDs being mapped (the key set).
-func (g *GoogleGroupToGitHubMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
+func (m GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 	res := make([]string, 0)
-	for key := range g.GoogleGroupToGitHubTeam {
+	for key := range m {
 		res = append(res, key)
 	}
 	slices.Sort(res)
 	return res, nil
 }
 
-// ContainsGroupID returns whether this mapper contains a mapping for the given group ID.
-func (g *GoogleGroupToGitHubMapper) ContainsGroupID(ctx context.Context, groupID string) (bool, error) {
-	_, ok := g.GoogleGroupToGitHubTeam[groupID]
+func (m GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
+	_, ok := m[key]
+	if !ok {
+		return false, fmt.Errorf("group %s is not mapped", key)
+	}
 	return ok, nil
 }
 
-// MappedGroupIDs returns the list of group IDs mapped to the given group ID.
-func (g *GoogleGroupToGitHubMapper) MappedGroupIDs(ctx context.Context, groupID string) ([]string, error) {
-	githubTeamIDs, ok := g.GoogleGroupToGitHubTeam[groupID]
+func (m GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string, error) {
+	x, ok := m[key]
 	if !ok {
-		return nil, fmt.Errorf("no mapping found for group ID: %s", groupID)
+		return nil, fmt.Errorf("no mapping found for group ID: %s", key)
 	}
-	return githubTeamIDs, nil
+	return x, nil
 }
 
-// newGoogleGroupToGitHubMapper creates a GoogleGroupToGitHubMapper using the provided mapping file.
-func newGoogleGroupToGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, error) {
+type GoogleGroupToGitHubMapper GroupMapper
+
+type GitHubToGoogleGroupMapper GroupMapper
+
+// NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
+// and a GitHubToGoogleGroupMapper using the provided groupMapping file.
+// Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
+func NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read mapping file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read mapping file: %w", err)
 	}
 	tm := &v1alpha3.GoogleGroupToGitHubTeamMappings{}
 	if err := prototext.Unmarshal(b, tm); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
+		return nil, nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
-	mappings := make(map[string][]string)
+	ggToGHMapping := make(GroupMapper)
+	ghToGGMapping := make(GroupMapper)
 	for _, v := range tm.GetMappings() {
-		if _, ok := mappings[v.GetGoogleGroup().GetGroupId()]; !ok {
-			mappings[v.GetGoogleGroup().GetGroupId()] = []string{github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())}
+		gitHubGroupID := github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())
+		if _, ok := ggToGHMapping[v.GetGoogleGroup().GetGroupId()]; !ok {
+			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = []string{gitHubGroupID}
 		} else {
-			mappings[v.GetGoogleGroup().GetGroupId()] = append(mappings[v.GetGoogleGroup().GetGroupId()], github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId()))
+			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = append(ggToGHMapping[v.GetGoogleGroup().GetGroupId()], gitHubGroupID)
+		}
+		if _, ok := ghToGGMapping[gitHubGroupID]; !ok {
+			ghToGGMapping[gitHubGroupID] = []string{v.GetGoogleGroup().GetGroupId()}
+		} else {
+			ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
 		}
 	}
-	return &GoogleGroupToGitHubMapper{
-		GoogleGroupToGitHubTeam: mappings,
-	}, nil
+	return ggToGHMapping, ghToGGMapping, nil
 }
 
 // NewOneToManyGroupMapper creates a groupsync.OneToManyMapper base on the input source
 // and destination system type using provided groupMappingFile.
-func NewOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, error) {
+func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
-		return newGoogleGroupToGitHubMapper(groupMappingFile)
+		return NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile)
 	}
-	return nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
+	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
