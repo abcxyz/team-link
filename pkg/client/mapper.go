@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -37,6 +38,7 @@ func (g *GoogleGroupToGitHubMapper) AllGroupIDs(ctx context.Context) ([]string, 
 	for key := range g.GoogleGroupToGitHubTeam {
 		res = append(res, key)
 	}
+	slices.Sort(res)
 	return res, nil
 }
 

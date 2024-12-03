@@ -15,6 +15,7 @@
 // Package tltypes defines common used types in team-link.
 package tltypes
 
+// Teamlink supported system types for memberships.
 const (
 	SystemTypeGitHub       = "GITHUB"
 	SystemTypeGitLab       = "GITLAB"
