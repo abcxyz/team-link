@@ -122,8 +122,8 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mapping file: %w", err)
 	}
-	tm := &v1alpha3.UserMappings{}
-	if err := prototext.Unmarshal(b, tm); err != nil {
+	var tm v1alpha3.UserMappings
+	if err := prototext.Unmarshal(b, &tm); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
 
@@ -132,7 +132,7 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 
 	for _, mapping := range tm.GetMappings() {
 		src, dst := mapping.GetGoogleUserEmail(), mapping.GetGitHubUserId()
-		// skip user if he doesn't have google group or github that needs mappings.
+		// skip user if they don't have google group or github that needs mappings.
 		if src == "" || dst == "" {
 			continue
 		}
