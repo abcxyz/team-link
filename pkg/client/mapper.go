@@ -104,7 +104,7 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
 
-// UserMapperImpl implements groupsync.UserMapper
+// UserMapperImpl implements groupsync.UserMapper.
 type UserMapperImpl map[string]string
 
 func (u UserMapperImpl) MappedUserID(ctx context.Context, userID string) (string, error) {
