@@ -158,7 +158,7 @@ func TestNewGoogleGroupGitHubUserMapper(t *testing.T) {
 		{
 			name: "success",
 			content: `
-users: [
+mappings: [
   {
     google_user_email: "src_id_1"
 	git_hub_user_id: "dst_id_1"
@@ -177,7 +177,7 @@ users: [
 		{
 			name: "duplicate_google_user",
 			content: `
-users: [
+mappings: [
   {
     google_user_email: "src_id_1"
 	git_hub_user_id: "dst_id_1"
@@ -197,7 +197,7 @@ users: [
 		{
 			name: "duplicate_git_hub_user",
 			content: `
-users: [
+mappings: [
   {
     google_user_email: "src_id_1"
 	git_hub_user_id: "dst_id_1"

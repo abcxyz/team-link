@@ -110,7 +110,7 @@ type UserMapperImpl map[string]string
 func (u UserMapperImpl) MappedUserID(ctx context.Context, userID string) (string, error) {
 	v, ok := u[userID]
 	if !ok {
-		return "", fmt.Errorf("no mapped user for %s", userID)
+		return "", groupsync.ErrTargetUserIDNotFound
 	}
 	return v, nil
 }
@@ -122,7 +122,7 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mapping file: %w", err)
 	}
-	tm := &v1alpha3.Users{}
+	tm := &v1alpha3.UserMappings{}
 	if err := prototext.Unmarshal(b, tm); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
@@ -130,7 +130,7 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 	ggToGHUserMapping := make(UserMapperImpl)
 	ghToGGUserMapping := make(UserMapperImpl)
 
-	for _, mapping := range tm.GetUsers() {
+	for _, mapping := range tm.GetMappings() {
 		src, dst := mapping.GetGoogleUserEmail(), mapping.GetGitHubUserId()
 		// skip user if he doesn't have google group or github that needs mappings.
 		if src == "" || dst == "" {
