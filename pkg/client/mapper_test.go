@@ -15,6 +15,7 @@
 package client
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -139,6 +140,127 @@ mappings: [
 			}
 			if diff := cmp.Diff(gotGHtoGG, tc.wantGitHubToGoogleGroupMapper, protocmp.Transform()); diff != "" {
 				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNewGoogleGroupGitHubUserMapper(t *testing.T) {
+	t.Parallel()
+	defaultWritePath := "test.textproto"
+	cases := []struct {
+		name                              string
+		fileReadpath                      string
+		content                           string
+		wantGoogleGroupToGitHubUserMapper UserMapperImpl
+		wantErr                           string
+	}{
+		{
+			name: "success",
+			content: `
+users: [
+  {
+    google_user_email: "src_id_1"
+	git_hub_user_id: "dst_id_1"
+  },
+  {
+    google_user_email: "src_id_2"
+	git_hub_user_id: "dst_id_2"
+  }
+]
+`,
+			wantGoogleGroupToGitHubUserMapper: map[string]string{
+				"src_id_1": "dst_id_1",
+				"src_id_2": "dst_id_2",
+			},
+		},
+		{
+			name: "duplicate_google_user",
+			content: `
+users: [
+  {
+    google_user_email: "src_id_1"
+	git_hub_user_id: "dst_id_1"
+  },
+    {
+    google_user_email: "src_id_1"
+	git_hub_user_id: "dst_id_3"
+  },
+  {
+    google_user_email: "src_id_2"
+	git_hub_user_id: "dst_id_2"
+  }
+]
+`,
+			wantErr: fmt.Sprintf("google group user %s mapped to multiple github user", "src_id_1"),
+		},
+		{
+			name: "duplicate_git_hub_user",
+			content: `
+users: [
+  {
+    google_user_email: "src_id_1"
+	git_hub_user_id: "dst_id_1"
+  },
+  {
+    google_user_email: "src_id_2"
+	git_hub_user_id: "dst_id_2"
+  },
+  {
+    google_user_email: "src_id_3"
+	git_hub_user_id: "dst_id_2"
+  }
+]
+`,
+			wantErr: fmt.Sprintf("github user %s mapped to multiple google group user", "dst_id_2"),
+		},
+		{
+			name:         "file_not_exist",
+			fileReadpath: "not_exist_path",
+			wantErr:      "failed to read mapping file",
+		},
+		{
+			name:    "invalid_format",
+			content: `not valid`,
+			wantErr: "failed to unmarshal mapping file",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			td := t.TempDir()
+
+			// Create a defaultWritePath in the temp dir.
+			tempFile, err := os.CreateTemp(td, defaultWritePath)
+			if err != nil {
+				t.Fatal("failed to create tempFile: %w", err)
+			}
+			defer os.Remove(tempFile.Name())
+
+			// Write textproto to temp dir.
+			_, err = tempFile.WriteString(tc.content)
+			if err != nil {
+				t.Fatal("failed to write tempFile: %w", err)
+			}
+
+			// if tc.fileReadPath is provided, default file path
+			// won't be used, this enable test to read for non-exist
+			// path.
+			if tc.fileReadpath == "" {
+				tc.fileReadpath = tempFile.Name()
+			}
+			gotGGToGH, err := NewUserMapperImpl(tltypes.SystemTypeGoogleGroups, tltypes.SystemTypeGitHub, tc.fileReadpath)
+			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
+				t.Errorf("unexpected err: %s", diff)
+			}
+			if err != nil {
+				return
+			}
+			if diff := cmp.Diff(gotGGToGH, tc.wantGoogleGroupToGitHubUserMapper, protocmp.Transform()); diff != "" {
+				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
 		})
 	}

@@ -1,8 +1,8 @@
-message GoogleGroupGitHubUserMapping {
-    required string google_user_email = 1;
-    required string git_hub_user_id = 2;
+message User {
+    optional string google_user_email = 1;
+    optional string git_hub_user_id = 2;
 }
 
-message GoogleGroupGitHubUserMappings {
-    repeated GoogleGroupGitHubUserMapping mappings = 1;
+message Users {
+    repeated User users = 1;
 }

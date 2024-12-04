@@ -103,3 +103,57 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 	}
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
+
+// UserMapperImpl implements groupsync.UserMapper
+type UserMapperImpl map[string]string
+
+func (u UserMapperImpl) MappedUserID(ctx context.Context, userID string) (string, error) {
+	v, ok := u[userID]
+	if !ok {
+		return "", fmt.Errorf("no mapped user for %s", userID)
+	}
+	return v, nil
+}
+
+// NewGoogleGroupGitHubUserMapper creates a UserMapperImpl that maps
+// google user email to github user handle.
+func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMapper, error) {
+	b, err := os.ReadFile(userMappingFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mapping file: %w", err)
+	}
+	tm := &v1alpha3.Users{}
+	if err := prototext.Unmarshal(b, tm); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
+	}
+
+	ggToGHUserMapping := make(UserMapperImpl)
+	ghToGGUserMapping := make(UserMapperImpl)
+
+	for _, mapping := range tm.GetUsers() {
+		src, dst := mapping.GetGoogleUserEmail(), mapping.GetGitHubUserId()
+		// skip user if he doesn't have google group or github that needs mappings.
+		if src == "" || dst == "" {
+			continue
+		}
+		// Check user mapping relation is 1:1.
+		if existingDst, ok := ggToGHUserMapping[src]; ok && existingDst != dst {
+			return nil, fmt.Errorf("google group user %s mapped to multiple github user %s,%s", src, existingDst, dst)
+		}
+		ggToGHUserMapping[src] = dst
+
+		if existingSrc, ok := ghToGGUserMapping[dst]; ok && existingSrc != src {
+			return nil, fmt.Errorf("github user %s mapped to multiple google group user %s,%s", dst, existingSrc, src)
+		}
+		ghToGGUserMapping[dst] = src
+	}
+	return ggToGHUserMapping, nil
+}
+
+// NewUserMapperImpl creats a UserMapperImpl base on source and dest system type.
+func NewUserMapperImpl(source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
+	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
+		return NewGoogleGroupGitHubUserMapper(mappingFilePath)
+	}
+	return nil, fmt.Errorf("unsupported source to dest user mapper type: source %s, dest %s", source, dest)
+}
