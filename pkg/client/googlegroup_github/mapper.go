@@ -19,14 +19,88 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/team-link/apis/v1alpha3"
+	"github.com/abcxyz/team-link/pkg/github"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
+
+// GroupMapper implements groupsync.OneToManyGroupMapper
+// For now it was be used as Mapper between GoogleGroup
+// and GitHubTeam.
+// Both GoogleGroupMapper and GitHubMapper have similar
+// variables and functions, this way we don't need to repeatly
+// write similar function for both on them.
+// type GroupMapper map[string][]string
+type GroupMapper struct {
+	mappings map[string][]string
+}
+
+func (m *GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
+	res := make([]string, 0)
+	for key := range m.mappings {
+		res = append(res, key)
+	}
+	slices.Sort(res)
+	return res, nil
+}
+
+func (m GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
+	_, ok := m.mappings[key]
+	if !ok {
+		return false, fmt.Errorf("group %s is not mapped", key)
+	}
+	return ok, nil
+}
+
+func (m GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string, error) {
+	x, ok := m.mappings[key]
+	if !ok {
+		return nil, fmt.Errorf("no mapping found for group ID: %s", key)
+	}
+	return x, nil
+}
+
+type GoogleGroupToGitHubMapper GroupMapper
+
+type GitHubToGoogleGroupMapper GroupMapper
+
+// NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
+// and a GitHubToGoogleGroupMapper using the provided groupMapping file.
+// Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
+//
+// TODO: refactor this into client/googlegroup_github/mapper.go later.
+func NewBidirectionaGroupMapper(groupMappingFile string) (*GroupMapper, *GroupMapper, error) {
+	b, err := os.ReadFile(groupMappingFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read mapping file: %w", err)
+	}
+	tm := &v1alpha3.GoogleGroupToGitHubTeamMappings{}
+	if err := prototext.Unmarshal(b, tm); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
+	}
+	ggToGHMapping := make(map[string][]string)
+	ghToGGMapping := make(map[string][]string)
+	for _, v := range tm.GetMappings() {
+		gitHubGroupID := github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())
+		if _, ok := ggToGHMapping[v.GetGoogleGroup().GetGroupId()]; !ok {
+			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = []string{gitHubGroupID}
+		} else {
+			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = append(ggToGHMapping[v.GetGoogleGroup().GetGroupId()], gitHubGroupID)
+		}
+		if _, ok := ghToGGMapping[gitHubGroupID]; !ok {
+			ghToGGMapping[gitHubGroupID] = []string{v.GetGoogleGroup().GetGroupId()}
+		} else {
+			ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
+		}
+	}
+	return &GroupMapper{mappings: ggToGHMapping}, &GroupMapper{mappings: ghToGGMapping}, nil
+}
 
 // GoogleGroupGitHubUserMapper implements groupsync.UserMapper.
 type GoogleGroupGitHubUserMapper struct {
