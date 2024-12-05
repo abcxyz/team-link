@@ -70,7 +70,7 @@ type GitHubToGoogleGroupMapper GroupMapper
 // and a GitHubToGoogleGroupMapper using the provided groupMapping file.
 // Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
 //
-// TODO: refactor this into client/googlegroup_github/mapper.go later
+// TODO: refactor this into client/googlegroup_github/mapper.go later.
 func NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
