@@ -36,7 +36,6 @@ import (
 // Both GoogleGroupMapper and GitHubMapper have similar
 // variables and functions, this way we don't need to repeatly
 // write similar function for both on them.
-// type GroupMapper map[string][]string
 type GroupMapper struct {
 	mappings map[string][]string
 }
