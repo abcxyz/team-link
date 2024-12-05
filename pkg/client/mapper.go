@@ -104,22 +104,22 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
 
-// UserMapperImpl implements groupsync.UserMapper.
-type UserMapperImpl struct {
-	Mappings map[string]string
+// UserMapper implements groupsync.UserMapper.
+type UserMapper struct {
+	mappings map[string]string
 }
 
-func (u UserMapperImpl) MappedUserID(ctx context.Context, userID string) (string, error) {
-	v, ok := u.Mappings[userID]
+func (u UserMapper) MappedUserID(ctx context.Context, userID string) (string, error) {
+	v, ok := u.mappings[userID]
 	if !ok {
 		return "", groupsync.ErrTargetUserIDNotFound
 	}
 	return v, nil
 }
 
-// NewGoogleGroupGitHubUserMapper creates a UserMapperImpl that maps
+// NewGoogleGroupGitHubUserMapper creates a UserMapper that maps
 // google user email to github user handle.
-func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMapper, error) {
+func NewGoogleGroupGitHubUserMapper(userMappingFile string) (*UserMapper, error) {
 	b, err := os.ReadFile(userMappingFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mapping file: %w", err)
@@ -149,13 +149,13 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 		}
 		ghToGGUserMapping[dst] = src
 	}
-	return UserMapperImpl{
-		Mappings: ggToGHUserMapping,
+	return &UserMapper{
+		mappings: ggToGHUserMapping,
 	}, nil
 }
 
-// NewUserMapperImpl creats a UserMapperImpl base on source and dest system type.
-func NewUserMapperImpl(source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
+// NewUserMapper creats a UserMapperImpl base on source and dest system type.
+func NewUserMapper(source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
 		return NewGoogleGroupGitHubUserMapper(mappingFilePath)
 	}

@@ -152,7 +152,7 @@ func TestNewGoogleGroupGitHubUserMapper(t *testing.T) {
 		name                              string
 		fileReadpath                      string
 		content                           string
-		wantGoogleGroupToGitHubUserMapper UserMapperImpl
+		wantGoogleGroupToGitHubUserMapper *UserMapper
 		wantErr                           string
 	}{
 		{
@@ -169,8 +169,8 @@ mappings: [
   }
 ]
 `,
-			wantGoogleGroupToGitHubUserMapper: UserMapperImpl{
-				Mappings: map[string]string{
+			wantGoogleGroupToGitHubUserMapper: &UserMapper{
+				mappings: map[string]string{
 					"src_id_1": "dst_id_1",
 					"src_id_2": "dst_id_2",
 				},
@@ -254,14 +254,14 @@ mappings: [
 			if tc.fileReadpath == "" {
 				tc.fileReadpath = tempFile.Name()
 			}
-			gotGGToGH, err := NewUserMapperImpl(tltypes.SystemTypeGoogleGroups, tltypes.SystemTypeGitHub, tc.fileReadpath)
+			gotGGToGH, err := NewGoogleGroupGitHubUserMapper(tc.fileReadpath)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected err: %s", diff)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(gotGGToGH, tc.wantGoogleGroupToGitHubUserMapper, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(gotGGToGH.mappings, tc.wantGoogleGroupToGitHubUserMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
 		})
