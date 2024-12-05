@@ -169,9 +169,11 @@ mappings: [
   }
 ]
 `,
-			wantGoogleGroupToGitHubUserMapper: map[string]string{
-				"src_id_1": "dst_id_1",
-				"src_id_2": "dst_id_2",
+			wantGoogleGroupToGitHubUserMapper: UserMapperImpl{
+				Mappings: map[string]string{
+					"src_id_1": "dst_id_1",
+					"src_id_2": "dst_id_2",
+				},
 			},
 		},
 		{

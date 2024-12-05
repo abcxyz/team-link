@@ -105,10 +105,12 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 }
 
 // UserMapperImpl implements groupsync.UserMapper.
-type UserMapperImpl map[string]string
+type UserMapperImpl struct {
+	Mappings map[string]string
+}
 
 func (u UserMapperImpl) MappedUserID(ctx context.Context, userID string) (string, error) {
-	v, ok := u[userID]
+	v, ok := u.Mappings[userID]
 	if !ok {
 		return "", groupsync.ErrTargetUserIDNotFound
 	}
@@ -127,8 +129,8 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
 
-	ggToGHUserMapping := make(UserMapperImpl)
-	ghToGGUserMapping := make(UserMapperImpl)
+	ggToGHUserMapping := make(map[string]string)
+	ghToGGUserMapping := make(map[string]string)
 
 	for _, mapping := range tm.GetMappings() {
 		src, dst := mapping.GetGoogleUserEmail(), mapping.GetGitHubUserId()
@@ -147,7 +149,9 @@ func NewGoogleGroupGitHubUserMapper(userMappingFile string) (groupsync.UserMappe
 		}
 		ghToGGUserMapping[dst] = src
 	}
-	return ggToGHUserMapping, nil
+	return UserMapperImpl{
+		Mappings: ggToGHUserMapping,
+	}, nil
 }
 
 // NewUserMapperImpl creats a UserMapperImpl base on source and dest system type.
