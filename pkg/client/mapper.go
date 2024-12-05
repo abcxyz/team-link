@@ -24,6 +24,7 @@ import (
 
 	"github.com/abcxyz/team-link/apis/v1alpha3"
 	tltypes "github.com/abcxyz/team-link/internal"
+	ggtogh "github.com/abcxyz/team-link/pkg/client/googlegroup_github"
 	"github.com/abcxyz/team-link/pkg/github"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
@@ -68,6 +69,8 @@ type GitHubToGoogleGroupMapper GroupMapper
 // NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
 // and a GitHubToGoogleGroupMapper using the provided groupMapping file.
 // Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
+//
+// TODO: refactor this into client/googlegroup_github/mapper.go later
 func NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
@@ -104,60 +107,15 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
 
-// UserMapper implements groupsync.UserMapper.
-type UserMapper struct {
-	mappings map[string]string
-}
-
-func (u UserMapper) MappedUserID(ctx context.Context, userID string) (string, error) {
-	v, ok := u.mappings[userID]
-	if !ok {
-		return "", groupsync.ErrTargetUserIDNotFound
-	}
-	return v, nil
-}
-
-// NewGoogleGroupGitHubUserMapper creates a UserMapper that maps
-// google user email to github user handle.
-func NewGoogleGroupGitHubUserMapper(userMappingFile string) (*UserMapper, error) {
-	b, err := os.ReadFile(userMappingFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read mapping file: %w", err)
-	}
-	var tm v1alpha3.UserMappings
-	if err := prototext.Unmarshal(b, &tm); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
-	}
-
-	ggToGHUserMapping := make(map[string]string)
-	ghToGGUserMapping := make(map[string]string)
-
-	for _, mapping := range tm.GetMappings() {
-		src, dst := mapping.GetGoogleUserEmail(), mapping.GetGitHubUserId()
-		// skip user if they don't have google group or github that needs mappings.
-		if src == "" || dst == "" {
-			continue
-		}
-		// Check user mapping relation is 1:1.
-		if existingDst, ok := ggToGHUserMapping[src]; ok && existingDst != dst {
-			return nil, fmt.Errorf("google group user %s mapped to multiple github user %s,%s", src, existingDst, dst)
-		}
-		ggToGHUserMapping[src] = dst
-
-		if existingSrc, ok := ghToGGUserMapping[dst]; ok && existingSrc != src {
-			return nil, fmt.Errorf("github user %s mapped to multiple google group user %s,%s", dst, existingSrc, src)
-		}
-		ghToGGUserMapping[dst] = src
-	}
-	return &UserMapper{
-		mappings: ggToGHUserMapping,
-	}, nil
-}
-
-// NewUserMapper creats a UserMapperImpl base on source and dest system type.
-func NewUserMapper(source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
+// NewUserMapper creats a UserMapper base on source and dest system type.
+func NewUserMapper(ctx context.Context, source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
-		return NewGoogleGroupGitHubUserMapper(mappingFilePath)
+		// return ggtogh.NewUserMapper(ctx, mappingFilePath)
+		m, err := ggtogh.NewUserMapper(ctx, mappingFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GoogleGroupGitHubUserMapper: %w", err)
+		}
+		return m, nil
 	}
 	return nil, fmt.Errorf("unsupported source to dest user mapper type: source %s, dest %s", source, dest)
 }

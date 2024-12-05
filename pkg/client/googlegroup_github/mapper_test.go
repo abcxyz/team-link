@@ -12,81 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client
+package googlegroupgithub
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/abcxyz/pkg/testutil"
-	tltypes "github.com/abcxyz/team-link/internal"
 )
 
-func TestCreateBidirectionalGoogleGroupGitHubMapper(t *testing.T) {
+func TestNewGoogleGroupGitHubUserMapper(t *testing.T) {
 	t.Parallel()
 	defaultWritePath := "test.textproto"
 	cases := []struct {
-		name                          string
-		fileReadpath                  string
-		content                       string
-		wantGoogleGroupToGitHubMapper GroupMapper
-		wantGitHubToGoogleGroupMapper GroupMapper
-		wantErr                       string
+		name                              string
+		fileReadpath                      string
+		content                           string
+		wantGoogleGroupToGitHubUserMapper *GoogleGroupGitHubUserMapper
+		wantErr                           string
 	}{
 		{
 			name: "success",
 			content: `
 mappings: [
   {
-    google_group: {
-      group_id: "test_id_1"
-    }
-    git_hub_team: {
-      org_id: 1
-      team_id: 2
-    }
+    google_user_email: "src_id_1"
+	git_hub_user_id: "dst_id_1"
   },
   {
-    google_group: {
-      group_id: "test_id_1"
-    }
-    git_hub_team: {
-      org_id: 1
-      team_id: 3
-    }
-  },
-  {
-    google_group: {
-      group_id: "test_id_2"
-    }
-    git_hub_team: {
-      org_id: 1
-      team_id: 4
-    }
-  },
-  {
-    google_group: {
-      group_id: "test_id_3"
-    }
-    git_hub_team: {
-      org_id: 1
-      team_id: 4
-    }
+    google_user_email: "src_id_2"
+	git_hub_user_id: "dst_id_2"
   }
 ]
 `,
-			wantGoogleGroupToGitHubMapper: map[string][]string{
-				"test_id_1": {"1:2", "1:3"},
-				"test_id_2": {"1:4"},
-				"test_id_3": {"1:4"},
-			},
-			wantGitHubToGoogleGroupMapper: map[string][]string{
-				"1:2": {"test_id_1"},
-				"1:3": {"test_id_1"},
-				"1:4": {"test_id_2", "test_id_3"},
+			wantGoogleGroupToGitHubUserMapper: &GoogleGroupGitHubUserMapper{
+				mappings: map[string]string{
+					"src_id_1": "dst_id_1",
+					"src_id_2": "dst_id_2",
+				},
 			},
 		},
 		{
@@ -106,6 +72,9 @@ mappings: [
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
+			ctx := context.Background()
+
 			td := t.TempDir()
 
 			// Create a defaultWritePath in the temp dir.
@@ -127,18 +96,15 @@ mappings: [
 			if tc.fileReadpath == "" {
 				tc.fileReadpath = tempFile.Name()
 			}
-			gotGGToGH, gotGHtoGG, err := NewBidirectionalNewOneToManyGroupMapper(tltypes.SystemTypeGoogleGroups, tltypes.SystemTypeGitHub, tc.fileReadpath)
+			gotGGToGH, err := NewUserMapper(ctx, tc.fileReadpath)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected err: %s", diff)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(gotGGToGH, tc.wantGoogleGroupToGitHubMapper, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(gotGGToGH.mappings, tc.wantGoogleGroupToGitHubUserMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
-			}
-			if diff := cmp.Diff(gotGHtoGG, tc.wantGitHubToGoogleGroupMapper, protocmp.Transform()); diff != "" {
-				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})
 	}
