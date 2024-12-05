@@ -24,6 +24,7 @@ import (
 
 	"github.com/abcxyz/team-link/apis/v1alpha3"
 	tltypes "github.com/abcxyz/team-link/internal"
+	ggtogh "github.com/abcxyz/team-link/pkg/client/googlegroup_github"
 	"github.com/abcxyz/team-link/pkg/github"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
@@ -68,6 +69,8 @@ type GitHubToGoogleGroupMapper GroupMapper
 // NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
 // and a GitHubToGoogleGroupMapper using the provided groupMapping file.
 // Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
+//
+// TODO: refactor this into client/googlegroup_github/mapper.go later.
 func NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
@@ -102,4 +105,17 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 		return NewBidirectionalGoogleGroupGitHubMapper(groupMappingFile)
 	}
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
+}
+
+// NewUserMapper creats a UserMapper base on source and dest system type.
+func NewUserMapper(ctx context.Context, source, dest, mappingFilePath string) (groupsync.UserMapper, error) {
+	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
+		// return ggtogh.NewUserMapper(ctx, mappingFilePath)
+		m, err := ggtogh.NewUserMapper(ctx, mappingFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GoogleGroupGitHubUserMapper: %w", err)
+		}
+		return m, nil
+	}
+	return nil, fmt.Errorf("unsupported source to dest user mapper type: source %s, dest %s", source, dest)
 }
