@@ -52,7 +52,7 @@ func (m *GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 func (m *GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
 	_, ok := m.mappings[key]
 	if !ok {
-		return false, fmt.Errorf("group %s is not mapped", key)
+		return false, nil
 	}
 	return ok, nil
 }
