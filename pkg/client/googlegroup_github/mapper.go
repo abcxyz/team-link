@@ -41,7 +41,7 @@ type GroupMapper struct {
 }
 
 func (m *GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
-	res := make([]string, 0)
+	res := make([]string, 0, len(m.mappings))
 	for key := range m.mappings {
 		res = append(res, key)
 	}
@@ -49,7 +49,7 @@ func (m *GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 	return res, nil
 }
 
-func (m GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
+func (m *GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
 	_, ok := m.mappings[key]
 	if !ok {
 		return false, fmt.Errorf("group %s is not mapped", key)
@@ -57,7 +57,7 @@ func (m GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, err
 	return ok, nil
 }
 
-func (m GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string, error) {
+func (m *GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string, error) {
 	x, ok := m.mappings[key]
 	if !ok {
 		return nil, fmt.Errorf("no mapping found for group ID: %s", key)
@@ -87,16 +87,8 @@ func NewBidirectionaGroupMapper(groupMappingFile string) (*GroupMapper, *GroupMa
 	ghToGGMapping := make(map[string][]string)
 	for _, v := range tm.GetMappings() {
 		gitHubGroupID := github.Encode(v.GetGitHubTeam().GetOrgId(), v.GetGitHubTeam().GetTeamId())
-		if _, ok := ggToGHMapping[v.GetGoogleGroup().GetGroupId()]; !ok {
-			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = []string{gitHubGroupID}
-		} else {
-			ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = append(ggToGHMapping[v.GetGoogleGroup().GetGroupId()], gitHubGroupID)
-		}
-		if _, ok := ghToGGMapping[gitHubGroupID]; !ok {
-			ghToGGMapping[gitHubGroupID] = []string{v.GetGoogleGroup().GetGroupId()}
-		} else {
-			ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
-		}
+		ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = append(ggToGHMapping[v.GetGoogleGroup().GetGroupId()], gitHubGroupID)
+		ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
 	}
 	return &GroupMapper{mappings: ggToGHMapping}, &GroupMapper{mappings: ghToGGMapping}, nil
 }
