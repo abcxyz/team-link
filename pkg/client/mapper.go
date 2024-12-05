@@ -29,9 +29,9 @@ func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile stri
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
 		std, dts, err := ggtogh.NewBidirectionaGroupMapper(groupMappingFile)
 		if err != nil {
-			fmt.Errorf("failed to create group mapper for GoogleGroupToGitHub: %w", err)
-			return std, dts, nil
+			return nil, nil, fmt.Errorf("failed to create group mapper for GoogleGroupToGitHub: %w", err)
 		}
+		return std, dts, nil
 	}
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }
