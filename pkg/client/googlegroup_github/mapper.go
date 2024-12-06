@@ -66,23 +66,24 @@ func (m *GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string,
 	return ret, nil
 }
 
-type GoogleGroupToGitHubMapper GroupMapper
-
-type GitHubToGoogleGroupMapper GroupMapper
+type BiDirectionalGroupMapper struct {
+	sourceMapper *GroupMapper
+	targetMapper *GroupMapper
+}
 
 // NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
 // and a GitHubToGoogleGroupMapper using the provided groupMapping file.
 // Returns is (GoogleGroupToGitHubMapper, GitHubToGoogleGroupMapper, error).
 //
 // TODO: refactor this into client/googlegroup_github/mapper.go later.
-func NewBidirectionaGroupMapper(groupMappingFile string) (*GroupMapper, *GroupMapper, error) {
+func NewBidirectionaGroupMapper(groupMappingFile string) (*BiDirectionalGroupMapper, error) {
 	b, err := os.ReadFile(groupMappingFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read mapping file: %w", err)
+		return nil, fmt.Errorf("failed to read mapping file: %w", err)
 	}
 	tm := &v1alpha3.GoogleGroupToGitHubTeamMappings{}
 	if err := prototext.Unmarshal(b, tm); err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
 	ggToGHMapping := make(map[string][]string)
 	ghToGGMapping := make(map[string][]string)
@@ -91,7 +92,10 @@ func NewBidirectionaGroupMapper(groupMappingFile string) (*GroupMapper, *GroupMa
 		ggToGHMapping[v.GetGoogleGroup().GetGroupId()] = append(ggToGHMapping[v.GetGoogleGroup().GetGroupId()], gitHubGroupID)
 		ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
 	}
-	return &GroupMapper{mappings: ggToGHMapping}, &GroupMapper{mappings: ghToGGMapping}, nil
+	return &BiDirectionalGroupMapper{
+		sourceMapper: &GroupMapper{mappings: ggToGHMapping},
+		targetMapper: &GroupMapper{mappings: ghToGGMapping},
+	}, nil
 }
 
 // GoogleGroupGitHubUserMapper implements groupsync.UserMapper.

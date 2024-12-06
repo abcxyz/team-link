@@ -130,17 +130,17 @@ mappings: [
 			if tc.fileReadpath == "" {
 				tc.fileReadpath = tempFile.Name()
 			}
-			gotGGToGH, gotGHtoGG, err := NewBidirectionaGroupMapper(tc.fileReadpath)
+			BiDirectionalGroupMapper, err := NewBidirectionaGroupMapper(tc.fileReadpath)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected err: %s", diff)
 			}
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(gotGGToGH.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(BiDirectionalGroupMapper.sourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
-			if diff := cmp.Diff(gotGHtoGG.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(BiDirectionalGroupMapper.targetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})
