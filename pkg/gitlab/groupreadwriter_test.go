@@ -82,12 +82,8 @@ func TestGroupReadWriter_GetGroup(t *testing.T) {
 			server := fakeGitLab(tc.data)
 			defer server.Close()
 
-			client, err := gitlabClient(server)
-			if err != nil {
-				t.Fatalf("unexpected error creating gitlab client: %s", err.Error())
-			}
-
-			groupRW := NewGroupReadWriter(client)
+			clientProvider := gitlabClientProvider(server)
+			groupRW := NewGroupReadWriter(clientProvider)
 
 			got, err := groupRW.GetGroup(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -386,12 +382,8 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 			server := fakeGitLab(tc.data)
 			defer server.Close()
 
-			client, err := gitlabClient(server)
-			if err != nil {
-				t.Fatalf("unexpected error creating gitlab client: %s", err.Error())
-			}
-
-			groupRW := NewGroupReadWriter(client, tc.opts...)
+			clientProvider := gitlabClientProvider(server)
+			groupRW := NewGroupReadWriter(clientProvider, tc.opts...)
 
 			got, err := groupRW.GetMembers(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -683,12 +675,8 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 			server := fakeGitLab(tc.data)
 			defer server.Close()
 
-			client, err := gitlabClient(server)
-			if err != nil {
-				t.Fatalf("unexpected error creating gitlab client: %s", err.Error())
-			}
-
-			groupRW := NewGroupReadWriter(client, tc.opts...)
+			clientProvider := gitlabClientProvider(server)
+			groupRW := NewGroupReadWriter(clientProvider, tc.opts...)
 
 			got, err := groupRW.Descendants(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -759,12 +747,8 @@ func TestGroupReadWriter_GetUser(t *testing.T) {
 			server := fakeGitLab(tc.data)
 			defer server.Close()
 
-			client, err := gitlabClient(server)
-			if err != nil {
-				t.Fatalf("unexpected error creating gitlab client: %s", err.Error())
-			}
-
-			groupRW := NewGroupReadWriter(client)
+			clientProvider := gitlabClientProvider(server)
+			groupRW := NewGroupReadWriter(clientProvider)
 
 			got, err := groupRW.GetUser(ctx, tc.userID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -1547,14 +1531,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 			server := fakeGitLab(tc.data)
 			defer server.Close()
 
-			client, err := gitlabClient(server)
-			if err != nil {
-				t.Fatalf("unexpected error creating gitlab client: %s", err.Error())
-			}
+			clientProvider := gitlabClientProvider(server)
+			groupRW := NewGroupReadWriter(clientProvider, tc.opts...)
 
-			groupRW := NewGroupReadWriter(client, tc.opts...)
-
-			err = groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
+			err := groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want) = %v", diff)
 			}
@@ -1590,9 +1570,14 @@ func (d *GitLabData) findGroupByID(groupID int) *gitlab.Group {
 	return nil
 }
 
-func gitlabClient(server *httptest.Server) (*gitlab.Client, error) {
-	client, err := gitlab.NewClient("", gitlab.WithBaseURL(server.URL))
-	return client, err
+type emptyKeyProvider struct{}
+
+func (p *emptyKeyProvider) Key(ctx context.Context) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func gitlabClientProvider(server *httptest.Server) *ClientProvider {
+	return NewGitLabClientProvider(server.URL, &emptyKeyProvider{}, nil)
 }
 
 func fakeGitLab(gitlabData *GitLabData) *httptest.Server {

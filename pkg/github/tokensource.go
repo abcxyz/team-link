@@ -20,20 +20,16 @@ import (
 	"strconv"
 
 	"github.com/abcxyz/pkg/githubauth"
+	"github.com/abcxyz/team-link/pkg/credentials"
 )
 
-// KeyProvider provides a private key.
-type KeyProvider interface {
-	Key(ctx context.Context) ([]byte, error)
-}
-
 type AppTokenSource struct {
-	keyProvider KeyProvider
+	keyProvider credentials.KeyProvider
 	appID       string
 	appOpts     []githubauth.Option
 }
 
-func NewAppTokenSource(keyProvider KeyProvider, appID string, appOpts ...githubauth.Option) *AppTokenSource {
+func NewAppTokenSource(keyProvider credentials.KeyProvider, appID string, appOpts ...githubauth.Option) *AppTokenSource {
 	return &AppTokenSource{
 		keyProvider: keyProvider,
 		appID:       appID,

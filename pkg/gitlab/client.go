@@ -21,22 +21,22 @@ import (
 
 	gitlab "github.com/xanzy/go-gitlab"
 
-	"github.com/abcxyz/team-link/pkg/github"
+	"github.com/abcxyz/team-link/pkg/credentials"
 )
 
 // ClientProvider provides a GitLab client.
 type ClientProvider struct {
-	httpClient  *http.Client
 	instanceURL string
-	keyProvider github.KeyProvider
+	keyProvider credentials.KeyProvider
+	httpClient  *http.Client
 }
 
 // NewGitLabClientProvider creates a new GitLabClientProvider.
-func NewGitLabClientProvider(httpClient *http.Client, instanceURL string, keyProvider github.KeyProvider) *ClientProvider {
+func NewGitLabClientProvider(instanceURL string, keyProvider credentials.KeyProvider, httpClient *http.Client) *ClientProvider {
 	return &ClientProvider{
-		httpClient:  httpClient,
 		instanceURL: instanceURL,
 		keyProvider: keyProvider,
+		httpClient:  httpClient,
 	}
 }
 
@@ -46,7 +46,14 @@ func (g *ClientProvider) Client(ctx context.Context) (*gitlab.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitLab token: %w", err)
 	}
-	gitlabClient, err := gitlab.NewClient(string(token), gitlab.WithHTTPClient(g.httpClient), gitlab.WithBaseURL(g.instanceURL))
+
+	opts := []gitlab.ClientOptionFunc{
+		gitlab.WithBaseURL(g.instanceURL),
+	}
+	if g.httpClient != nil {
+		opts = append(opts, gitlab.WithHTTPClient(g.httpClient))
+	}
+	gitlabClient, err := gitlab.NewClient(string(token), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GitLab client: %w", err)
 	}
