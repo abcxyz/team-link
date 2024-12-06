@@ -81,8 +81,8 @@ func NewBidirectionaGroupMapper(groupMappingFile string) (*BiDirectionalGroupMap
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mapping file: %w", err)
 	}
-	tm := &v1alpha3.GoogleGroupToGitHubTeamMappings{}
-	if err := prototext.Unmarshal(b, tm); err != nil {
+	var tm v1alpha3.GoogleGroupToGitHubTeamMappings
+	if err := prototext.Unmarshal(b, &tm); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal mapping file: %w", err)
 	}
 	ggToGHMapping := make(map[string][]string)
