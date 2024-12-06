@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"net/http"
 
+	gitlab "github.com/xanzy/go-gitlab"
+
 	"github.com/abcxyz/team-link/pkg/github"
-	"github.com/xanzy/go-gitlab"
 )
 
 // ClientProvider provides a GitLab client.
