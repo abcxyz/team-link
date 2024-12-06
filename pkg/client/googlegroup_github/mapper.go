@@ -51,9 +51,6 @@ func (m *GroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 
 func (m *GroupMapper) ContainsGroupID(ctx context.Context, key string) (bool, error) {
 	_, ok := m.mappings[key]
-	if !ok {
-		return false, nil
-	}
 	return ok, nil
 }
 
@@ -62,7 +59,11 @@ func (m *GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string,
 	if !ok {
 		return nil, fmt.Errorf("no mapping found for group ID: %s", key)
 	}
-	return x, nil
+	// Make deep copy so the caller's operation on return won't change
+	// the value of this given map.
+	ret := make([]string, len(x))
+	copy(ret, x)
+	return ret, nil
 }
 
 type GoogleGroupToGitHubMapper GroupMapper
