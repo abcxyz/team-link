@@ -62,13 +62,13 @@ func WithoutSubGroupsAsMembers() Opt {
 }
 
 type GroupReadWriter struct {
-	client           *gitlab.Client
+	clientProvider   *ClientProvider
 	userCache        *cache.Cache[*gitlab.User]
 	groupCache       *cache.Cache[*gitlab.Group]
 	includeSubGroups bool
 }
 
-func NewGroupReadWriter(client *gitlab.Client, opts ...Opt) *GroupReadWriter {
+func NewGroupReadWriter(clientProvider *ClientProvider, opts ...Opt) *GroupReadWriter {
 	config := &Config{
 		includeSubGroups: true,
 		cacheDuration:    DefaultCacheDuration,
@@ -78,7 +78,7 @@ func NewGroupReadWriter(client *gitlab.Client, opts ...Opt) *GroupReadWriter {
 		opt(config)
 	}
 	return &GroupReadWriter{
-		client:           client,
+		clientProvider:   clientProvider,
 		userCache:        cache.New[*gitlab.User](config.cacheDuration),
 		groupCache:       cache.New[*gitlab.Group](config.cacheDuration),
 		includeSubGroups: config.includeSubGroups,
@@ -101,7 +101,11 @@ func (rw *GroupReadWriter) getGitLabUser(ctx context.Context, userID string) (*g
 	user, err := rw.userCache.WriteThruLookup(userID, func() (*gitlab.User, error) {
 		logger := logging.FromContext(ctx)
 		logger.InfoContext(ctx, "fetching user", "user_id", userID)
-		users, _, err := rw.client.Users.ListUsers(&gitlab.ListUsersOptions{Username: &userID})
+		client, err := rw.clientProvider.Client(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get gitlab client: %w", err)
+		}
+		users, _, err := client.Users.ListUsers(&gitlab.ListUsersOptions{Username: &userID})
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch user %s: %w", userID, err)
 		}
@@ -136,7 +140,11 @@ func (rw *GroupReadWriter) getGitLabGroup(ctx context.Context, groupID string) (
 	group, err := rw.groupCache.WriteThruLookup(groupID, func() (*gitlab.Group, error) {
 		logger := logging.FromContext(ctx)
 		logger.InfoContext(ctx, "fetching group", "group_id", groupID)
-		group, _, err := rw.client.Groups.GetGroup(groupID, &gitlab.GetGroupOptions{})
+		client, err := rw.clientProvider.Client(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get gitlab client: %w", err)
+		}
+		group, _, err := client.Groups.GetGroup(groupID, &gitlab.GetGroupOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch group %s: %w", groupID, err)
 		}
@@ -153,10 +161,14 @@ func (rw *GroupReadWriter) getGitLabGroup(ctx context.Context, groupID string) (
 func (rw *GroupReadWriter) GetMembers(ctx context.Context, groupID string) ([]groupsync.Member, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching members for group", "group_id", groupID)
+	client, err := rw.clientProvider.Client(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gitlab client: %w", err)
+	}
 
 	users := make(map[string]*gitlab.GroupMember, 32)
 	if err := paginate(func(listOpts *gitlab.ListOptions) (*gitlab.Response, error) {
-		userMembers, resp, err := rw.client.Groups.ListGroupMembers(groupID, &gitlab.ListGroupMembersOptions{ListOptions: *listOpts})
+		userMembers, resp, err := client.Groups.ListGroupMembers(groupID, &gitlab.ListGroupMembersOptions{ListOptions: *listOpts})
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch group members for %s: %w", groupID, err)
 		}
@@ -177,7 +189,7 @@ func (rw *GroupReadWriter) GetMembers(ctx context.Context, groupID string) ([]gr
 	if rw.includeSubGroups {
 		groups := make(map[string]*gitlab.Group, 32)
 		if err := paginate(func(listOpts *gitlab.ListOptions) (*gitlab.Response, error) {
-			subgroups, resp, err := rw.client.Groups.ListSubGroups(groupID, &gitlab.ListSubGroupsOptions{})
+			subgroups, resp, err := client.Groups.ListSubGroups(groupID, &gitlab.ListSubGroupsOptions{})
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch subgroups for %s: %w", groupID, err)
 			}
@@ -286,7 +298,11 @@ func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID, userID s
 		"user_id", userID,
 	)
 
-	if _, _, err := rw.client.GroupMembers.AddGroupMember(groupID, &gitlab.AddGroupMemberOptions{
+	client, err := rw.clientProvider.Client(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get gitlab client: %w", err)
+	}
+	if _, _, err := client.GroupMembers.AddGroupMember(groupID, &gitlab.AddGroupMemberOptions{
 		Username:    &userID,
 		AccessLevel: pointer.To(gitlab.DeveloperPermissions),
 	}); err != nil {
@@ -301,6 +317,10 @@ func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID stri
 		"group_id", groupID,
 		"user_id", user.ID,
 	)
+	client, err := rw.clientProvider.Client(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get gitlab client: %w", err)
+	}
 
 	// extract integer user ID from member attributes because RemoveGroupMember does not support usernames
 	memberAttributes, ok := user.Attributes.(*gitlab.GroupMember)
@@ -308,7 +328,7 @@ func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID stri
 		return fmt.Errorf("failed to extract GitLab GroupMember attributes from user(%s)", user.ID)
 	}
 	userID := memberAttributes.ID
-	if _, err := rw.client.GroupMembers.RemoveGroupMember(groupID, userID, &gitlab.RemoveGroupMemberOptions{}); err != nil {
+	if _, err := client.GroupMembers.RemoveGroupMember(groupID, userID, &gitlab.RemoveGroupMemberOptions{}); err != nil {
 		return fmt.Errorf("failed to remove GitLab user(%s) for group(%s): %w", user.ID, groupID, err)
 	}
 	return nil
@@ -320,6 +340,10 @@ func (rw *GroupReadWriter) transferSubGroup(ctx context.Context, group *groupsyn
 		"group_id", group.ID,
 		"new_parent_id", newParentGroupID,
 	)
+	client, err := rw.clientProvider.Client(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get gitlab client: %w", err)
+	}
 
 	groupAttributes, ok := group.Attributes.(*gitlab.Group)
 	if !ok {
@@ -334,7 +358,7 @@ func (rw *GroupReadWriter) transferSubGroup(ctx context.Context, group *groupsyn
 		}
 		opts.GroupID = &parentGroup.ID
 	}
-	_, _, err := rw.client.Groups.TransferSubGroup(groupID, opts)
+	_, _, err = client.Groups.TransferSubGroup(groupID, opts)
 	if err != nil {
 		return fmt.Errorf("failed to transfer GitLab group(%s) to new parent group(%v): %w", group.ID, newParentGroupID, err)
 	}
