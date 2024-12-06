@@ -137,10 +137,10 @@ mappings: [
 			if err != nil {
 				return
 			}
-			if diff := cmp.Diff(BiDirectionalGroupMapper.sourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(BiDirectionalGroupMapper.SourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
-			if diff := cmp.Diff(BiDirectionalGroupMapper.targetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(BiDirectionalGroupMapper.TargetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})

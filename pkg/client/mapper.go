@@ -27,11 +27,11 @@ import (
 // and destination system type using provided groupMappingFile.
 func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
-		std, dts, err := ggtogh.NewBidirectionaGroupMapper(groupMappingFile)
+		m, err := ggtogh.NewBidirectionaGroupMapper(groupMappingFile)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create group mapper for GoogleGroupToGitHub: %w", err)
 		}
-		return std, dts, nil
+		return m.SourceMapper, m.TargetMapper, nil
 	}
 	return nil, nil, fmt.Errorf("unsupported source to dest mapper type: source %s, dest %s", source, dest)
 }

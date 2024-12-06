@@ -67,8 +67,8 @@ func (m *GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string,
 }
 
 type BiDirectionalGroupMapper struct {
-	sourceMapper *GroupMapper
-	targetMapper *GroupMapper
+	SourceMapper *GroupMapper
+	TargetMapper *GroupMapper
 }
 
 // NewBidirectionalGoogleGroupGitHubMapper creates a GoogleGroupToGitHubMapper
@@ -93,8 +93,8 @@ func NewBidirectionaGroupMapper(groupMappingFile string) (*BiDirectionalGroupMap
 		ghToGGMapping[gitHubGroupID] = append(ghToGGMapping[gitHubGroupID], v.GetGoogleGroup().GetGroupId())
 	}
 	return &BiDirectionalGroupMapper{
-		sourceMapper: &GroupMapper{mappings: ggToGHMapping},
-		targetMapper: &GroupMapper{mappings: ghToGGMapping},
+		SourceMapper: &GroupMapper{mappings: ggToGHMapping},
+		TargetMapper: &GroupMapper{mappings: ghToGGMapping},
 	}, nil
 }
 
