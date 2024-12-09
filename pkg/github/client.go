@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client
+package github
 
 import (
 	"context"
-	"fmt"
 
-	tltypes "github.com/abcxyz/team-link/internal"
-	"github.com/abcxyz/team-link/pkg/googlegroups"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/google/go-github/v61/github"
+	"golang.org/x/oauth2"
 )
 
-// NewReader creates a GroupReader base on provided source type.
-func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
-	if source == tltypes.SystemTypeGoogleGroups {
-		reader, err := googlegroups.NewGoogleGroupsReader(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed tp create googlegourps reader: %w", err)
-		}
-		return reader, nil
-	}
-	return nil, fmt.Errorf("source type %s not allowd", source)
+// NewGitHubClient creates a new NewGitHubClient.
+func NewGitHubClient(ctx context.Context, token string) *github.Client {
+	ts := oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: token,
+	})
+	tc := oauth2.NewClient(ctx, ts)
+	return github.NewClient(tc)
+}
+
+func NewGitHubTeamReadWriterWithAuthToken(ctx context.Context, token string) *TeamReadWriter {
+	gts := NewGitHubTokenSource(token)
+	client := NewGitHubClient(ctx, token)
+	return NewTeamReadWriter(gts, client)
 }

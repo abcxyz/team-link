@@ -58,7 +58,13 @@ func (g GroupReader) Descendants(ctx context.Context, groupID string) ([]*groups
 				// Instead, we infer the type from the resource name. e.g. groups have a resource
 				// name of the form `groups/%s` and users of the form 'users/%d'
 				if strings.HasPrefix(m.Member, "users/") {
-					members = append(members, &groupsync.User{ID: m.Member})
+					// m.Id has format of `users/<user-id-numers>`
+					// user's email will be stored in m.PreferredMemberKey
+					// for better user experience, we should user email address instead
+					// of user id.
+					// When member is user type, it's garenteed that PreferredMemberKey
+					// is unique because it's user's email address.
+					members = append(members, &groupsync.User{ID: m.PreferredMemberKey[0].Id})
 				}
 			}
 			return nil
@@ -88,9 +94,11 @@ func (g GroupReader) GetMembers(ctx context.Context, groupID string) ([]groupsyn
 	var members []groupsync.Member
 	logger := logging.FromContext(ctx)
 	// Need to set View to FULL to get member type.
-	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).View("FULL").Pages(ctx,
+	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).Pages(ctx,
 		func(page *cloudidentity.ListMembershipsResponse) error {
 			for _, m := range page.Memberships {
+				fmt.Println(m)
+				fmt.Println("--------")
 				if m.Type == MemberTypeGroup {
 					members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{ID: m.PreferredMemberKey.Id}})
 				} else if m.Type == MemberTypeUser {
