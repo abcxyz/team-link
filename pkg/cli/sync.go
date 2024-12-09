@@ -22,6 +22,8 @@ import (
 
 	"github.com/abcxyz/pkg/cli"
 	tltypes "github.com/abcxyz/team-link/internal"
+	"github.com/abcxyz/team-link/pkg/client"
+	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
 var (
@@ -158,5 +160,28 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 	// TODO(#72): create reader, writer base on cmd flags.
 	// TODO(#71): create group and user mapping proto and textproto parser.
 
+	sm, dm, err := client.NewBidirectionalNewOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create group mapper: %w", err)
+	}
+	um, err := client.NewUserMapper(ctx, c.source, c.destination, c.userMappingConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create user mapper: %w", err)
+	}
+
+	reader, err := client.NewReader(ctx, c.source)
+	if err != nil {
+		return fmt.Errorf("failed to create reader: %w", err)
+	}
+
+	readWriter, err := client.NewReadWrirter(ctx, c.destination, c.destinationToken)
+	if err != nil {
+		return fmt.Errorf("failed to create readwriter: %w", err)
+	}
+
+	syncer := groupsync.NewManyToManySyncer(c.source, c.destination, reader, readWriter, sm, dm, um)
+	if err := syncer.Sync(ctx, "groups/04f1mdlm2alv5ca"); err != nil {
+		return fmt.Errorf("failed to sync %w", err)
+	}
 	return nil
 }
