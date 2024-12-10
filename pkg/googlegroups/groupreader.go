@@ -97,8 +97,6 @@ func (g GroupReader) GetMembers(ctx context.Context, groupID string) ([]groupsyn
 	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).Pages(ctx,
 		func(page *cloudidentity.ListMembershipsResponse) error {
 			for _, m := range page.Memberships {
-				fmt.Println(m)
-				fmt.Println("--------")
 				if m.Type == MemberTypeGroup {
 					members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{ID: m.PreferredMemberKey.Id}})
 				} else if m.Type == MemberTypeUser {
