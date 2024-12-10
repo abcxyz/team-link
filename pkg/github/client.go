@@ -31,7 +31,7 @@ func NewGitHubClient(ctx context.Context, token string) *github.Client {
 }
 
 func NewGitHubTeamReadWriterWithAuthToken(ctx context.Context, token string) *TeamReadWriter {
-	gts := NewGitHubTokenSource(token)
+	gts := NewStaticTokenSource(token)
 	client := NewGitHubClient(ctx, token)
 	return NewTeamReadWriter(gts, client)
 }

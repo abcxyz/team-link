@@ -77,7 +77,7 @@ func (g *StaticTokenSource) TokenForOrg(ctx context.Context, orgID int64) (strin
 	return g.token, nil
 }
 
-func NewGitHubTokenSource(token string) *StaticTokenSource {
+func NewStaticTokenSource(token string) *StaticTokenSource {
 	return &StaticTokenSource{
 		token: token,
 	}
