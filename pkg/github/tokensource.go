@@ -63,7 +63,9 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 }
 
 // GitHubToken contains token to authenticate with github.
-// This is only for CLI uses when the token is directly provided by flags.
+// This implements OrgTokenSource.
+//
+// If you have a token with all the required permissions, you can use this TokenSource.
 // This is for using github workflows to call tlctl binary thus orgID won't
 // be used.
 // If you intend to have a Credential provider, please use AppTokenSource.
