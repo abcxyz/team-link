@@ -157,7 +157,7 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("destination system auth token is not provided")
 	}
 
-	sm, dm, err := client.NewBidirectionalNewOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
+	sm, dm, err := client.NewBidirectionalOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create group mapper: %w", err)
 	}
@@ -172,7 +172,7 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to create reader: %w", err)
 	}
 
-	readWriter, err := client.NewReadWrirter(ctx, c.destination, c.destinationToken)
+	readWriter, err := client.NewReadWriter(ctx, c.destination, c.destinationToken)
 	if err != nil {
 		return fmt.Errorf("failed to create readwriter: %w", err)
 	}

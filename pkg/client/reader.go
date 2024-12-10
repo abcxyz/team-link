@@ -26,7 +26,7 @@ import (
 // NewReader creates a GroupReader base on provided source type.
 func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
 	if source == tltypes.SystemTypeGoogleGroups {
-		reader, err := googlegroups.NewGoogleGroupsReader(ctx)
+		reader, err := googlegroups.NewReader(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed tp create googlegourps reader: %w", err)
 		}

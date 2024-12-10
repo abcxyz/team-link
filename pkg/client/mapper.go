@@ -23,9 +23,9 @@ import (
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-// NewOneToManyGroupMapper creates a groupsync.OneToManyMapper base on the input source
+// NewBidirectionalOneToManyGroupMapper creates a groupsync.OneToManyMapper base on the input source
 // and destination system type using provided groupMappingFile.
-func NewBidirectionalNewOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
+func NewBidirectionalOneToManyGroupMapper(source, dest, groupMappingFile string) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && dest == tltypes.SystemTypeGitHub {
 		m, err := ggtogh.NewBidirectionaGroupMapper(groupMappingFile)
 		if err != nil {
