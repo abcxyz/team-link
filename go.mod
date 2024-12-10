@@ -7,6 +7,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v61 v61.0.0
 	github.com/xanzy/go-gitlab v0.114.0
+	golang.org/x/oauth2 v0.24.0
 	google.golang.org/api v0.210.0
 	google.golang.org/protobuf v1.35.2
 )
@@ -37,7 +38,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.32.0 // indirect
 	golang.org/x/crypto v0.29.0 // indirect
 	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
