@@ -24,9 +24,9 @@ import (
 )
 
 // NewReadWriter creates a GroupReadWriter base on provided destination type.
-func NewReadWrirter(ctx context.Context, destination string, token string) (groupsync.GroupReadWriter, error) {
+func NewReadWrirter(ctx context.Context, destination, token string) (groupsync.GroupReadWriter, error) {
 	if destination == tltypes.SystemTypeGitHub {
-		readWriter := tlgithub.NewGitHubTeamReadWriterWithAuthToken(ctx, fmt.Sprintf("%s", token))
+		readWriter := tlgithub.NewGitHubTeamReadWriterWithAuthToken(ctx, token)
 		return readWriter, nil
 	}
 	return nil, fmt.Errorf("destination type %s not allowed", destination)
