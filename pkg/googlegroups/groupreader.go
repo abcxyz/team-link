@@ -94,7 +94,7 @@ func (g GroupReader) GetMembers(ctx context.Context, groupID string) ([]groupsyn
 	var members []groupsync.Member
 	logger := logging.FromContext(ctx)
 	// Need to set View to FULL to get member type.
-	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).Pages(ctx,
+	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).View("FULL").Pages(ctx,
 		func(page *cloudidentity.ListMembershipsResponse) error {
 			for _, m := range page.Memberships {
 				if m.Type == MemberTypeGroup {
