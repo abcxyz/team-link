@@ -157,9 +157,6 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("destination system auth token is not provided")
 	}
 
-	// TODO(#72): create reader, writer base on cmd flags.
-	// TODO(#71): create group and user mapping proto and textproto parser.
-
 	sm, dm, err := client.NewBidirectionalNewOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create group mapper: %w", err)
