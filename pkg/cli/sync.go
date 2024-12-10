@@ -161,6 +161,7 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create group mapper: %w", err)
 	}
+
 	um, err := client.NewUserMapper(ctx, c.source, c.destination, c.userMappingConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create user mapper: %w", err)
@@ -177,7 +178,7 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 	}
 
 	syncer := groupsync.NewManyToManySyncer(c.source, c.destination, reader, readWriter, sm, dm, um)
-	if err := syncer.Sync(ctx, "groups/04f1mdlm2alv5ca"); err != nil {
+	if err := syncer.SyncAll(ctx); err != nil {
 		return fmt.Errorf("failed to sync %w", err)
 	}
 	return nil
