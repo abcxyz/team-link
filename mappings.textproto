@@ -1,20 +1,14 @@
 mappings: [
   {
+    # this team only has Qinhang
     google_group: {
-      group_id: "test_id_1"
+      group_id: "groups/04f1mdlm2alv5ca"
     }
     git_hub_team: {
-      org_id: 93787867
-      team_id: 8007146
-    }
-  },
-  {
-    google_group: {
-      group_id: "test_id_2"
-    }
-    git_hub_team: {
-      org_id: 93787867
-      team_id: 8007146
+      # qh-org
+      org_id: 145597256
+      # test-everyone
+      team_id: 11735575
     }
   }
 ]
