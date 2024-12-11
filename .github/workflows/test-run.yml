@@ -68,7 +68,7 @@ jobs:
               "scope": "teamlink",
               "repositories": ["*"],
               "permissions": {
-                "members": "write",
+                "members": "write"
               }
             }
 
