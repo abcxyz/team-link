@@ -52,24 +52,25 @@ jobs:
         with:
           workload_identity_provider: '${{ env.WIF_PROVIDER }}'
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
-          token_format: 'id_token' 
-    #   - name: 'Mint Token'
-    #     id: 'mint-token'
-    #     uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
-    #     with:
-    #       id_token: '${{ steps.auth.outputs.id_token }}'
-    #       service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
-    #       requested_permissions: |-
-    #         {
-    #           "scope": "guardian",
-    #           "repositories": ["*"],
-    #           "permissions": {
-    #             "actions": "read",
-    #             "contents": "read",
-    #             "members": "read",
-    #             "pull_requests": "write"
-    #           }
-    #         }
+          token_format: 'id_token'
+          id_token_audience: '${{ vars.TOKEN_MINTER_SERVICE_AUDIENCE }}'
+      - name: 'Mint Token'
+        id: 'mint-token'
+        uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
+        with:
+          id_token: '${{ steps.auth.outputs.id_token }}'
+          service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
+          requested_permissions: |-
+            {
+              "scope": "guardian",
+              "repositories": ["*"],
+              "permissions": {
+                "actions": "read",
+                "contents": "read",
+                "members": "read",
+                "pull_requests": "write"
+              }
+            }
       - id: 'run_teamlink'
         run: |
           go run cmd/tlctl/main.go sync run \
