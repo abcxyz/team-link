@@ -54,6 +54,7 @@ jobs:
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
           token_format: 'id_token'
           id_token_audience: '${{ vars.TOKEN_MINTER_SERVICE_AUDIENCE }}'
+          id_token_include_email: true
       - name: 'Mint Token'
         id: 'mint-token'
         uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
