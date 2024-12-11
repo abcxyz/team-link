@@ -62,13 +62,10 @@ jobs:
           service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
           requested_permissions: |-
             {
-              "scope": "guardian",
+              "scope": "teamlink",
               "repositories": ["*"],
               "permissions": {
-                "actions": "read",
-                "contents": "read",
-                "members": "read",
-                "pull_requests": "write"
+                "members": "write",
               }
             }
       - id: 'run_teamlink'
