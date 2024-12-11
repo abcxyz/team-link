@@ -46,12 +46,6 @@ jobs:
         uses: 'actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7' # ratchet:actions/setup-go@v5
         with:
           go-version: '1.22'
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
-        with:
-          workload_identity_provider: '${{ env.WIF_PROVIDER }}'
-          service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
       - id: 'auth_minty'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
@@ -67,7 +61,7 @@ jobs:
         id: 'mint-token'
         uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
         with:
-          id_token: '${{ steps.auth.outputs.id_token }}'
+          id_token: '${{ steps.auth_minty.outputs.id_token }}'
           service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
           requested_permissions: |-
             {
@@ -77,6 +71,14 @@ jobs:
                 "members": "write",
               }
             }
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ env.WIF_PROVIDER }}'
+          service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
+
       - id: 'run_teamlink'
         run: |
           go run cmd/tlctl/main.go sync run \
