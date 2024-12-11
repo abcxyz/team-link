@@ -222,7 +222,11 @@ func (g *TeamReadWriter) GetMembers(ctx context.Context, groupID string) ([]grou
 		}
 		for _, team := range childTeams {
 			members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{
-				ID:         Encode(team.GetOrganization().GetID(), team.GetID()),
+				// OrgID is not included in the child team response
+				//
+				// See:
+				// https://docs.github.com/en/rest/teams/teams?apiVersion=2022-11-28#list-child-teams
+				ID:         Encode(orgID, team.GetID()),
 				Attributes: team,
 			}})
 		}
