@@ -58,13 +58,13 @@ func (g GroupReader) Descendants(ctx context.Context, groupID string) ([]*groups
 				// Instead, we infer the type from the resource name. e.g. groups have a resource
 				// name of the form `groups/%s` and users of the form 'users/%d'
 				if strings.HasPrefix(m.Member, "users/") {
-					// m.Id has format of `users/<user-id-numers>`
+					// m.Id has format of `users/<user-id-number>`
 					// user's email will be stored in m.PreferredMemberKey
 					// for better user experience, we should user email address instead
 					// of user id.
 					// When member is user type, it's garenteed that PreferredMemberKey
 					// is unique because it's user's email address.
-					members = append(members, &groupsync.User{ID: m.Member})
+					members = append(members, &groupsync.User{ID: m.PreferredMemberKey[0].Id})
 				}
 			}
 			return nil
