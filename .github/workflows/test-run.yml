@@ -22,7 +22,6 @@ on:
         type: 'string'
         description: 'token for your target system'
         required: true
-    
 
 permissions:
   contents: 'read'
