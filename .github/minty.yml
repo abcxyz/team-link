@@ -1,0 +1,20 @@
+version: 'minty.abcxyz.dev/v2'
+
+rule:
+  if: |-
+    assertion.iss == issuers.github &&
+    assertion.repository_owner_id == '93787867' &&
+    assertion.repository_id == '767194578'
+    # TODO add the following after testing
+    # assertion.ref == 'refs/heads/main'
+
+
+scope:
+  teamlink:
+    rule:
+      if: |-
+        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/test-run.yml")
+    repositories:
+      - 'team-link'
+    permissions:
+      members: 'write'
