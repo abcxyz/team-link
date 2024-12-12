@@ -22,6 +22,8 @@ import (
 
 	"github.com/abcxyz/pkg/cli"
 	tltypes "github.com/abcxyz/team-link/internal"
+	"github.com/abcxyz/team-link/pkg/client"
+	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
 var (
@@ -37,8 +39,7 @@ type SyncCommand struct {
 	destination        string
 	groupMappingConfig string
 	userMappingConfig  string
-	sourceToken        string
-	destinationToken   string
+	clientConfig       client.ClientConfig
 }
 
 func (c *SyncCommand) Desc() string {
@@ -65,6 +66,8 @@ Usage: {{ COMMAND }} [options]
 
 func (c *SyncCommand) Flags() *cli.FlagSet {
 	set := c.NewFlagSet()
+
+	c.clientConfig.RegisterFlags(set)
 
 	// Command options
 	f := set.NewSection("COMMAND OPTIONS")
@@ -103,21 +106,6 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 			`from source system to destination system`,
 	})
 
-	f.StringVar(&cli.StringVar{
-		Name:    "src-system-auth-token",
-		Target:  &c.sourceToken,
-		Aliases: []string{"st", "src-token"},
-		Usage:   `Token to authenticate with source system to read membership information`,
-	})
-
-	f.StringVar(&cli.StringVar{
-		Name:    "dst-system-auth-token",
-		Target:  &c.destinationToken,
-		Aliases: []string{"dt", "dst-token"},
-		Example: "user-mapping-config.textproto",
-		Usage:   `Token to authenticate with destination system to write membership information`,
-	})
-
 	return set
 }
 
@@ -131,11 +119,16 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("unexpected arguments: %q", args)
 	}
 
-	if ok := slices.Contains(allowedSourceSystem, strings.ToUpper(c.source)); !ok {
+	// Convert source and destination to all caps so it matches the
+	// predefined system name const.
+	c.source = strings.ToUpper(c.source)
+	c.destination = strings.ToUpper(c.destination)
+
+	if ok := slices.Contains(allowedSourceSystem, c.source); !ok {
 		return fmt.Errorf("source system %s not in allowed list: %s", c.source, strings.Join(allowedSourceSystem, ","))
 	}
 
-	if ok := slices.Contains(allowedDestinationSystem, strings.ToUpper(c.destination)); !ok {
+	if ok := slices.Contains(allowedDestinationSystem, c.destination); !ok {
 		return fmt.Errorf("destination system %s not in allowed list: %s", c.destination, strings.Join(allowedDestinationSystem, ","))
 	}
 
@@ -147,16 +140,34 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("user mapping config file is not provided")
 	}
 
-	if c.sourceToken == "" {
-		return fmt.Errorf("source system auth token is not provided")
+	if c.destination == tltypes.SystemTypeGitHub && c.clientConfig.GitHub.Token == "" {
+		return fmt.Errorf("auth token not provided for destination system %s", c.destination)
 	}
 
-	if c.destinationToken == "" {
-		return fmt.Errorf("destination system auth token is not provided")
+	sm, dm, err := client.NewBidirectionalOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create group mapper: %w", err)
 	}
 
-	// TODO(#72): create reader, writer base on cmd flags.
-	// TODO(#71): create group and user mapping proto and textproto parser.
+	um, err := client.NewUserMapper(ctx, c.source, c.destination, c.userMappingConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create user mapper: %w", err)
+	}
+
+	reader, err := client.NewReader(ctx, c.source)
+	if err != nil {
+		return fmt.Errorf("failed to create reader: %w", err)
+	}
+
+	readWriter, err := client.NewReadWriter(ctx, c.destination, &c.clientConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create readwriter: %w", err)
+	}
+
+	syncer := groupsync.NewManyToManySyncer(c.source, c.destination, reader, readWriter, sm, dm, um)
+	if err := syncer.SyncAll(ctx); err != nil {
+		return fmt.Errorf("failed to sync %w", err)
+	}
 
 	return nil
 }

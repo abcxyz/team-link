@@ -61,3 +61,24 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 	}
 	return token, nil
 }
+
+// StaticTokenSource contains token to authenticate with github.
+// This implements OrgTokenSource.
+//
+// If you have a token with all the required permissions, you can use this TokenSource.
+// This is for using github workflows to call tlctl binary thus orgID won't
+// be used.
+// If you intend to have a Credential provider, please use AppTokenSource.
+type StaticTokenSource struct {
+	token string
+}
+
+func (g *StaticTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, error) {
+	return g.token, nil
+}
+
+func NewStaticTokenSource(token string) *StaticTokenSource {
+	return &StaticTokenSource{
+		token: token,
+	}
+}

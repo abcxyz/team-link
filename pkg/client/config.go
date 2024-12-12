@@ -15,22 +15,16 @@
 package client
 
 import (
-	"context"
-	"fmt"
-
-	tltypes "github.com/abcxyz/team-link/internal"
-	"github.com/abcxyz/team-link/pkg/googlegroups"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/pkg/cli"
+	tlgithub "github.com/abcxyz/team-link/pkg/github"
 )
 
-// NewReader creates a GroupReader base on provided source type.
-func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
-	if source == tltypes.SystemTypeGoogleGroups {
-		r, err := googlegroups.NewReader(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create reader for %s: %w", source, err)
-		}
-		return r, nil
-	}
-	return nil, fmt.Errorf("source type %s not allowd", source)
+// ClientConfig has the specific client
+// config for different systems.
+type ClientConfig struct {
+	GitHub tlgithub.ClientConfig
+}
+
+func (c *ClientConfig) RegisterFlags(set *cli.FlagSet) {
+	c.GitHub.RegisterFlags(set)
 }

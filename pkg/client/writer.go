@@ -19,18 +19,18 @@ import (
 	"fmt"
 
 	tltypes "github.com/abcxyz/team-link/internal"
-	"github.com/abcxyz/team-link/pkg/googlegroups"
+	tlgithub "github.com/abcxyz/team-link/pkg/github"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-// NewReader creates a GroupReader base on provided source type.
-func NewReader(ctx context.Context, source string) (groupsync.GroupReader, error) {
-	if source == tltypes.SystemTypeGoogleGroups {
-		r, err := googlegroups.NewReader(ctx)
+// NewReadWriter creates a GroupReadWriter base on provided destination type.
+func NewReadWriter(ctx context.Context, destination string, config *ClientConfig) (groupsync.GroupReadWriter, error) {
+	if destination == tltypes.SystemTypeGitHub {
+		readWriter, err := tlgithub.NewGitHubTeamReadWriter(ctx, &config.GitHub)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create reader for %s: %w", source, err)
+			return nil, fmt.Errorf("failed to create ReadWriter for destination system %s: %w", destination, err)
 		}
-		return r, nil
+		return readWriter, nil
 	}
-	return nil, fmt.Errorf("source type %s not allowd", source)
+	return nil, fmt.Errorf("destination type %s not allowed", destination)
 }
