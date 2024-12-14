@@ -29,14 +29,25 @@ type ClientProvider struct {
 	instanceURL string
 	keyProvider credentials.KeyProvider
 	httpClient  *http.Client
+	clientOpts  []ClientOpt
+}
+
+type ClientOpt func(client *gitlab.Client)
+
+// WithUserAgent sets the user agent on generated GitLab clients.
+func WithUserAgent(userAgent string) ClientOpt {
+	return func(client *gitlab.Client) {
+		client.UserAgent = userAgent
+	}
 }
 
 // NewGitLabClientProvider creates a new GitLabClientProvider.
-func NewGitLabClientProvider(instanceURL string, keyProvider credentials.KeyProvider, httpClient *http.Client) *ClientProvider {
+func NewGitLabClientProvider(instanceURL string, keyProvider credentials.KeyProvider, httpClient *http.Client, opts ...ClientOpt) *ClientProvider {
 	return &ClientProvider{
 		instanceURL: instanceURL,
 		keyProvider: keyProvider,
 		httpClient:  httpClient,
+		clientOpts:  opts,
 	}
 }
 
@@ -56,6 +67,9 @@ func (g *ClientProvider) Client(ctx context.Context) (*gitlab.Client, error) {
 	gitlabClient, err := gitlab.NewClient(string(token), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GitLab client: %w", err)
+	}
+	for _, opt := range g.clientOpts {
+		opt(gitlabClient)
 	}
 	return gitlabClient, nil
 }
