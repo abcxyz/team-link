@@ -16,6 +16,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -52,26 +53,23 @@ Usage: {{ COMMAND }} [options]
 
   Sync membership information from source and target system.
 
-  Sync membership from google group to GitHub
+  Allowed source system: GoogleGroups.
+
+  Allowed destination system: GitHub.
+
+  For example, to sync membership from google group to GitHub.
 
   tlctl sync run \
 	-src GoogleGroup \
 	-dst GitHub \
 	-group-mapping-config your-group-config.textproto \
 	-user-mapping-config your-user-confif.textproto \
-	-src-system-auth-token your-src-token \
-	-dst-system-auth-token your-dst-token
+	-github-client-auth-token you-token
 `
 }
 
-func (c *SyncCommand) Flags() *cli.FlagSet {
-	set := c.NewFlagSet()
-
-	c.clientConfig.RegisterFlags(set)
-
-	// Command options
+func (c *SyncCommand) RegisterFlags(set *cli.FlagSet) {
 	f := set.NewSection("COMMAND OPTIONS")
-
 	f.StringVar(&cli.StringVar{
 		Name:    "source",
 		Target:  &c.source,
@@ -106,6 +104,41 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 			`from source system to destination system`,
 	})
 
+	set.AfterParse(func(merr error) error {
+		// Convert source and destination to all caps so it matches the
+		// predefined system name const.
+		c.source = strings.ToUpper(c.source)
+		c.destination = strings.ToUpper(c.destination)
+
+		if ok := slices.Contains(allowedSourceSystem, c.source); !ok {
+			merr = errors.Join(merr, fmt.Errorf("source system %s not in allowed list: %s", c.source, strings.Join(allowedSourceSystem, ",")))
+		}
+
+		if ok := slices.Contains(allowedDestinationSystem, c.destination); !ok {
+			merr = errors.Join(merr, fmt.Errorf("destination system %s not in allowed list: %s", c.destination, strings.Join(allowedDestinationSystem, ",")))
+		}
+
+		if c.groupMappingConfig == "" {
+			merr = errors.Join(merr, fmt.Errorf("group mapping config file is not provided"))
+		}
+
+		if c.userMappingConfig == "" {
+			merr = errors.Join(merr, fmt.Errorf("user mapping config file is not provided"))
+		}
+
+		if c.destination == tltypes.SystemTypeGitHub && c.clientConfig.GitHub.Token == "" {
+			merr = errors.Join(merr, fmt.Errorf("auth token not provided for destination system %s", c.destination))
+		}
+		return merr
+	})
+}
+
+func (c *SyncCommand) Flags() *cli.FlagSet {
+	set := c.NewFlagSet()
+
+	c.clientConfig.RegisterFlags(set)
+	c.RegisterFlags(set)
+
 	return set
 }
 
@@ -119,29 +152,8 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("unexpected arguments: %q", args)
 	}
 
-	// Convert source and destination to all caps so it matches the
-	// predefined system name const.
-	c.source = strings.ToUpper(c.source)
-	c.destination = strings.ToUpper(c.destination)
-
 	if ok := slices.Contains(allowedSourceSystem, c.source); !ok {
 		return fmt.Errorf("source system %s not in allowed list: %s", c.source, strings.Join(allowedSourceSystem, ","))
-	}
-
-	if ok := slices.Contains(allowedDestinationSystem, c.destination); !ok {
-		return fmt.Errorf("destination system %s not in allowed list: %s", c.destination, strings.Join(allowedDestinationSystem, ","))
-	}
-
-	if c.groupMappingConfig == "" {
-		return fmt.Errorf("group mapping config file is not provided")
-	}
-
-	if c.userMappingConfig == "" {
-		return fmt.Errorf("user mapping config file is not provided")
-	}
-
-	if c.destination == tltypes.SystemTypeGitHub && c.clientConfig.GitHub.Token == "" {
-		return fmt.Errorf("auth token not provided for destination system %s", c.destination)
 	}
 
 	sm, dm, err := client.NewBidirectionalOneToManyGroupMapper(c.source, c.destination, c.groupMappingConfig)
