@@ -1,12 +1,12 @@
 module github.com/abcxyz/team-link
 
-go 1.23.4
+go 1.22
 
 require (
 	github.com/abcxyz/pkg v1.1.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v61 v61.0.0
-	gitlab.com/gitlab-org/api/client-go v0.117.0
+	gitlab.com/gitlab-org/api/client-go v0.116.0
 	google.golang.org/api v0.210.0
 	google.golang.org/protobuf v1.36.0
 )
