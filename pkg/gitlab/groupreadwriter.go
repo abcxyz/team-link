@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	gitlab "github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/abcxyz/pkg/cache"
 	"github.com/abcxyz/pkg/logging"

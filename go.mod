@@ -1,14 +1,13 @@
 module github.com/abcxyz/team-link
 
-go 1.22
+go 1.23.4
 
 require (
 	github.com/abcxyz/pkg v1.1.4
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v61 v61.0.0
-	github.com/xanzy/go-gitlab v0.114.0
 	google.golang.org/api v0.210.0
-	google.golang.org/protobuf v1.35.2
+	google.golang.org/protobuf v1.36.0
 )
 
 require (
@@ -30,6 +29,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/posener/complete/v2 v2.1.0 // indirect
 	github.com/posener/script v1.2.0 // indirect
+	gitlab.com/gitlab-org/api/client-go v0.117.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.57.0 // indirect
 	go.opentelemetry.io/otel v1.32.0 // indirect

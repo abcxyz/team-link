@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	gitlab "github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/abcxyz/team-link/pkg/credentials"
 )
