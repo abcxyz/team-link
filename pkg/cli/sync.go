@@ -20,14 +20,11 @@ import (
 	"fmt"
 
 	"github.com/abcxyz/pkg/cli"
-	tltypes "github.com/abcxyz/team-link/internal"
 	"github.com/abcxyz/team-link/pkg/common"
 )
 
 var (
-	_                        cli.Command = (*SyncCommand)(nil)
-	allowedSourceSystem                  = []string{tltypes.SystemTypeGoogleGroups}
-	allowedDestinationSystem             = []string{tltypes.SystemTypeGitHub}
+	_ cli.Command = (*SyncCommand)(nil)
 )
 
 type SyncCommand struct {
