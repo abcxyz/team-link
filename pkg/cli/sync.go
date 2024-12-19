@@ -23,9 +23,7 @@ import (
 	"github.com/abcxyz/team-link/pkg/common"
 )
 
-var (
-	_ cli.Command = (*SyncCommand)(nil)
-)
+var _ cli.Command = (*SyncCommand)(nil)
 
 type SyncCommand struct {
 	cli.BaseCommand
