@@ -25,6 +25,7 @@ import (
 	tltypes "github.com/abcxyz/team-link/internal"
 )
 
+// ParseMappingTextProto parses a textproto file to TeamLinkMappings type.
 func ParseMappingTextProto(ctx context.Context, file string) (*api.TeamLinkMappings, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
@@ -37,6 +38,7 @@ func ParseMappingTextProto(ctx context.Context, file string) (*api.TeamLinkMappi
 	return &tm, nil
 }
 
+// ParseConfigTextProto parses a textproto to TeamLinkConfig type.
 func ParseConfigTextProto(ctx context.Context, file string) (*api.TeamLinkConfig, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
