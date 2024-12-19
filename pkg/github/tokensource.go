@@ -79,6 +79,7 @@ func (s *StaticTokenSource) GetStaticToken() string {
 	return s.token
 }
 
+// NewStaticTokenSourceFromEnvVar creates a StaticTokenSource using token read from EnvVar.
 func NewStaticTokenSourceFromEnvVar(envVarName string) (*StaticTokenSource, error) {
 	if envVarName == "" {
 		envVarName = DefaultStaticTokenEnvVar
