@@ -24,7 +24,8 @@ import (
 	"github.com/abcxyz/team-link/pkg/credentials"
 )
 
-const DefaultStaticTokenEnvVar = "TEAM_LINK_GITHUB_TOKEN"
+// DefaultStaticTokenEnvVar is where we read default github token from.
+const DefaultStaticTokenEnvVar = "TEAM_LINK_GITHUB_TOKEN" // #nosec G101
 
 type AppTokenSource struct {
 	keyProvider credentials.KeyProvider
@@ -65,7 +66,7 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 	return token, nil
 }
 
-// StaticTokenSource implements OrgTokenSource
+// StaticTokenSource implements OrgTokenSource.
 type StaticTokenSource struct {
 	token string
 }

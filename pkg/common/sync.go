@@ -9,7 +9,7 @@ import (
 	"github.com/abcxyz/team-link/pkg/utils"
 )
 
-// Sync syncs membership informations
+// Sync syncs membership informations.
 func Sync(ctx context.Context, mappingFile, configFile string) error {
 	var merr error
 	mappings, err := utils.ParseMappingTextProto(ctx, mappingFile)
@@ -45,7 +45,7 @@ func Sync(ctx context.Context, mappingFile, configFile string) error {
 		return fmt.Errorf("failed to create writer: %w", err)
 	}
 
-	userMapper, err := NewUserMapper(ctx, sourceSystem, targetSystem, mappings.UserMappings)
+	userMapper, err := NewUserMapper(ctx, sourceSystem, targetSystem, mappings.GetUserMappings())
 	if err != nil {
 		return fmt.Errorf("failed to create user mapper")
 	}
