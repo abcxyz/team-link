@@ -1,8 +1,0 @@
-message UserMapping {
-    optional string google_user_email = 1;
-    optional string git_hub_user_id = 2;
-}
-
-message UserMappings {
-    repeated UserMapping mappings = 1;
-}

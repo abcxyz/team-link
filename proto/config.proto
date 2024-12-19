@@ -1,0 +1,69 @@
+// Copyright 2024 The Authors (see AUTHORS file)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package proto.api;
+
+option go_package = "github.com/abcxyz/team-link/apis/v1alpha3/proto;api";
+
+message StaticToken {
+	// This is the name of an environment variable to read from
+	string from_environment = 1;
+}
+
+message GitHubApp {
+	string app_id = 1;
+	// keystore:// or KMS location of the private key
+	string key_location = 2; 
+}
+
+message GitHubConfig {
+	string enterprise_url = 1;
+	oneof authentication {
+		StaticToken static_auth = 2;
+		GitHubApp gh_app_auth = 3;
+	}
+}
+
+// For now we only support GoogleGroup to authenticate
+// using default application login.
+message GoogleGroupsConfig {}
+
+message GitLabConfig {
+    string enterprise_url = 1;
+    // This will need to be update once we are implementing for gitlab
+    oneof authentication {
+        StaticToken static_token = 2;
+    }
+}
+
+message SourceConfig {
+    oneof config {
+        GoogleGroupsConfig google_groups_config = 1;
+    } 
+}
+
+message TargetConfig {
+    oneof config {
+        GitHubConfig github_config = 2;
+        GitLabConfig gitlab_config = 3;
+    }
+}
+
+message TeamLinkConfig {
+    SourceConfig source_config = 1;
+    TargetConfig target_config = 2;
+}
+
