@@ -18,19 +18,33 @@ package proto.api;
 
 option go_package = "github.com/abcxyz/team-link/apis/v1alpha3/proto;api";
 
-message GitHub {
-    int64 org_id = 1;
-    int64 team_id = 2;
+import "proto/group.proto";
+
+message GroupMapping {
+    oneof source {
+        Ganpati ganpati = 1;
+        GoogleGroups google_groups = 2;
+    }
+    oneof target {
+        GitHub github = 3;
+        GitLab gitlab = 4;
+    }
 }
 
-message GitLab {
-    int64 group_id = 1;
+message GroupMappings {
+    repeated GroupMapping mappings = 1;
 }
 
-message GoogleGroups {
-    string group_id = 1;
+message UserMapping {
+    string source = 1;
+    string target = 2;
 }
 
-message Ganpati {
-    string id = 1;
+message UserMappings {
+    repeated UserMapping mappings = 1;
+}
+
+message TeamLinkMappings {
+    GroupMappings group_mappings = 1;
+    UserMappings user_mappings = 2;
 }

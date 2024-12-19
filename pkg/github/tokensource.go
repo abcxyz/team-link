@@ -17,11 +17,14 @@ package github
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/abcxyz/pkg/githubauth"
 	"github.com/abcxyz/team-link/pkg/credentials"
 )
+
+const DefaultStaticTokenEnvVar = "TEAM_LINK_GITHUB_TOKEN"
 
 type AppTokenSource struct {
 	keyProvider credentials.KeyProvider
@@ -60,4 +63,31 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 		return "", fmt.Errorf("failed to get access token for org %d: %w", orgID, err)
 	}
 	return token, nil
+}
+
+// StaticTokenSource implements OrgTokenSource
+type StaticTokenSource struct {
+	token string
+}
+
+func (s *StaticTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, error) {
+	return s.token, nil
+}
+
+func (s *StaticTokenSource) GetStaticToken() string {
+	return s.token
+}
+
+func NewStaticTokenSourceFromEnvVar(envVarName string) (*StaticTokenSource, error) {
+	if envVarName == "" {
+		envVarName = DefaultStaticTokenEnvVar
+	}
+	token := os.Getenv(envVarName)
+	if token == "" {
+		return nil, fmt.Errorf("failed to get token from env var: %s", envVarName)
+	}
+
+	return &StaticTokenSource{
+		token: token,
+	}, nil
 }

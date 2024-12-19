@@ -16,12 +16,12 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/abcxyz/pkg/cli"
 	tltypes "github.com/abcxyz/team-link/internal"
+	"github.com/abcxyz/team-link/pkg/common"
 )
 
 var (
@@ -33,12 +33,8 @@ var (
 type SyncCommand struct {
 	cli.BaseCommand
 
-	source             string
-	destination        string
-	groupMappingConfig string
-	userMappingConfig  string
-	sourceToken        string
-	destinationToken   string
+	mapping string
+	config  string
 }
 
 func (c *SyncCommand) Desc() string {
@@ -54,12 +50,8 @@ Usage: {{ COMMAND }} [options]
   Sync membership from google group to GitHub
 
   tlctl sync run \
-	-src GoogleGroup \
-	-dst GitHub \
-	-group-mapping-config your-group-config.textproto \
-	-user-mapping-config your-user-confif.textproto \
-	-src-system-auth-token your-src-token \
-	-dst-system-auth-token your-dst-token
+	-mapping mapping.textproto \
+	-config config.textproto 
 `
 }
 
@@ -70,52 +62,29 @@ func (c *SyncCommand) Flags() *cli.FlagSet {
 	f := set.NewSection("COMMAND OPTIONS")
 
 	f.StringVar(&cli.StringVar{
-		Name:    "source",
-		Target:  &c.source,
-		Aliases: []string{"src", "s"},
-		Example: "GoogleGroup",
-		Usage:   `The source system to read membership `,
+		Name:    "mapping",
+		Target:  &c.mapping,
+		Aliases: []string{"m"},
+		Example: "mapping.textproto",
+		Usage:   `The textproto file that includes group and user mapping info`,
 	})
 
 	f.StringVar(&cli.StringVar{
-		Name:    "destination",
-		Target:  &c.destination,
-		Aliases: []string{"d", "dst"},
+		Name:    "config",
+		Target:  &c.config,
+		Aliases: []string{"c"},
 		Example: "GitHub",
-		Usage:   `The target system for membership information`,
+		Usage:   `The textproto file for teamlink configs.`,
 	})
 
-	f.StringVar(&cli.StringVar{
-		Name:    "group-mapping-config",
-		Target:  &c.groupMappingConfig,
-		Aliases: []string{"gc"},
-		Example: "group-mapping-config.textproto",
-		Usage: `The group mapping config that contains group id mapping ` +
-			`from source system to destination system`,
-	})
-
-	f.StringVar(&cli.StringVar{
-		Name:    "user-mapping-config",
-		Target:  &c.userMappingConfig,
-		Aliases: []string{"uc"},
-		Example: "user-mapping-config.textproto",
-		Usage: `The group mapping config that contains group id mapping ` +
-			`from source system to destination system`,
-	})
-
-	f.StringVar(&cli.StringVar{
-		Name:    "src-system-auth-token",
-		Target:  &c.sourceToken,
-		Aliases: []string{"st", "src-token"},
-		Usage:   `Token to authenticate with source system to read membership information`,
-	})
-
-	f.StringVar(&cli.StringVar{
-		Name:    "dst-system-auth-token",
-		Target:  &c.destinationToken,
-		Aliases: []string{"dt", "dst-token"},
-		Example: "user-mapping-config.textproto",
-		Usage:   `Token to authenticate with destination system to write membership information`,
+	set.AfterParse(func(merr error) error {
+		if c.mapping == "" {
+			merr = errors.Join(merr, fmt.Errorf("mapping file is not provided"))
+		}
+		if c.config == "" {
+			merr = errors.Join(merr, fmt.Errorf("config file is not provided"))
+		}
+		return merr
 	})
 
 	return set
@@ -131,32 +100,9 @@ func (c *SyncCommand) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("unexpected arguments: %q", args)
 	}
 
-	if ok := slices.Contains(allowedSourceSystem, strings.ToUpper(c.source)); !ok {
-		return fmt.Errorf("source system %s not in allowed list: %s", c.source, strings.Join(allowedSourceSystem, ","))
+	if err := common.Sync(ctx, c.mapping, c.config); err != nil {
+		return fmt.Errorf("failed to sync membership: %w", err)
 	}
-
-	if ok := slices.Contains(allowedDestinationSystem, strings.ToUpper(c.destination)); !ok {
-		return fmt.Errorf("destination system %s not in allowed list: %s", c.destination, strings.Join(allowedDestinationSystem, ","))
-	}
-
-	if c.groupMappingConfig == "" {
-		return fmt.Errorf("group mapping config file is not provided")
-	}
-
-	if c.userMappingConfig == "" {
-		return fmt.Errorf("user mapping config file is not provided")
-	}
-
-	if c.sourceToken == "" {
-		return fmt.Errorf("source system auth token is not provided")
-	}
-
-	if c.destinationToken == "" {
-		return fmt.Errorf("destination system auth token is not provided")
-	}
-
-	// TODO(#72): create reader, writer base on cmd flags.
-	// TODO(#71): create group and user mapping proto and textproto parser.
 
 	return nil
 }
