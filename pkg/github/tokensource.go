@@ -25,6 +25,7 @@ import (
 )
 
 // DefaultStaticTokenEnvVar is where we read default github token from.
+// This is the default EnvVar we will write to, nosec here to avoid linting.
 const DefaultStaticTokenEnvVar = "TEAM_LINK_GITHUB_TOKEN" // #nosec G101
 
 type AppTokenSource struct {

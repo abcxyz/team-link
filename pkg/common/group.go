@@ -29,5 +29,5 @@ func NewBidirectionalOneToManyGroupMapper(source, target string, gm *api.GroupMa
 		m := googlegroupgithub.NewBidirectionaGroupMapper(gm)
 		return m.SourceMapper, m.TargetMapper, nil
 	}
-	return nil, nil, fmt.Errorf("unsupported sync flow from source syste: %s to target system: %s", source, target)
+	return nil, nil, fmt.Errorf("unsupported sync flow from source system: %s to target system: %s", source, target)
 }

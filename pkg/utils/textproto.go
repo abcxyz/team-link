@@ -16,6 +16,7 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -71,8 +72,15 @@ func GetSrcTargetSystemType(tlconfig *api.TeamLinkConfig) (string, string, error
 		targetType = ""
 	}
 
-	if sourceType == "" || targetType == "" {
-		return "", "", fmt.Errorf("source system and target system config not provided")
+	var merr error
+	if sourceType == "" {
+		merr = errors.Join(merr, fmt.Errorf("source system and target system config not provided"))
+	}
+	if targetType == "" {
+		merr = errors.Join(merr, fmt.Errorf("source system and target system config not provided"))
+	}
+	if merr != nil {
+		return "", "", merr
 	}
 	return sourceType, targetType, nil
 }

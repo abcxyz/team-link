@@ -33,7 +33,52 @@ func TestCreateBidirectionalGroupMapper(t *testing.T) {
 		wantErr                       string
 	}{
 		{
-			name: "success",
+			name: "success_one_to_one_map",
+			mappings: &api.GroupMappings{
+				Mappings: []*api.GroupMapping{
+					{
+						Source: &api.GroupMapping_GoogleGroups{
+							GoogleGroups: &api.GoogleGroups{
+								GroupId: "foo",
+							},
+						},
+						Target: &api.GroupMapping_Github{
+							Github: &api.GitHub{
+								OrgId:  1,
+								TeamId: 1,
+							},
+						},
+					},
+					{
+						Source: &api.GroupMapping_GoogleGroups{
+							GoogleGroups: &api.GoogleGroups{
+								GroupId: "bar",
+							},
+						},
+						Target: &api.GroupMapping_Github{
+							Github: &api.GitHub{
+								OrgId:  1,
+								TeamId: 2,
+							},
+						},
+					},
+				},
+			},
+			wantGoogleGroupToGitHubMapper: &GroupMapper{
+				mappings: map[string][]string{
+					"foo": {"1:1"},
+					"bar": {"1:2"},
+				},
+			},
+			wantGitHubToGoogleGroupMapper: &GroupMapper{
+				mappings: map[string][]string{
+					"1:1": {"foo"},
+					"1:2": {"bar"},
+				},
+			},
+		},
+		{
+			name: "success_one_to_many_map",
 			mappings: &api.GroupMappings{
 				Mappings: []*api.GroupMapping{
 					{
@@ -112,11 +157,11 @@ func TestCreateBidirectionalGroupMapper(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			BiDirectionalGroupMapper := NewBidirectionaGroupMapper(tc.mappings)
-			if diff := cmp.Diff(BiDirectionalGroupMapper.SourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			biDirectionalGroupMapper := NewBidirectionaGroupMapper(tc.mappings)
+			if diff := cmp.Diff(biDirectionalGroupMapper.SourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
-			if diff := cmp.Diff(BiDirectionalGroupMapper.TargetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(biDirectionalGroupMapper.TargetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})
@@ -148,6 +193,31 @@ func TestNewUserMapper(t *testing.T) {
 			wantGoogleGroupToGitHubUserMapper: &GoogleGroupGitHubUserMapper{
 				mappings: map[string]string{
 					"src_id_1": "target_id_1",
+					"src_id_2": "target_id_2",
+				},
+			},
+		},
+		{
+			name: "success_with_duplicate_users",
+			mappings: &api.UserMappings{
+				Mappings: []*api.UserMapping{
+					{
+						Source: "src_id_1",
+						Target: "target_id_1",
+					},
+					{
+						Source: "src_id_2",
+						Target: "target_id_2",
+					},
+					{
+						Source: "src_id_1",
+						Target: "target_id_2",
+					},
+				},
+			},
+			wantGoogleGroupToGitHubUserMapper: &GoogleGroupGitHubUserMapper{
+				mappings: map[string]string{
+					"src_id_1": "target_id_2",
 					"src_id_2": "target_id_2",
 				},
 			},

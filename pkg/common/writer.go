@@ -38,8 +38,7 @@ func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfi
 
 // NewGitHubReadWriter creates a ReadWriter for github using provided config.
 func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig) (groupsync.GroupReadWriter, error) {
-	auth := config.GetAuthentication()
-	switch a := auth.(type) {
+	switch a := config.GetAuthentication().(type) {
 	case *api.GitHubConfig_StaticAuth:
 		tokenSource, err := github.NewStaticTokenSourceFromEnvVar(a.StaticAuth.GetFromEnvironment())
 		if err != nil {
@@ -51,5 +50,5 @@ func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig) (groupsy
 		}
 		return writer, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("unsupported authentication type method for github")
 }
