@@ -26,7 +26,7 @@ import (
 // NewBidirectionalOneToManyGroupMapper creates two OneToManyGroupMapper, directions are src->target and target->src.
 func NewBidirectionalOneToManyGroupMapper(source, target string, gm *api.GroupMappings, config *api.TeamLinkConfig) (groupsync.OneToManyGroupMapper, groupsync.OneToManyGroupMapper, error) {
 	if source == tltypes.SystemTypeGoogleGroups && target == tltypes.SystemTypeGitHub {
-		m := googlegroupgithub.NewBidirectionaGroupMapper(gm)
+		m := googlegroupgithub.NewBidirectionalGroupMapper(gm)
 		return m.SourceMapper, m.TargetMapper, nil
 	}
 	return nil, nil, fmt.Errorf("unsupported sync flow from source system: %s to target system: %s", source, target)

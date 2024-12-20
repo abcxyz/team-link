@@ -22,12 +22,11 @@ import "proto/group.proto";
 
 message GroupMapping {
     oneof source {
-        Ganpati ganpati = 1;
-        GoogleGroups google_groups = 2;
+        GoogleGroups google_groups = 1;
     }
     oneof target {
-        GitHub github = 3;
-        GitLab gitlab = 4;
+        GitHub github = 2;
+        GitLab gitlab = 3;
     }
 }
 

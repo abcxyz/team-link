@@ -68,7 +68,7 @@ type BiDirectionalGroupMapper struct {
 	TargetMapper *GroupMapper
 }
 
-func NewBidirectionaGroupMapper(mappings *api.GroupMappings) *BiDirectionalGroupMapper {
+func NewBidirectionalGroupMapper(mappings *api.GroupMappings) *BiDirectionalGroupMapper {
 	ggToGHMapping := make(map[string][]string)
 	ghToGGMapping := make(map[string][]string)
 	for _, v := range mappings.GetMappings() {

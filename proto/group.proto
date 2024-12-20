@@ -30,7 +30,3 @@ message GitLab {
 message GoogleGroups {
     string group_id = 1;
 }
-
-message Ganpati {
-    string id = 1;
-}
