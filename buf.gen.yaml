@@ -11,5 +11,3 @@ plugins:
   - remote: 'buf.build/connectrpc/go'
     out: 'apis/v1alpha3'
     opt: 'paths=source_relative'
-inputs:
-  - directory: 'proto'
