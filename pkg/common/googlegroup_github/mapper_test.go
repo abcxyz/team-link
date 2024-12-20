@@ -157,11 +157,11 @@ func TestCreateBidirectionalGroupMapper(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			biDirectionalGroupMapper := NewBidirectionaGroupMapper(tc.mappings)
-			if diff := cmp.Diff(biDirectionalGroupMapper.SourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			got := NewBidirectionaGroupMapper(tc.mappings)
+			if diff := cmp.Diff(got.SourceMapper.mappings, tc.wantGoogleGroupToGitHubMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GoogleGroupToGitHubMapper:\n%s", diff)
 			}
-			if diff := cmp.Diff(biDirectionalGroupMapper.TargetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
+			if diff := cmp.Diff(got.TargetMapper.mappings, tc.wantGitHubToGoogleGroupMapper.mappings, cmp.AllowUnexported()); diff != "" {
 				t.Errorf("got unexpected GitHubToGoogleGroupMapper:\n%s", diff)
 			}
 		})
