@@ -53,9 +53,9 @@ func ParseConfigTextProto(ctx context.Context, file string) (*api.TeamLinkConfig
 }
 
 // GetSrcTargetSystemType parse source and target system typle from teamlink config.
-func GetSrcTargetSystemType(tlconfig *api.TeamLinkConfig) (string, string, error) {
+func GetSrcTargetSystemType(tlConfig *api.TeamLinkConfig) (string, string, error) {
 	var sourceType string
-	switch tlconfig.GetSourceConfig().GetConfig().(type) {
+	switch tlConfig.GetSourceConfig().GetConfig().(type) {
 	case *api.SourceConfig_GoogleGroupsConfig:
 		sourceType = tltypes.SystemTypeGoogleGroups
 	default:
@@ -63,7 +63,7 @@ func GetSrcTargetSystemType(tlconfig *api.TeamLinkConfig) (string, string, error
 	}
 
 	var targetType string
-	switch tlconfig.GetTargetConfig().GetConfig().(type) {
+	switch tlConfig.GetTargetConfig().GetConfig().(type) {
 	case *api.TargetConfig_GithubConfig:
 		targetType = tltypes.SystemTypeGitHub
 	case *api.TargetConfig_GitlabConfig:
