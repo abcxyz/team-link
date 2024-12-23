@@ -1,0 +1,84 @@
+# Copyright 2024 The Authors (see AUTHORS file)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Sync'
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+
+# Do not cancel in progress to prevent half baked release.
+concurrency:
+  group: 'team-link-${{ github.head_ref || github.ref }}'
+
+env:
+  WIF_SERVICE_ACCOUNT: 'github-automation-bot@gha-team-link-a-bc970e.iam.gserviceaccount.com'
+  WIF_PROVIDER: 'projects/426803670395/locations/global/workloadIdentityPools/github-automation/providers/team-link-a'
+
+jobs:
+  run_sync:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11' # ratchet:actions/checkout@v4
+      - id: 'setup-go'
+        uses: 'actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7' # ratchet:actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - id: 'auth_minty'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
+        with:
+            create_credentials_file: false
+            export_environment_variables: false
+            workload_identity_provider: '${{ vars.TOKEN_MINTER_WIF_PROVIDER }}'
+            service_account: '${{ vars.TOKEN_MINTER_WIF_SERVICE_ACCOUNT }}'
+            token_format: 'id_token'
+            id_token_audience: '${{ vars.TOKEN_MINTER_SERVICE_AUDIENCE }}'
+            id_token_include_email: true
+      - name: 'Mint Token'
+        id: 'mint-token'
+        uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
+        with:
+          id_token: '${{ steps.auth_minty.outputs.id_token }}'
+          service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
+          requested_permissions: |-
+            {
+              "scope": "teamlink",
+              "repositories": ["team-link"],
+              "permissions": {
+                "members": "write"
+              }
+            }
+      - id: 'write_github_token'
+        run: |-
+          export TEAM_LINK_GITHUB_TOKEN='${{ steps.mint-token.outputs.token }}'
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ env.WIF_PROVIDER }}'
+          service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
+    # TODO: run this after we release teamlink as a binary
+    # and download the binary
+    #   - id: 'run_teamlink'
+    #     run: |
+    #       go run cmd/tlctl/main.go sync run \
+    #       -m <mappings.textproto> \
+    #       -c <teamlink_config.textproto>
