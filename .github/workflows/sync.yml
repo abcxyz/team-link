@@ -40,9 +40,8 @@ jobs:
         uses: 'actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7' # ratchet:actions/setup-go@v5
         with:
           go-version: '1.22'
-
       - id: 'auth_minty'
-        name: 'Authenticate to Google Cloud'
+        name: 'Authenticate to  Minty'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
         with:
           create_credentials_file: false
@@ -66,10 +65,10 @@ jobs:
                 "members": "write"
               }
             }
-
       - id: 'write_github_token'
         run: |-
           export TEAM_LINK_GITHUB_TOKEN='${{ steps.mint-token.outputs.token }}'
+
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
