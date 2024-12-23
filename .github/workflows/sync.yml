@@ -45,13 +45,13 @@ jobs:
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
         with:
-            create_credentials_file: false
-            export_environment_variables: false
-            workload_identity_provider: '${{ vars.TOKEN_MINTER_WIF_PROVIDER }}'
-            service_account: '${{ vars.TOKEN_MINTER_WIF_SERVICE_ACCOUNT }}'
-            token_format: 'id_token'
-            id_token_audience: '${{ vars.TOKEN_MINTER_SERVICE_AUDIENCE }}'
-            id_token_include_email: true
+          create_credentials_file: false
+          export_environment_variables: false
+          workload_identity_provider: '${{ vars.TOKEN_MINTER_WIF_PROVIDER }}'
+          service_account: '${{ vars.TOKEN_MINTER_WIF_SERVICE_ACCOUNT }}'
+          token_format: 'id_token'
+          id_token_audience: '${{ vars.TOKEN_MINTER_SERVICE_AUDIENCE }}'
+          id_token_include_email: true
       - name: 'Mint Token'
         id: 'mint-token'
         uses: 'abcxyz/github-token-minter/.github/actions/minty@main' # ratchet:exclude
@@ -76,10 +76,11 @@ jobs:
         with:
           workload_identity_provider: '${{ env.WIF_PROVIDER }}'
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
-    # TODO: run this after we release teamlink as a binary
-    # and download the binary
-    #   - id: 'run_teamlink'
-    #     run: |
-    #       go run cmd/tlctl/main.go sync run \
-    #       -m <mappings.textproto> \
-    #       -c <teamlink_config.textproto>
+
+      # TODO: run this after we release teamlink as a binary
+      # and download the binary
+      #   - id: 'run_teamlink'
+      #     run: |
+      #       go run cmd/tlctl/main.go sync run \
+      #       -m <mappings.textproto> \
+      #       -c <teamlink_config.textproto>
