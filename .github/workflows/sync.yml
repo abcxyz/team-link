@@ -77,10 +77,10 @@ jobs:
           workload_identity_provider: '${{ env.WIF_PROVIDER }}'
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
 
-      # TODO: run this after we release teamlink as a binary
-      # and download the binary
-      #   - id: 'run_teamlink'
-      #     run: |
-      #       go run cmd/tlctl/main.go sync run \
-      #       -m <mappings.textproto> \
-      #       -c <teamlink_config.textproto>
+# TODO: run this after we release teamlink as a binary
+# and download the binary.
+#   - id: 'run_teamlink'
+#     run: |
+#       go run cmd/tlctl/main.go sync run \
+#       -m <mappings.textproto> \
+#       -c <teamlink_config.textproto>
