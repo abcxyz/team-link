@@ -10,7 +10,7 @@ scope:
   teamlink:
     rule:
       if: |-
-        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/test-run.yml")
+        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/sync.yml")
     repositories:
       - 'team-link'
     permissions:
