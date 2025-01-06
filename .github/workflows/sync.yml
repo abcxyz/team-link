@@ -74,6 +74,8 @@ jobs:
           create_credentials_file: true
       # TODO: change this from directly run go to run a binary after setting up release.
       - name: 'run teamlink sync'
+        env:
+          TEAM_LINK_GITHUB_TOKEN: '${{ steps.mint-token.outputs.token }}'
         run: |
           export TEAM_LINK_GITHUB_TOKEN='${{ steps.export_gh_token.outputs.TEAM_LINK_GITHUB_TOKEN }}'
           go run cmd/tlctl/main.go sync run \
