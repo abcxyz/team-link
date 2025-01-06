@@ -1,20 +1,36 @@
-mappings: [
-  {
-    google_group: {
-      group_id: "test_id_1"
-    }
-    git_hub_team: {
-      org_id: 93787867
-      team_id: 8007146
-    }
-  },
-  {
-    google_group: {
-      group_id: "test_id_2"
-    }
-    git_hub_team: {
-      org_id: 93787867
-      team_id: 8007146
-    }
-  }
-]
+group_mappings {
+  mappings: [
+      {
+        # Google Groups: teamlink-test-gcp
+        google_groups: {
+          group_id: "groups/04f1mdlm2alv5ca"
+        }
+        github: {
+          # abcxyz
+          org_id: 93787867
+          # teamlink-test
+          team_id: 11854662
+        }
+      }
+    ]
+}
+user_mappings {
+  mappings: [
+      {
+        source: "qinhang@tycho.joonix.net"
+        target: "sailorlqh"
+      },
+      {
+        source: "bbechtel@tycho.joonix.net"
+        target: "lock14"
+      },
+      {
+        source: "dmearl@tycho.joonix.net"
+        target: "Celdir"
+      },
+      {
+        source: "verbanicm@tycho.joonix.net"
+        target: "verbanicm"
+      }
+  ]
+}
