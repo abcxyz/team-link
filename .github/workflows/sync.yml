@@ -61,16 +61,21 @@ jobs:
                 "members": "write"
               }
             }
+      - name: 'export github token'
+        id: 'export_gh_token'
+        run: |-
+          echo "TEAM_LINK_GITHUB_TOKEN=${{ steps.mint-token.outputs.token }}" >> $GITHUB_OUTPUT
       - name: 'authenticate to Google Cloud'
         id: 'auth'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
         with:
           workload_identity_provider: '${{ env.WIF_PROVIDER }}'
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
+          create_credentials_file: true
       # TODO: change this from directly run go to run a binary after setting up release.
       - name: 'run teamlink sync'
         run: |
-          export TEAM_LINK_GITHUB_TOKEN='${{ steps.mint-token.outputs.token }}'
+          export TEAM_LINK_GITHUB_TOKEN='${{ steps.export_gh_token.outputs.TEAM_LINK_GITHUB_TOKEN }}'
           if [ "$TEAM_LINK_GITHUB_TOKEN" == "" ]; then
             echo "empty github_minty_token"
           else
