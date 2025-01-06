@@ -76,11 +76,6 @@ jobs:
       - name: 'run teamlink sync'
         run: |
           export TEAM_LINK_GITHUB_TOKEN='${{ steps.export_gh_token.outputs.TEAM_LINK_GITHUB_TOKEN }}'
-          if [ "$TEAM_LINK_GITHUB_TOKEN" == "" ]; then
-            echo "empty github_minty_token"
-          else
-            echo "good to go"
-          fi
           go run cmd/tlctl/main.go sync run \
             -m mappings.textproto \
             -c teamlink_config.textproto
