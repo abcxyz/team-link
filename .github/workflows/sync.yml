@@ -61,10 +61,6 @@ jobs:
                 "members": "write"
               }
             }
-      - name: 'export github token'
-        id: 'export_gh_token'
-        run: |-
-          echo "TEAM_LINK_GITHUB_TOKEN=${{ steps.mint-token.outputs.token }}" >> $GITHUB_OUTPUT
       - name: 'authenticate to Google Cloud'
         id: 'auth'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
@@ -77,7 +73,6 @@ jobs:
         env:
           TEAM_LINK_GITHUB_TOKEN: '${{ steps.mint-token.outputs.token }}'
         run: |
-          export TEAM_LINK_GITHUB_TOKEN='${{ steps.export_gh_token.outputs.TEAM_LINK_GITHUB_TOKEN }}'
           go run cmd/tlctl/main.go sync run \
             -m mappings.textproto \
             -c teamlink_config.textproto
