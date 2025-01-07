@@ -61,21 +61,18 @@ jobs:
                 "members": "write"
               }
             }
-      - name: 'export github token'
-        id: 'export_gh_token'
-        run: |-
-          export TEAM_LINK_GITHUB_TOKEN='${{ steps.mint-token.outputs.token }}'
-          echo " the value of TEAM_LINK_GITHUB_TOKEN is $TEAM_LINK_GITHUB_TOKEN"
       - name: 'authenticate to Google Cloud'
         id: 'auth'
         uses: 'google-github-actions/auth@55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c' # ratchet:google-github-actions/auth@v2
         with:
           workload_identity_provider: '${{ env.WIF_PROVIDER }}'
           service_account: '${{ env.WIF_SERVICE_ACCOUNT }}'
-# TODO: uncomment this after we create a test-team in abcxyz.
-# TODO: change this from directly run go to run a binary after setting up release.
-# - name: 'run teamlink sync'
-#   run: |
-#     go run cmd/tlctl/main.go sync run \
-#     -m mappings.textproto \
-#     -c teamlink_config.textproto
+          create_credentials_file: true
+      # TODO: change this from directly run go to run a binary after setting up release.
+      - name: 'run teamlink sync'
+        env:
+          TEAM_LINK_GITHUB_TOKEN: '${{ steps.mint-token.outputs.token }}'
+        run: |
+          go run cmd/tlctl/main.go sync run \
+            -m mappings.textproto \
+            -c teamlink_config.textproto

@@ -1,0 +1,11 @@
+source_config {
+    google_groups_config {}
+}
+target_config {
+    github_config {
+        enterprise_url: "https://github.com",
+        static_auth {
+            from_environment: "TEAM_LINK_GITHUB_TOKEN"
+        }
+    }
+}
