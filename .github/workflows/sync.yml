@@ -15,13 +15,7 @@
 name: 'Sync GoogleGroups to GitHub Membership'
 
 on:
-  push:
   workflow_dispatch:
-    inputs:
-      destinationToken:
-        type: 'string'
-        description: 'token for your target system'
-        required: true
 
 permissions:
   contents: 'read'
