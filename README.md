@@ -34,7 +34,8 @@ Before running CLI, two config files are required.
 
 This file contains the group info and user info needed for syncing.
 
-1. Group mapping config.
+##### Group mapping config
+
 This configs which group in source system is mapped to which group in the target system.
 
 ```textproto
@@ -53,7 +54,8 @@ group_mappings {
 }
 ```
 
-2. User mapping config.
+##### User mapping config
+
 This configs how user in source system is mapped to the target systm.
 
 ```textproto
