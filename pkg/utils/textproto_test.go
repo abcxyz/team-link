@@ -132,8 +132,6 @@ user_mappings {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
@@ -233,8 +231,6 @@ target_config {
 	}
 
 	for _, tc := range cases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
