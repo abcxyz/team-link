@@ -48,7 +48,12 @@ func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, 
 	if err != nil {
 		return "", fmt.Errorf("unable to get GitHub app private key: %w", err)
 	}
-	app, err := githubauth.NewApp(s.appID, privateKey, s.appOpts...)
+
+	signer, err := githubauth.NewPrivateKeySigner(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to create private key signer: %w", err)
+	}
+	app, err := githubauth.NewApp(s.appID, signer, s.appOpts...)
 	if err != nil {
 		return "", fmt.Errorf("unable to create GitHub app: %w", err)
 	}
