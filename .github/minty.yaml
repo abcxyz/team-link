@@ -4,15 +4,27 @@ rule:
   if: |-
     assertion.iss == issuers.github &&
     assertion.repository_owner_id == '93787867' &&
-    assertion.repository_id == '767194578' &&
-    ( assertion.ref == 'refs/heads/main' || assertion.ref == 'refs/heads/sailorlqh/sso_poc' )
+    assertion.repository_id == '767194578'
 
 scope:
   teamlink:
     rule:
       if: |-
-        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/sync.yml")
+        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/sync.yml") &&
+        assertion.ref == 'refs/heads/main'
     repositories:
       - 'team-link'
     permissions:
       members: 'write'
+      orgnization: 'read'
+  #TODO: remove this rule once the github sso development is done.
+  teamlink-dev:
+    rule:
+      if: |-
+        assertion.workflow_ref.startsWith("abcxyz/team-link/.github/workflows/sync.yml") &&
+        assertion.ref == 'refs/heads/sailorlqh/sso_poc'
+    repositories:
+      - 'team-link'
+    permissions:
+      members: 'write'
+      orgnization: 'read'
