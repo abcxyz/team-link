@@ -35,6 +35,7 @@ message GitHubConfig {
 		StaticToken static_auth = 2;
 		GitHubApp gh_app_auth = 3;
 	}
+    bool enforce_sso = 4;
 }
 
 // For now we only support GoogleGroup to authenticate

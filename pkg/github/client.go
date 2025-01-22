@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/abcxyz/pkg/logging"
 	"github.com/google/go-github/v61/github"
 	"golang.org/x/oauth2"
 )
@@ -26,7 +27,8 @@ const DefaultGitHubEndpointURL = "https://github.com"
 
 // NewTeamReadWriterWithStaticTokenSource creates a team readwriter using provided endpoint
 // and static token source.
-func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenSource, endpoint string) (*TeamReadWriter, error) {
+func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenSource, endpoint string, enforceSso bool) (*TeamReadWriter, error) {
+	logger := logging.FromContext(ctx)
 	ghc := github.NewClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: s.GetStaticToken(),
 	})))
@@ -36,5 +38,11 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 			return nil, fmt.Errorf("failed to create github client with enterprise endpoint %s: %w", endpoint, err)
 		}
 	}
-	return NewTeamReadWriter(s, ghc), nil
+	var opts []Opt
+	if enforceSso {
+		// TODO: remove this once SSO implementation is finshed.
+		logger.WarnContext(ctx, "enforeSso not implemented yet, operating as enforce_sso=false.")
+		opts = append(opts, WithEnforceSso())
+	}
+	return NewTeamReadWriter(s, ghc, opts...), nil
 }

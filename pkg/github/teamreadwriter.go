@@ -46,6 +46,7 @@ type OrgTokenSource interface {
 }
 
 type Config struct {
+	enforceSso              bool
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
 	cacheDuration           time.Duration
@@ -83,6 +84,13 @@ func WithInviteToOrgIfNotAMember() Opt {
 	}
 }
 
+// WithEnforceSso will force teamlink to only sync members will SSO enabled.
+func WithEnforceSso() Opt {
+	return func(config *Config) {
+		config.enforceSso = true
+	}
+}
+
 // TeamReadWriter adheres to the groupsync.GroupReadWriter interface
 // and provides mechanisms for manipulating GitHub Teams.
 type TeamReadWriter struct {
@@ -91,6 +99,7 @@ type TeamReadWriter struct {
 	userCache               *cache.Cache[*github.User]
 	teamCache               *cache.Cache[*github.Team]
 	orgMembershipCache      *cache.Cache[bool]
+	enforceSso              bool
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
 }
@@ -104,6 +113,7 @@ type TeamReadWriter struct {
 // WithInviteToOrgIfNotAMember option.
 func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *TeamReadWriter {
 	config := &Config{
+		enforceSso:              false,
 		includeSubTeams:         true,
 		inviteToOrgIfNotAMember: false,
 		cacheDuration:           DefaultCacheDuration,
@@ -114,6 +124,7 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 	t := &TeamReadWriter{
 		orgTokenSource:          orgTokenSource,
 		client:                  client,
+		enforceSso:              config.enforceSso,
 		includeSubTeams:         config.includeSubTeams,
 		inviteToOrgIfNotAMember: config.inviteToOrgIfNotAMember,
 		userCache:               cache.New[*github.User](config.cacheDuration),

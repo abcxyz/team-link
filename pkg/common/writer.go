@@ -44,7 +44,7 @@ func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig) (groupsy
 		if err != nil {
 			return nil, fmt.Errorf("failed to create StaticTokenSource: %w", err)
 		}
-		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl())
+		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl(), config.GetEnforceSso())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create readwriter: %w", err)
 		}
