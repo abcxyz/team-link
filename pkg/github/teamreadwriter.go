@@ -47,6 +47,7 @@ type OrgTokenSource interface {
 
 type Config struct {
 	enforceSso              bool
+	orgList                 []int64
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
 	cacheDuration           time.Duration
@@ -91,6 +92,14 @@ func WithEnforceSso() Opt {
 	}
 }
 
+// WithSetOrgList set a list of orgs that TeamReadWriter will get user
+// SSO information from.
+func WithSetOrgList(list []int64) Opt {
+	return func(config *Config) {
+		config.orgList = list
+	}
+}
+
 // TeamReadWriter adheres to the groupsync.GroupReadWriter interface
 // and provides mechanisms for manipulating GitHub Teams.
 type TeamReadWriter struct {
@@ -102,6 +111,7 @@ type TeamReadWriter struct {
 	enforceSso              bool
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
+	allUserSsoMap           map[string]bool
 }
 
 // NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
@@ -130,6 +140,10 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 		userCache:               cache.New[*github.User](config.cacheDuration),
 		teamCache:               cache.New[*github.Team](config.cacheDuration),
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
+	}
+	// if enforceSso is set, we will initize the UserSsoMap.
+	if t.enforceSso {
+		t.allUserSsoMap = t.getOrgUserSSOInfo(config.orgList)
 	}
 	return t
 }
@@ -280,6 +294,14 @@ func (g *TeamReadWriter) getGitHubUser(ctx context.Context, client *github.Clien
 	return user, nil
 }
 
+// getOrgUserSSOInfo get each user from each org in the orglist and check if this user
+// has SAML info attached.
+// TODO: implement this after SSO helper function is implemented.
+func (g *TeamReadWriter) getOrgUserSSOInfo(orgList []int64) map[string]bool {
+	res := make(map[string]bool, len(orgList))
+	return res
+}
+
 // SetMembers replaces the members of the GitHub team with the given ID with the given members.
 // The ID must be of the form 'orgID:teamID'. Any members of the GitHub team not found in the given members list
 // will be removed. Likewise, any members of the given list that are not currently members of the team will be added.
@@ -374,6 +396,7 @@ func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*
 }
 
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
+	// TODO: check user SSO info if enforceSSO is set.
 	orgIDStr := strconv.FormatInt(orgID, 10)
 	isMember, err := g.isOrgMember(ctx, client, orgIDStr, userID)
 	if err != nil {

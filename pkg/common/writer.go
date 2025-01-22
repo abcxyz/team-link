@@ -25,9 +25,9 @@ import (
 )
 
 // NewReadWriter creates a new ReadWriter base on target system type and provided config.
-func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfig) (groupsync.GroupReadWriter, error) {
+func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfig, mappings *api.TeamLinkMappings) (groupsync.GroupReadWriter, error) {
 	if target == tltypes.SystemTypeGitHub {
-		readWriter, err := NewGitHubReadWriter(ctx, config.GetTargetConfig().GetGithubConfig())
+		readWriter, err := NewGitHubReadWriter(ctx, config.GetTargetConfig().GetGithubConfig(), mappings)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create readwriter for github: %w", err)
 		}
@@ -37,14 +37,31 @@ func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfi
 }
 
 // NewGitHubReadWriter creates a ReadWriter for github using provided config.
-func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig) (groupsync.GroupReadWriter, error) {
+func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig, mappings *api.TeamLinkMappings) (groupsync.GroupReadWriter, error) {
+	var orgList []int64
+	// If EnforceSso is true, we need to get all org numbers in group mappings
+	// for GitHubReadWriter to obtain SSO info after initilized.
+	// The reason for not putting this function in `pkg/github` is:
+	// the internal version will get the list of groups needed to be mapped
+	// in a different way, making GitHubReadWriter directly receive a list of
+	// org numbers can help make apis in `pkg/github` more reuseable and universal.
+	if config.GetEnforceSso() {
+		orgList = make([]int64, 0)
+		orgMap := make(map[int64]struct{})
+		for _, v := range mappings.GetGroupMappings().GetMappings() {
+			if _, ok := orgMap[v.GetGithub().GetOrgId()]; !ok {
+				orgList = append(orgList, v.GetGithub().GetOrgId())
+				orgMap[v.GetGithub().GetOrgId()] = struct{}{}
+			}
+		}
+	}
 	switch a := config.GetAuthentication().(type) {
 	case *api.GitHubConfig_StaticAuth:
 		tokenSource, err := github.NewStaticTokenSourceFromEnvVar(a.StaticAuth.GetFromEnvironment())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create StaticTokenSource: %w", err)
 		}
-		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl(), config.GetEnforceSso())
+		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl(), config.GetEnforceSso(), orgList)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create readwriter: %w", err)
 		}
