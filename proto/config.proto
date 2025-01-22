@@ -35,6 +35,9 @@ message GitHubConfig {
 		StaticToken static_auth = 2;
 		GitHubApp gh_app_auth = 3;
 	}
+    // When enforce_sso is set to true,
+    // only member with SSO identity will
+    // be synced. 
     bool enforce_sso = 4;
 }
 

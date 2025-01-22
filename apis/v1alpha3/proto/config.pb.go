@@ -140,9 +140,12 @@ type GitHubConfig struct {
 	//	*GitHubConfig_StaticAuth
 	//	*GitHubConfig_GhAppAuth
 	Authentication isGitHubConfig_Authentication `protobuf_oneof:"authentication"`
-	EnforceSso     bool                          `protobuf:"varint,4,opt,name=enforce_sso,json=enforceSso,proto3" json:"enforce_sso,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// When enforce_sso is set to true,
+	// only member with SSO identity will
+	// be synced.
+	EnforceSso    bool `protobuf:"varint,4,opt,name=enforce_sso,json=enforceSso,proto3" json:"enforce_sso,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GitHubConfig) Reset() {
