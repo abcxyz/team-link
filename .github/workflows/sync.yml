@@ -49,7 +49,7 @@ jobs:
           service_url: '${{ vars.TOKEN_MINTER_SERVICE_URL }}'
           requested_permissions: |-
             {
-              "scope": "teamlink",
+              "scope": "dev",
               "repositories": ["team-link"],
               "permissions": {
                 "members": "write",
