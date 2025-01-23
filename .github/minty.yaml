@@ -27,4 +27,3 @@ scope:
       - 'team-link'
     permissions:
       members: 'write'
-      orgnization: 'read'
