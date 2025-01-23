@@ -44,7 +44,7 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 		// TODO: remove this once SSO implementation is finshed.
 		logger.WarnContext(ctx, "enforeSso not implemented yet, operating as enforce_sso=false.")
 		opts = append(opts, WithEnforceSso())
-		opts = append(opts, WithSetOrgList(orgList))
+		opts = append(opts, WithSetOrg(orgList))
 	}
 	return NewTeamReadWriter(s, ghc, opts...), nil
 }

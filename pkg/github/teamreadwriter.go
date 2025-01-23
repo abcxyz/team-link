@@ -94,7 +94,7 @@ func WithEnforceSso() Opt {
 
 // WithSetOrgList set a list of orgs that TeamReadWriter will get user
 // SSO information from.
-func WithSetOrgList(list []int64) Opt {
+func WithSetOrg(list []int64) Opt {
 	return func(config *Config) {
 		config.orgList = list
 	}
