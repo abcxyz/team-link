@@ -36,5 +36,6 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 			return nil, fmt.Errorf("failed to create github client with enterprise endpoint %s: %w", endpoint, err)
 		}
 	}
+	GetSSOInfo(ctx, s, endpoint)
 	return NewTeamReadWriter(s, ghc), nil
 }
