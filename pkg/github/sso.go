@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	ghgraphql "github.com/shurcooL/githubv4"
+	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 )
 
@@ -34,21 +34,21 @@ type user struct {
 
 var query struct {
 	Viewer struct {
-		Login     ghgraphql.String
-		CreatedAt ghgraphql.DateTime
+		Login     githubv4.String
+		CreatedAt githubv4.DateTime
 	}
 }
 
-func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *ghgraphql.Client {
+func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *githubv4.Client {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: s.GetStaticToken(),
 	}))
 
-	var gqClient *ghgraphql.Client
+	var gqClient *githubv4.Client
 	if endpoint != DefaultGitHubEndpointURL {
-		gqClient = ghgraphql.NewEnterpriseClient(endpoint, httpClient)
+		gqClient = githubv4.NewEnterpriseClient(endpoint, httpClient)
 	} else {
-		gqClient = ghgraphql.NewClient(httpClient)
+		gqClient = githubv4.NewClient(httpClient)
 	}
 
 	err := gqClient.Query(context.Background(), &query, nil)
@@ -60,6 +60,11 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *ghg
 	tgo := &TestGitHubOrg{
 		Org: "abcxyz",
 	}
+	err = tgo.findUsers(ctx, gqClient)
+	if err != nil {
+		fmt.Println("failed to find users")
+	}
+	fmt.Println("-----findUsers called above------")
 	err = tgo.saml(ctx, gqClient)
 	if err != nil {
 		fmt.Println("oops: %w", err)
@@ -69,7 +74,7 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *ghg
 }
 
 // saml finds all the SAML identities in the GitHub organization.
-func (g *TestGitHubOrg) saml(ctx context.Context, client *ghgraphql.Client) error {
+func (g *TestGitHubOrg) saml(ctx context.Context, client *githubv4.Client) error {
 	var samlQuery struct {
 		Organization struct {
 			SAMLIdentityProvider struct {
@@ -85,7 +90,7 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *ghgraphql.Client) erro
 						}
 					}
 					PageInfo struct {
-						EndCursor   ghgraphql.String
+						EndCursor   githubv4.String
 						HasNextPage bool
 					}
 				} `graphql:"externalIdentities(first: 100, after: $cursor)"`
@@ -93,8 +98,8 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *ghgraphql.Client) erro
 		} `graphql:"organization(login: $org)"`
 	}
 	vars := map[string]any{
-		"org":    ghgraphql.String(g.Org),
-		"cursor": (*ghgraphql.String)(nil),
+		"org":    githubv4.String(g.Org),
+		"cursor": (*githubv4.String)(nil),
 	}
 
 	for {
@@ -108,9 +113,66 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *ghgraphql.Client) erro
 		if !samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.HasNextPage {
 			break
 		}
-		vars["cursor"] = ghgraphql.NewString(samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.EndCursor)
+		vars["cursor"] = githubv4.NewString(samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.EndCursor)
 	}
 	fmt.Println(g.users)
+
+	return nil
+}
+
+func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) error {
+	// client := githubv4.NewClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: g.pat})))
+
+	g.users = make(map[string]user)
+	vars := map[string]any{
+		"org":    githubv4.String(g.Org),
+		"cursor": (*githubv4.String)(nil),
+	}
+
+	var userQuery struct {
+		Organization struct {
+			MembersWithRoles struct {
+				Edges []struct {
+					Node struct {
+						Login                            string
+						OrganizationVerifiedDomainEmails []string `graphql:"organizationVerifiedDomainEmails(login: $org)"`
+					}
+				}
+				PageInfo struct {
+					EndCursor   githubv4.String
+					HasNextPage bool
+				}
+			} `graphql:"membersWithRole(first: 100, after: $cursor)"`
+		} `graphql:"organization(login: $org)"`
+	}
+
+	for {
+		err := client.Query(ctx, &userQuery, vars)
+		if err != nil {
+			return fmt.Errorf("executing GraphQL query: %w", err)
+		}
+		for _, edge := range userQuery.Organization.MembersWithRoles.Edges {
+			fmt.Println(edge.Node.Login)
+		}
+		// 	g.users[edge.Node.Login] = user{g.Entity.Contact, ""}
+		// 	for _, email := range edge.Node.OrganizationVerifiedDomainEmails {
+		// 		if g.users[edge.Node.Login].email == g.Entity.Contact {
+		// 			g.users[edge.Node.Login] = user{email, ""}
+		// 		}
+		// 		match, err := g.domainMatch(email)
+		// 		if err != nil {
+		// 			return err
+		// 		}
+		// 		if match {
+		// 			g.users[edge.Node.Login] = user{email, ""}
+		// 		}
+		// 	}
+		// }
+		// if !userQuery.Organization.MembersWithRoles.PageInfo.HasNextPage {
+		// 	break
+		// }
+		vars["cursor"] = githubv4.NewString(userQuery.Organization.MembersWithRoles.PageInfo.EndCursor)
+	}
 
 	return nil
 }
