@@ -219,6 +219,7 @@ func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) e
 		return fmt.Errorf("error querying GitHub GraphQL: %w", err)
 	}
 
+	fmt.Println(query)
 	fmt.Printf("Organization: %s\n", query.Organization)
 	fmt.Printf("SamlIdentityProvider: %s\n", query.Organization.SamlIdentityProvider)
 	fmt.Printf("ExternalIdentities: %s\n", query.Organization.SamlIdentityProvider.ExternalIdentities)
