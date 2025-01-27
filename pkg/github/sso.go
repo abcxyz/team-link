@@ -17,7 +17,6 @@ package github
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/shurcooL/githubv4"
@@ -188,48 +187,45 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 }
 
 func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
-
-	var q struct {
+	userLogin := "sailorlqh"
+	orgLogin := "abcxyz"
+	var query struct {
 		Organization struct {
 			SamlIdentityProvider struct {
 				ExternalIdentities struct {
 					Edges []struct {
 						Node struct {
-							SamlAttributes []struct {
-								Name  string
-								Value string
-							}
+							SamlIdentity struct {
+								NameId string `graphql:"nameId"`
+							} `graphql:"samlIdentity"`
 							User struct {
-								Login string
-								ID    string
-							}
-						}
-					}
-				}
-			}
-		}
+								Login string `graphql:"login"`
+							} `graphql:"user"`
+						} `graphql:"node"`
+					} `graphql:"edges"`
+				} `graphql:"externalIdentities(first: 100, login: $userLogin)"`
+			} `graphql:"samlIdentityProvider"`
+		} `graphql:"organization(login: $orgLogin)"`
 	}
 
 	variables := map[string]interface{}{
-		"org":   githubv4.String("abcxyz"),
-		"login": githubv4.String("sailorlqh"),
+		"orgLogin":  githubv4.String(orgLogin),
+		"userLogin": githubv4.String(userLogin),
 	}
 
-	err := client.Query(ctx, &q, variables)
+	err := client.Query(ctx, &query, variables)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("failed to query")
+		return fmt.Errorf("error querying GitHub GraphQL: %w", err)
 	}
 
-	if q.Organization.SamlIdentityProvider.ExternalIdentities.Edges != nil {
-		for _, edge := range q.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
-			fmt.Printf("User: %s (ID: %s)\n", edge.Node.User.Login, edge.Node.User.ID)
-			fmt.Println("SAML Attributes:")
-			for _, attr := range edge.Node.SamlAttributes {
-				fmt.Printf("  %s: %s\n", attr.Name, attr.Value)
-			}
+	for _, edge := range query.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
+		fmt.Println(edge.Node.User.Login)
+		if edge.Node.User.Login == userLogin {
+			fmt.Println(edge.Node.User.Login)
+			fmt.Println("found it")
 		}
-	} else {
-		fmt.Println("No SAML identity found for this user in this organization.")
 	}
+	fmt.Println("no SAML identity found for user %s in organization %s", userLogin, orgLogin)
 	return nil
 }
