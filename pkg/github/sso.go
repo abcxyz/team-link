@@ -128,6 +128,7 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 	vars := map[string]any{
 		"org":    githubv4.String(g.Org),
 		"cursor": (*githubv4.String)(nil),
+		"domain": githubv4.String("google.com"),
 	}
 
 	var userQuery struct {
@@ -136,7 +137,7 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 				Edges []struct {
 					Node struct {
 						Login                            string
-						OrganizationVerifiedDomainEmails []string `graphql:"organizationVerifiedDomainEmails(login: $org)"`
+						OrganizationVerifiedDomainEmails []string `graphql:"organizationVerifiedDomainEmails(login: $domain)"`
 					}
 				}
 				PageInfo struct {
@@ -153,7 +154,7 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 			return fmt.Errorf("executing GraphQL query: %w", err)
 		}
 		for _, edge := range userQuery.Organization.MembersWithRoles.Edges {
-			fmt.Printf("Login: %s, Domain Emails: %s", edge.Node.Login, strings.Join(edge.Node.OrganizationVerifiedDomainEmails, "-"))
+			fmt.Printf("Login: %s, Domain Emails: %s\n", edge.Node.Login, strings.Join(edge.Node.OrganizationVerifiedDomainEmails, "-"))
 		}
 		// 	g.users[edge.Node.Login] = user{g.Entity.Contact, ""}
 		// 	for _, email := range edge.Node.OrganizationVerifiedDomainEmails {
