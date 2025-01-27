@@ -52,7 +52,7 @@ jobs:
               "scope": "teamlink-dev",
               "repositories": ["team-link"],
               "permissions": {
-                "members": "write",
+                "members": "write"
               }
             }
       - name: 'authenticate to Google Cloud'
