@@ -119,6 +119,7 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *githubv4.Client) error
 			g.users[edge.Node.User.Login] = user{g.users[edge.Node.User.Login].email, edge.Node.SAMLIdentity.NameID}
 		}
 		if !samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.HasNextPage {
+			fmt.Println("reach end of query")
 			break
 		}
 		vars["cursor"] = githubv4.NewString(samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.EndCursor)
@@ -187,52 +188,48 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 }
 
 func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
-	var userIdQuery struct {
-		User struct {
-			ID string `graphql:"id"`
-		} `graphql:"user(login: $login)"`
+
+	var q struct {
+		Organization struct {
+			SamlIdentityProvider struct {
+				ExternalIdentities struct {
+					Edges []struct {
+						Node struct {
+							SamlAttributes []struct {
+								Name  string
+								Value string
+							}
+							User struct {
+								Login string
+								ID    string
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
-	userVariables := map[string]interface{}{
-		"login": githubv4.String("sailorlqh"), // The username
+	variables := map[string]interface{}{
+		"org":   githubv4.String("abcxyz"),
+		"login": githubv4.String("sailorlqh"),
 	}
 
-	err := client.Query(ctx, &userIdQuery, userVariables)
+	err := client.Query(ctx, &q, variables)
 	if err != nil {
-		log.Fatal("Error finding user ID:", err)
+		log.Fatal(err)
 	}
 
-	if userIdQuery.User.ID == "" {
-		fmt.Println("User 'abcxyz' not found.")
-		return fmt.Errorf("User 'abcxyz' not found.")
-	}
-
-	userID := userIdQuery.User.ID
-
-	// 2. Get the SAML Identity using the User ID (needs org admin access):
-	var samlQuery struct {
-		Node struct {
-			SamlIdentity struct {
-				NameID string `graphql:"nameId"`
-			} `graphql:"... on User"`
-		} `graphql:"node(id: $userId)"`
-	}
-
-	samlVariables := map[string]interface{}{
-		"userId": githubv4.ID(userID),
-	}
-
-	err = client.Query(ctx, &samlQuery, samlVariables)
-	if err != nil {
-		fmt.Println("Error getting SAML identity:", err)
-	}
-
-	fmt.Println(samlQuery.Node)
-
-	if samlQuery.Node.SamlIdentity.NameID != "" {
-		fmt.Printf("SAML NameID for 'foo': %s\n", samlQuery.Node.SamlIdentity.NameID)
+	if q.Organization.SamlIdentityProvider.ExternalIdentities.Edges != nil {
+		for _, edge := range q.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
+			fmt.Printf("User: %s (ID: %s)\n", edge.Node.User.Login, edge.Node.User.ID)
+			fmt.Println("SAML Attributes:")
+			for _, attr := range edge.Node.SamlAttributes {
+				fmt.Printf("  %s: %s\n", attr.Name, attr.Value)
+			}
+		}
 	} else {
-		fmt.Println("SAML Identity not found for user 'foo'") // Might need org admin role
+		fmt.Println("No SAML identity found for this user in this organization.")
 	}
 	return nil
 }
