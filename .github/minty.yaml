@@ -16,7 +16,6 @@ scope:
       - 'team-link'
     permissions:
       members: 'write'
-      orgnization: 'read'
   # TODO: remove this rule once the github sso development is done.
   teamlink-dev:
     rule:

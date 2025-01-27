@@ -8,6 +8,7 @@ require (
 	github.com/abcxyz/pkg v1.3.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v61 v61.0.0
+	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	gitlab.com/gitlab-org/api/client-go v0.119.0
 	golang.org/x/oauth2 v0.25.0
 	google.golang.org/api v0.217.0
@@ -32,6 +33,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/posener/complete/v2 v2.1.0 // indirect
 	github.com/posener/script v1.2.0 // indirect
+	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
