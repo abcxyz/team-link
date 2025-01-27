@@ -40,7 +40,7 @@ var query struct {
 	}
 }
 
-func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *githubv4.Client {
+func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) (*githubv4.Client, error) {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: s.GetStaticToken(),
 	}))
@@ -70,10 +70,10 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *git
 	// }
 	// fmt.Println("-----findUsers called above------")
 	if err = tgo.saml(ctx, gqClient); err != nil {
-		fmt.Println("oops: %w", err)
-		return nil
+		fmt.Printf("oops: %w\n", err)
+		return nil, fmt.Errorf("failed to get saml info: %w", err)
 	}
-	return gqClient
+	return gqClient, nil
 }
 
 // saml finds all the SAML identities in the GitHub organization.
