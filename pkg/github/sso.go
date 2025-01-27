@@ -112,6 +112,10 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *githubv4.Client) error
 			return fmt.Errorf("executing GraphQL query: %w", err)
 		}
 		for _, edge := range samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.Edges {
+			fmt.Println(edge.Node)
+			fmt.Println(edge.Node.User)
+			fmt.Println(edge.Node.SAMLIdentity)
+			fmt.Println("-------hahahahahah--------")
 			g.users[edge.Node.User.Login] = user{g.users[edge.Node.User.Login].email, edge.Node.SAMLIdentity.NameID}
 		}
 		if !samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.HasNextPage {
@@ -183,57 +187,52 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 }
 
 func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
-	// 2. GraphQL Query Definition:
-	type User struct {
-		SamlIdentity struct {
-			NameID string `graphql:"nameId"` // Or other relevant fields
-		} `graphql:"samlIdentity"`
+	var userIdQuery struct {
+		User struct {
+			ID string `graphql:"id"`
+		} `graphql:"user(login: $login)"`
 	}
 
-	type Organization struct {
-		ID             string `graphql:"id"` // You might need the org ID
-		Login          string `graphql:"login"`
-		MemberWithRole struct {
-			User User `graphql:"user"`
-		} `graphql:"memberWithRole(login: $login)"` // Use variable for username
-
+	userVariables := map[string]interface{}{
+		"login": githubv4.String("sailorlqh"), // The username
 	}
 
-	var q struct {
-		Organization Organization `graphql:"organization(login: $orgLogin)"`
-	}
-
-	variables := map[string]interface{}{
-		"orgLogin": githubv4.String("abcxyz"),    // Your GitHub organization name
-		"login":    githubv4.String("sailorlqh"), // The username you're querying
-	}
-
-	// 3. Execute the Query:
-	err := client.Query(ctx, &q, variables)
+	err := client.Query(ctx, &userIdQuery, userVariables)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error finding user ID:", err)
 	}
 
-	// 4. Process the Response:
-	if q.Organization.Login == "" {
-		fmt.Println("Organization 'abcxyz' not found")
-		return fmt.Errorf("failed to locate org abcxyz")
+	if userIdQuery.User.ID == "" {
+		fmt.Println("User 'abcxyz' not found.")
+		return fmt.Errorf("User 'abcxyz' not found.")
 	}
 
-	fmt.Println(q.Organization.MemberWithRole)
-	fmt.Println("----MemberWithRole-----")
-	fmt.Println(q.Organization.MemberWithRole.User)
-	fmt.Println("----MemberWithRole.User-----")
-	fmt.Println(q.Organization.MemberWithRole.User.SamlIdentity)
-	fmt.Println("----MemberWithRole.User.SamlIdentity-----")
-	fmt.Println(q.Organization.MemberWithRole.User.SamlIdentity.NameID)
-	fmt.Println("----MemberWithRole.User.SamlIdentity.NameID-----")
+	userID := userIdQuery.User.ID
 
-	if q.Organization.MemberWithRole.User.SamlIdentity.NameID != "" {
-		fmt.Printf("SAML NameID for 'foo' in 'bar': %s\n", q.Organization.MemberWithRole.User.SamlIdentity.NameID)
+	// 2. Get the SAML Identity using the User ID (needs org admin access):
+	var samlQuery struct {
+		Node struct {
+			SamlIdentity struct {
+				NameID string `graphql:"nameId"`
+			} `graphql:"... on User"`
+		} `graphql:"node(id: $userId)"`
+	}
+
+	samlVariables := map[string]interface{}{
+		"userId": githubv4.ID(userID),
+	}
+
+	err = client.Query(ctx, &samlQuery, samlVariables)
+	if err != nil {
+		fmt.Println("Error getting SAML identity:", err)
+	}
+
+	fmt.Println(samlQuery.Node)
+
+	if samlQuery.Node.SamlIdentity.NameID != "" {
+		fmt.Printf("SAML NameID for 'foo': %s\n", samlQuery.Node.SamlIdentity.NameID)
 	} else {
-		fmt.Println("SAML Identity not found for user 'foo' in org 'bar'")
-		return fmt.Errorf("SAML Identity not found for user 'sailorlqh' in org 'abcxyz'")
+		fmt.Println("SAML Identity not found for user 'foo'") // Might need org admin role
 	}
 	return nil
 }
