@@ -17,6 +17,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
@@ -62,7 +63,7 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *git
 	}
 	err = tgo.findUsers(ctx, gqClient)
 	if err != nil {
-		fmt.Println("failed to find users")
+		fmt.Println("failed to find users: %w", err)
 	}
 	fmt.Println("-----findUsers called above------")
 	err = tgo.saml(ctx, gqClient)
@@ -152,7 +153,7 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 			return fmt.Errorf("executing GraphQL query: %w", err)
 		}
 		for _, edge := range userQuery.Organization.MembersWithRoles.Edges {
-			fmt.Println(edge.Node.Login)
+			fmt.Printf("Login: %s, Domain Emails: %s", edge.Node.Login, strings.Join(edge.Node.OrganizationVerifiedDomainEmails, "-"))
 		}
 		// 	g.users[edge.Node.Login] = user{g.Entity.Contact, ""}
 		// 	for _, email := range edge.Node.OrganizationVerifiedDomainEmails {
@@ -168,9 +169,9 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 		// 		}
 		// 	}
 		// }
-		// if !userQuery.Organization.MembersWithRoles.PageInfo.HasNextPage {
-		// 	break
-		// }
+		if !userQuery.Organization.MembersWithRoles.PageInfo.HasNextPage {
+			break
+		}
 		vars["cursor"] = githubv4.NewString(userQuery.Organization.MembersWithRoles.PageInfo.EndCursor)
 	}
 
