@@ -17,6 +17,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/shurcooL/githubv4"
@@ -61,13 +62,15 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *git
 	tgo := &TestGitHubOrg{
 		Org: "abcxyz",
 	}
-	err = tgo.findUsers(ctx, gqClient)
-	if err != nil {
+	if err = tgo.testSAML(ctx, gqClient); err != nil {
+		fmt.Println("failed to test SAML: %w", err)
+	}
+	fmt.Println("-----testSAML called above------")
+	if err := tgo.findUsers(ctx, gqClient); err != nil {
 		fmt.Println("failed to find users: %w", err)
 	}
 	fmt.Println("-----findUsers called above------")
-	err = tgo.saml(ctx, gqClient)
-	if err != nil {
+	if err = tgo.saml(ctx, gqClient); err != nil {
 		fmt.Println("oops: %w", err)
 		return nil
 	}
@@ -176,5 +179,61 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 		vars["cursor"] = githubv4.NewString(userQuery.Organization.MembersWithRoles.PageInfo.EndCursor)
 	}
 
+	return nil
+}
+
+func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
+	// 2. GraphQL Query Definition:
+	type User struct {
+		SamlIdentity struct {
+			NameID string `graphql:"nameId"` // Or other relevant fields
+		} `graphql:"samlIdentity"`
+	}
+
+	type Organization struct {
+		ID             string `graphql:"id"` // You might need the org ID
+		Login          string `graphql:"login"`
+		MemberWithRole struct {
+			User User `graphql:"user"`
+		} `graphql:"memberWithRole(login: $login)"` // Use variable for username
+
+	}
+
+	var q struct {
+		Organization Organization `graphql:"organization(login: $orgLogin)"`
+	}
+
+	variables := map[string]interface{}{
+		"orgLogin": githubv4.String("abcxyz"),    // Your GitHub organization name
+		"login":    githubv4.String("sailorlqh"), // The username you're querying
+	}
+
+	// 3. Execute the Query:
+	err := client.Query(ctx, &q, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 4. Process the Response:
+	if q.Organization.Login == "" {
+		fmt.Println("Organization 'abcxyz' not found")
+		return fmt.Errorf("failed to locate org abcxyz")
+	}
+
+	fmt.Println(q.Organization.MemberWithRole)
+	fmt.Println("----MemberWithRole-----")
+	fmt.Println(q.Organization.MemberWithRole.User)
+	fmt.Println("----MemberWithRole.User-----")
+	fmt.Println(q.Organization.MemberWithRole.User.SamlIdentity)
+	fmt.Println("----MemberWithRole.User.SamlIdentity-----")
+	fmt.Println(q.Organization.MemberWithRole.User.SamlIdentity.NameID)
+	fmt.Println("----MemberWithRole.User.SamlIdentity.NameID-----")
+
+	if q.Organization.MemberWithRole.User.SamlIdentity.NameID != "" {
+		fmt.Printf("SAML NameID for 'foo' in 'bar': %s\n", q.Organization.MemberWithRole.User.SamlIdentity.NameID)
+	} else {
+		fmt.Println("SAML Identity not found for user 'foo' in org 'bar'")
+		return fmt.Errorf("SAML Identity not found for user 'sailorlqh' in org 'abcxyz'")
+	}
 	return nil
 }
