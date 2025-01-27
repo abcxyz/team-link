@@ -61,14 +61,14 @@ func GetSSOInfo(ctx context.Context, s *StaticTokenSource, endpoint string) *git
 	tgo := &TestGitHubOrg{
 		Org: "abcxyz",
 	}
-	if err = tgo.testSAML(ctx, gqClient); err != nil {
-		fmt.Println("failed to test SAML: %w", err)
-	}
-	fmt.Println("-----testSAML called above------")
-	if err := tgo.findUsers(ctx, gqClient); err != nil {
-		fmt.Println("failed to find users: %w", err)
-	}
-	fmt.Println("-----findUsers called above------")
+	// if err = tgo.testSAML(ctx, gqClient); err != nil {
+	// 	fmt.Println("failed to test SAML: %w", err)
+	// }
+	// fmt.Println("-----testSAML called above------")
+	// if err := tgo.findUsers(ctx, gqClient); err != nil {
+	// 	fmt.Println("failed to find users: %w", err)
+	// }
+	// fmt.Println("-----findUsers called above------")
 	if err = tgo.saml(ctx, gqClient); err != nil {
 		fmt.Println("oops: %w", err)
 		return nil
@@ -124,6 +124,10 @@ func (g *TestGitHubOrg) saml(ctx context.Context, client *githubv4.Client) error
 		vars["cursor"] = githubv4.NewString(samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.EndCursor)
 	}
 	fmt.Println(g.users)
+
+	if len(g.users) == 0 {
+		return fmt.Errorf("no result returned from query")
+	}
 
 	return nil
 }
@@ -186,50 +190,51 @@ func (g *TestGitHubOrg) findUsers(ctx context.Context, client *githubv4.Client) 
 	return nil
 }
 
-func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
-	userLogin := "sailorlqh"
-	orgLogin := "abcxyz"
-	var query struct {
-		Organization struct {
-			SamlIdentityProvider struct {
-				ExternalIdentities struct {
-					Edges []struct {
-						Node struct {
-							SamlIdentity struct {
-								NameId string `graphql:"nameId"`
-							} `graphql:"samlIdentity"`
-							User struct {
-								Login string `graphql:"login"`
-							} `graphql:"user"`
-						} `graphql:"node"`
-					} `graphql:"edges"`
-				} `graphql:"externalIdentities(first: 100, login: $userLogin)"`
-			} `graphql:"samlIdentityProvider"`
-		} `graphql:"organization(login: $orgLogin)"`
-	}
+// func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) error {
+// 	userLogin := "sailorlqh"
+// 	orgLogin := "abcxyz"
+// 	var query struct {
+// 		Organization struct {
+// 			SamlIdentityProvider struct {
+// 				ExternalIdentities struct {
+// 					Edges []struct {
+// 						Node struct {
+// 							SamlIdentity struct {
+// 								NameId string `graphql:"nameId"`
+// 							} `graphql:"samlIdentity"`
+// 							User struct {
+// 								Login string `graphql:"login"`
+// 							} `graphql:"user"`
+// 						} `graphql:"node"`
+// 					} `graphql:"edges"`
+// 				} `graphql:"externalIdentities(first: 100, login: $userLogin)"`
+// 			} `graphql:"samlIdentityProvider"`
+// 		} `graphql:"organization(login: $orgLogin)"`
+// 	}
 
-	variables := map[string]interface{}{
-		"orgLogin":  githubv4.String(orgLogin),
-		"userLogin": githubv4.String(userLogin),
-	}
+// 	variables := map[string]interface{}{
+// 		"orgLogin":  githubv4.String(orgLogin),
+// 		"userLogin": githubv4.String(userLogin),
+// 	}
 
-	err := client.Query(ctx, &query, variables)
-	if err != nil {
-		fmt.Println("failed to query")
-		return fmt.Errorf("error querying GitHub GraphQL: %w", err)
-	}
+// 	err := client.Query(ctx, &query, variables)
+// 	if err != nil {
+// 		fmt.Println("failed to query")
+// 		return fmt.Errorf("error querying GitHub GraphQL: %w", err)
+// 	}
 
-	fmt.Println(query)
-	fmt.Printf("Organization: %s\n", query.Organization)
-	fmt.Printf("SamlIdentityProvider: %s\n", query.Organization.SamlIdentityProvider)
-	fmt.Printf("ExternalIdentities: %s\n", query.Organization.SamlIdentityProvider.ExternalIdentities)
-	for _, edge := range query.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
-		fmt.Println(edge.Node.User.Login)
-		if edge.Node.User.Login == userLogin {
-			fmt.Println(edge.Node.User.Login)
-			fmt.Println("found it")
-		}
-	}
-	fmt.Printf("no SAML identity found for user %s in organization %s\n", userLogin, orgLogin)
-	return nil
-}
+// 	fmt.Println(query)
+// 	fmt.Printf("Organization: %s\n", query.Organization)
+// 	fmt.Printf("SamlIdentityProvider: %s\n", query.Organization.SamlIdentityProvider)
+// 	fmt.Printf("ExternalIdentities: %s\n", query.Organization.SamlIdentityProvider.ExternalIdentities)
+// 	for _, edge := range query.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
+// 		fmt.Println(edge.Node.User.Login)
+// 		if edge.Node.User.Login == userLogin {
+// 			fmt.Println(edge.Node.User.Login)
+// 			fmt.Println("found it")
+// 		}
+// 	}
+// 	fmt.Printf("no SAML identity found for user %s in organization %s\n", userLogin, orgLogin)
+// 	return fmt.Errorf("sailed to")
+// 	return nil
+// }
