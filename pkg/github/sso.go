@@ -219,6 +219,9 @@ func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) e
 		return fmt.Errorf("error querying GitHub GraphQL: %w", err)
 	}
 
+	fmt.Printf("Organization: %s\n", query.Organization)
+	fmt.Printf("SamlIdentityProvider: %s\n", query.Organization.SamlIdentityProvider)
+	fmt.Printf("ExternalIdentities: %s\n", query.Organization.SamlIdentityProvider.ExternalIdentities)
 	for _, edge := range query.Organization.SamlIdentityProvider.ExternalIdentities.Edges {
 		fmt.Println(edge.Node.User.Login)
 		if edge.Node.User.Login == userLogin {
@@ -226,6 +229,6 @@ func (g *TestGitHubOrg) testSAML(ctx context.Context, client *githubv4.Client) e
 			fmt.Println("found it")
 		}
 	}
-	fmt.Println("no SAML identity found for user %s in organization %s", userLogin, orgLogin)
+	fmt.Printf("no SAML identity found for user %s in organization %s\n", userLogin, orgLogin)
 	return nil
 }
