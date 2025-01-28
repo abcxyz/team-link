@@ -123,7 +123,7 @@ func TestTeamReadWriter_GetGroup(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil)
 
 			got, err := groupRW.GetGroup(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -500,7 +500,7 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, tc.opts...)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, tc.opts...)
 
 			got, err := groupRW.GetMembers(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -749,7 +749,7 @@ func TestTeamReadWriter_GetDescendants(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil)
 
 			got, err := groupRW.Descendants(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -829,7 +829,7 @@ func TestTeamReadWriter_GetUser(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil)
 
 			got, err := groupRW.GetUser(ctx, tc.userID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -2162,7 +2162,7 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, tc.opts...)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, tc.opts...)
 
 			err := groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
 			if diff := testutil.DiffErrString(err, tc.wantSetErr); diff != "" {

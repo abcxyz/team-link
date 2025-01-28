@@ -26,7 +26,7 @@ const DefaultGitHubEndpointURL = "https://github.com"
 
 // NewTeamReadWriterWithStaticTokenSource creates a team readwriter using provided endpoint
 // and static token source.
-func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenSource, endpoint string) (*TeamReadWriter, error) {
+func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenSource, endpoint string, orgTeamSSORequired map[int64]map[int64]bool) (*TeamReadWriter, error) {
 	ghc := github.NewClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: s.GetStaticToken(),
 	})))
@@ -36,5 +36,5 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 			return nil, fmt.Errorf("failed to create github client with enterprise endpoint %s: %w", endpoint, err)
 		}
 	}
-	return NewTeamReadWriter(s, ghc), nil
+	return NewTeamReadWriter(s, ghc, orgTeamSSORequired), nil
 }
