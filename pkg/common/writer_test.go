@@ -179,7 +179,6 @@ func TestComputeOrgTeamSSORequired(t *testing.T) {
 			if diff := cmp.Diff(gotOrgTeamSSORequired, tc.wantOrgTeamSSORequired); diff != "" {
 				t.Errorf("got unexpected OrgTeamSSORequired:\n%s", diff)
 			}
-
 		})
 	}
 }

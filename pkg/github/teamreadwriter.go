@@ -125,7 +125,7 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, org
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
 		orgTeamSSORequired:      orgTeamSSORequired,
 	}
-	// TODO: Obtain and retrive Org User's SAML info.
+	// TODO: Obtain and retrieve Org User's SAML info.
 	return t
 }
 
