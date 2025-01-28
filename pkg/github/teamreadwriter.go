@@ -93,6 +93,7 @@ type TeamReadWriter struct {
 	orgMembershipCache      *cache.Cache[bool]
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
+	orgTeamSSORequired      map[int64]map[int64]bool
 }
 
 // NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
@@ -102,7 +103,10 @@ type TeamReadWriter struct {
 // will be considered as members of a team. By default, TeamReadWriter does not attempt
 // to add users to an org if they are not already members. This can be enabled by
 // WithInviteToOrgIfNotAMember option.
-func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *TeamReadWriter {
+// The provided orgTeamSSORequired will be used to verify if a team requires user to have
+// sso enabled to sync memberships. If orgTeamSSORequired[org][team] is not found, we will
+// default the value to false.
+func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
 	config := &Config{
 		includeSubTeams:         true,
 		inviteToOrgIfNotAMember: false,
@@ -119,7 +123,9 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opt
 		userCache:               cache.New[*github.User](config.cacheDuration),
 		teamCache:               cache.New[*github.Team](config.cacheDuration),
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
+		orgTeamSSORequired:      orgTeamSSORequired,
 	}
+	// TODO: Obtain and retrive Org User's SAML info.
 	return t
 }
 
@@ -370,6 +376,7 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 	}
 	if isMember {
 		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
+		// TODO: check userID SAML info and check if the given team requires user to enable SSO.
 		if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
 			return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
 		}

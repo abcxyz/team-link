@@ -21,6 +21,7 @@ option go_package = "github.com/abcxyz/team-link/apis/v1alpha3/proto;api";
 message GitHub {
     int64 org_id = 1;
     int64 team_id = 2;
+    bool require_user_enable_sso = 3;
 }
 
 message GitLab {

@@ -25,9 +25,9 @@ import (
 )
 
 // NewReadWriter creates a new ReadWriter base on target system type and provided config.
-func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfig) (groupsync.GroupReadWriter, error) {
+func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfig, mappings *api.TeamLinkMappings) (groupsync.GroupReadWriter, error) {
 	if target == tltypes.SystemTypeGitHub {
-		readWriter, err := NewGitHubReadWriter(ctx, config.GetTargetConfig().GetGithubConfig())
+		readWriter, err := NewGitHubReadWriter(ctx, config.GetTargetConfig().GetGithubConfig(), mappings)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create readwriter for github: %w", err)
 		}
@@ -37,18 +37,42 @@ func NewReadWriter(ctx context.Context, target string, config *api.TeamLinkConfi
 }
 
 // NewGitHubReadWriter creates a ReadWriter for github using provided config.
-func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig) (groupsync.GroupReadWriter, error) {
+func NewGitHubReadWriter(ctx context.Context, config *api.GitHubConfig, mappings *api.TeamLinkMappings) (groupsync.GroupReadWriter, error) {
+	orgTeamSSORequired := computeOrgTeamSSORequired(mappings)
 	switch a := config.GetAuthentication().(type) {
 	case *api.GitHubConfig_StaticAuth:
 		tokenSource, err := github.NewStaticTokenSourceFromEnvVar(a.StaticAuth.GetFromEnvironment())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create StaticTokenSource: %w", err)
 		}
-		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl())
+		writer, err := github.NewTeamReadWriterWithStaticTokenSource(ctx, tokenSource, config.GetEnterpriseUrl(), orgTeamSSORequired)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create readwriter: %w", err)
 		}
 		return writer, nil
 	}
 	return nil, fmt.Errorf("unsupported authentication type method for github")
+}
+
+// computeOrgTeamSSORequired compute whether a team in a org requires
+// user to have SSO enabled to do membership syncing using the provided
+// api.TeamLinkMappings. The result is stored as a map of type
+// map[int64]map[int64]bool.
+//
+// For example:
+// If team `abc` under org `xyz` required users to have SSO enabled,
+// we will have orgTeamSSORequired["xyz"]["abc"] = true
+// If team `foo` under org `bar` doesn't require user to have SSO enabled,
+// we will have orgTeamSSORequired["bar"]["foo"] = false.
+func computeOrgTeamSSORequired(mappings *api.TeamLinkMappings) map[int64]map[int64]bool {
+	orgTeamSSORequired := make(map[int64]map[int64]bool)
+	for _, v := range mappings.GetGroupMappings().GetMappings() {
+		if _, ok := orgTeamSSORequired[v.GetGithub().GetOrgId()]; !ok {
+			orgTeamSSORequired[v.GetGithub().GetOrgId()] = make(map[int64]bool)
+			orgTeamSSORequired[v.GetGithub().GetOrgId()][v.GetGithub().GetTeamId()] = v.GetGithub().GetRequireUserEnableSso()
+		} else {
+			orgTeamSSORequired[v.GetGithub().GetOrgId()][v.GetGithub().GetTeamId()] = v.GetGithub().GetRequireUserEnableSso()
+		}
+	}
+	return orgTeamSSORequired
 }

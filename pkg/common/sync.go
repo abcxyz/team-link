@@ -54,7 +54,7 @@ func Sync(ctx context.Context, mappingFile, configFile string) error {
 		return fmt.Errorf("failed to create reader: %w", err)
 	}
 
-	writer, err := NewReadWriter(ctx, targetSystem, config)
+	writer, err := NewReadWriter(ctx, targetSystem, config, mappings)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %w", err)
 	}
