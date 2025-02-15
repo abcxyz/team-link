@@ -116,7 +116,7 @@ func TestTeamReadWriter_GetGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitHub(tc.data)
 			defer server.Close()
@@ -493,7 +493,7 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitHub(tc.data)
 			defer server.Close()
@@ -742,7 +742,7 @@ func TestTeamReadWriter_GetDescendants(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitHub(tc.data)
 			defer server.Close()
@@ -822,7 +822,7 @@ func TestTeamReadWriter_GetUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitHub(tc.data)
 			defer server.Close()
@@ -2155,7 +2155,7 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitHub(tc.data)
 			defer server.Close()

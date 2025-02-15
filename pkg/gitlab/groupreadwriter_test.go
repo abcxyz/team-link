@@ -77,7 +77,7 @@ func TestGroupReadWriter_GetGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitLab(tc.data)
 			defer server.Close()
@@ -377,7 +377,7 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitLab(tc.data)
 			defer server.Close()
@@ -670,7 +670,7 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitLab(tc.data)
 			defer server.Close()
@@ -742,7 +742,7 @@ func TestGroupReadWriter_GetUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitLab(tc.data)
 			defer server.Close()
@@ -1526,7 +1526,7 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			server := fakeGitLab(tc.data)
 			defer server.Close()
