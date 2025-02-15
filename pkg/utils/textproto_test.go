@@ -15,7 +15,6 @@
 package utils
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -134,7 +133,7 @@ user_mappings {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
+			ctx := t.Context()
 			td := t.TempDir()
 
 			// Create a defaultWritePath in the temp dir.
@@ -233,7 +232,7 @@ target_config {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
+			ctx := t.Context()
 			td := t.TempDir()
 
 			// Create a defaultWritePath in the temp dir.

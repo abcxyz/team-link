@@ -71,7 +71,7 @@ func TestConcurrentSync(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 			err := ConcurrentSync(ctx, tc.syncer, tc.ids)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-got, +want) = %v", diff)

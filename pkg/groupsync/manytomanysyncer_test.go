@@ -934,7 +934,7 @@ func TestSync(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			syncer := NewManyToManySyncer(
 				tc.sourceSystem,
@@ -1312,7 +1312,7 @@ func TestSyncAll(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := t.Context()
 
 			syncer := NewManyToManySyncer(
 				tc.sourceSystem,
