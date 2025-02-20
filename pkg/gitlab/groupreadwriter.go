@@ -39,12 +39,14 @@ const (
 	DefaultCacheDuration = time.Hour * 24
 )
 
+// Config is the configuration for GroupReadWriter.
 type Config struct {
 	includeSubGroups  bool
 	cacheDuration     time.Duration
 	accessLevelMapper AccessLevelMapper
 }
 
+// Opt is a configuration option for GroupReadWriter.
 type Opt func(writer *Config)
 
 // WithCacheDuration set the time to live for the user and group cache entries.
@@ -63,12 +65,15 @@ func WithoutSubGroupsAsMembers() Opt {
 	}
 }
 
+// WithAccessLevelMapper passes in a custom AccessLevelMapper used by the group writer to determine
+// the access level to grant a user being added to a group.
 func WithAccessLevelMapper(m AccessLevelMapper) Opt {
 	return func(config *Config) {
 		config.accessLevelMapper = m
 	}
 }
 
+// GroupReadWriter provides read and write access to GitLab groups.
 type GroupReadWriter struct {
 	clientProvider    *ClientProvider
 	accessLevelMapper AccessLevelMapper
@@ -77,6 +82,7 @@ type GroupReadWriter struct {
 	includeSubGroups  bool
 }
 
+// NewGroupReadWriter creates a GroupReadWriter.
 func NewGroupReadWriter(clientProvider *ClientProvider, opts ...Opt) *GroupReadWriter {
 	config := &Config{
 		includeSubGroups:  true,
