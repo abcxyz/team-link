@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package gitlab provides syncers and utilities allowing Team Link
+// to sync to GitLab.
 package gitlab
 
 import (

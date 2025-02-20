@@ -22,13 +22,17 @@ import (
 	"github.com/abcxyz/pkg/pointer"
 )
 
+// AccessLevelMapper provides a gitlab access level for a given group and user.
 type AccessLevelMapper interface {
+	// AccessLevel returns the gitlab access level for a user being added to a group.
 	AccessLevel(ctx context.Context, groupID, userID string) *gitlab.AccessLevelValue
 }
 
+// DefaultAccessLevelMapper is the default AccessLevelMapper.
 type DefaultAccessLevelMapper struct{}
 
+// AccessLevel returns DeveloperPermissions for everything by default.
 func (m *DefaultAccessLevelMapper) AccessLevel(ctx context.Context, groupID, userID string) *gitlab.AccessLevelValue {
-	// By default, everyone gets Developer permissions
+	// By default, everyone gets Developer permissions.
 	return pointer.To(gitlab.DeveloperPermissions)
 }
