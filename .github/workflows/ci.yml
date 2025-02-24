@@ -19,6 +19,7 @@ on:
     branches:
       - 'main'
       - 'release/**/*'
+  workflow_call:
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event_name}}-${{ github.head_ref || github.ref }}'
