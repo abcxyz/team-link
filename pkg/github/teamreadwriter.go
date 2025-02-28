@@ -94,6 +94,7 @@ type TeamReadWriter struct {
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
 	orgTeamSSORequired      map[int64]map[int64]bool
+	samlIdentities          map[int64]map[string]struct{}
 }
 
 // NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
@@ -106,7 +107,7 @@ type TeamReadWriter struct {
 // The provided orgTeamSSORequired will be used to verify if a team requires user to have
 // sso enabled to sync memberships. If orgTeamSSORequired[org][team] is not found, we will
 // default the value to false.
-func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
+func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, orgTeamSSORequired map[int64]map[int64]bool, samlIdentities map[int64]map[string]struct{}, opts ...Opt) *TeamReadWriter {
 	config := &Config{
 		includeSubTeams:         true,
 		inviteToOrgIfNotAMember: false,
@@ -124,6 +125,7 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, org
 		teamCache:               cache.New[*github.Team](config.cacheDuration),
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
 		orgTeamSSORequired:      orgTeamSSORequired,
+		samlIdentities:          samlIdentities,
 	}
 	// TODO: Obtain and retrieve Org User's SAML info.
 	return t
@@ -369,6 +371,7 @@ func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*
 }
 
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
+	logger := logging.FromContext(ctx)
 	orgIDStr := strconv.FormatInt(orgID, 10)
 	isMember, err := g.isOrgMember(ctx, client, orgIDStr, userID)
 	if err != nil {
@@ -376,7 +379,22 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 	}
 	if isMember {
 		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
-		// TODO: check userID SAML info and check if the given team requires user to enable SSO.
+		// Conditions below checks if the given team requires saml
+		// and if the user has external saml identities.
+		// The map keys existance check is not really necessary as it's computed
+		// by the textprotos, they are here just to make the code safer.
+		if teamSSO, ok := g.orgTeamSSORequired[orgID]; ok {
+			if required, ok := teamSSO[teamID]; ok && required {
+				if orgSaml, ok := g.samlIdentities[orgID]; ok {
+					if _, ok := orgSaml[userID]; !ok {
+						logger.WarnContext(ctx, "github user was not added to github group due to group sso requirement",
+							"user", userID,
+							"team", teamID)
+						return nil
+					}
+				}
+			}
+		}
 		if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
 			return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
 		}
