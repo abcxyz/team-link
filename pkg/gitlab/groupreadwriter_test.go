@@ -142,16 +142,16 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -166,9 +166,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -176,9 +177,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -229,17 +231,17 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"4": {},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -267,9 +269,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -277,9 +280,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -324,17 +328,17 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"4": {},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -353,9 +357,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -363,9 +368,10 @@ func TestGroupReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -445,16 +451,16 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -468,17 +474,19 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				{
 					ID: "user1",
 					Attributes: &gitlab.GroupMember{
-						ID:       2286,
-						Username: "user1",
-						Email:    "user1@example.com",
+						ID:          2286,
+						Username:    "user1",
+						Email:       "user1@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 				{
 					ID: "user3",
 					Attributes: &gitlab.GroupMember{
-						ID:       3208,
-						Username: "user3",
-						Email:    "user3@example.com",
+						ID:          3208,
+						Username:    "user3",
+						Email:       "user3@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 			},
@@ -528,19 +536,19 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"4": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -557,25 +565,28 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				{
 					ID: "user1",
 					Attributes: &gitlab.GroupMember{
-						ID:       2286,
-						Username: "user1",
-						Email:    "user1@example.com",
+						ID:          2286,
+						Username:    "user1",
+						Email:       "user1@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 				{
 					ID: "user2",
 					Attributes: &gitlab.GroupMember{
-						ID:       5660,
-						Username: "user2",
-						Email:    "user2@example.com",
+						ID:          5660,
+						Username:    "user2",
+						Email:       "user2@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 				{
 					ID: "user3",
 					Attributes: &gitlab.GroupMember{
-						ID:       3208,
-						Username: "user3",
-						Email:    "user3@example.com",
+						ID:          3208,
+						Username:    "user3",
+						Email:       "user3@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 			},
@@ -619,19 +630,19 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"4": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -649,17 +660,19 @@ func TestGroupReadWriter_GetDescendants(t *testing.T) {
 				{
 					ID: "user1",
 					Attributes: &gitlab.GroupMember{
-						ID:       2286,
-						Username: "user1",
-						Email:    "user1@example.com",
+						ID:          2286,
+						Username:    "user1",
+						Email:       "user1@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 				{
 					ID: "user3",
 					Attributes: &gitlab.GroupMember{
-						ID:       3208,
-						Username: "user3",
-						Email:    "user3@example.com",
+						ID:          3208,
+						Username:    "user3",
+						Email:       "user3@example.com",
+						AccessLevel: gitlab.DeveloperPermissions,
 					},
 				},
 			},
@@ -808,16 +821,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -836,6 +849,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -846,6 +862,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user2",
 							Email:    "user2@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.MaintainerPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -855,6 +874,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							ID:       3208,
 							Username: "user3",
 							Email:    "user3@example.com",
+						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.OwnerPermissions,
 						},
 					},
 				},
@@ -864,9 +886,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -874,9 +897,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user2",
 						Attributes: &gitlab.GroupMember{
-							ID:       5660,
-							Username: "user2",
-							Email:    "user2@example.com",
+							ID:          5660,
+							Username:    "user2",
+							Email:       "user2@example.com",
+							AccessLevel: gitlab.MaintainerPermissions,
 						},
 					},
 				},
@@ -884,9 +908,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.OwnerPermissions,
 						},
 					},
 				},
@@ -926,16 +951,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -954,6 +979,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 			},
@@ -962,9 +990,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1004,16 +1033,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1032,6 +1061,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -1042,6 +1074,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user2",
 							Email:    "user2@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.OwnerPermissions,
+						},
 					},
 				},
 			},
@@ -1050,9 +1085,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1060,9 +1096,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user2",
 						Attributes: &gitlab.GroupMember{
-							ID:       5660,
-							Username: "user2",
-							Email:    "user2@example.com",
+							ID:          5660,
+							Username:    "user2",
+							Email:       "user2@example.com",
+							AccessLevel: gitlab.OwnerPermissions,
 						},
 					},
 				},
@@ -1108,16 +1145,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1136,6 +1173,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -1145,6 +1185,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							ID:       3208,
 							Username: "user3",
 							Email:    "user3@example.com",
+						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1173,9 +1216,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1183,9 +1227,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1226,16 +1271,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						ParentID: 2,
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1254,6 +1299,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -1264,6 +1312,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user3",
 							Email:    "user3@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 			},
@@ -1272,9 +1323,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1282,9 +1334,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1329,16 +1382,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group4",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1357,6 +1410,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -1366,6 +1422,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							ID:       3208,
 							Username: "user3",
 							Email:    "user3@example.com",
+						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1394,9 +1453,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1404,9 +1464,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1447,16 +1508,16 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 						Name: "group3",
 					},
 				},
-				groupMembers: map[string]map[string]struct{}{
+				groupMembers: map[string]map[string]gitlab.AccessLevelValue{
 					"1": {
-						"user2": {},
+						"user2": gitlab.DeveloperPermissions,
 					},
 					"2": {
-						"user1": {},
-						"user3": {},
+						"user1": gitlab.DeveloperPermissions,
+						"user3": gitlab.DeveloperPermissions,
 					},
 					"3": {
-						"user1": {},
+						"user1": gitlab.DeveloperPermissions,
 					},
 				},
 				subgroups: map[string]map[string]struct{}{
@@ -1475,6 +1536,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							Username: "user1",
 							Email:    "user1@example.com",
 						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
+						},
 					},
 				},
 				&groupsync.UserMember{
@@ -1484,6 +1548,9 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 							ID:       3208,
 							Username: "user3",
 							Email:    "user3@example.com",
+						},
+						Metadata: &AccessLevelMetadata{
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1502,9 +1569,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &gitlab.GroupMember{
-							ID:       2286,
-							Username: "user1",
-							Email:    "user1@example.com",
+							ID:          2286,
+							Username:    "user1",
+							Email:       "user1@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1512,9 +1580,10 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &gitlab.GroupMember{
-							ID:       3208,
-							Username: "user3",
-							Email:    "user3@example.com",
+							ID:          3208,
+							Username:    "user3",
+							Email:       "user3@example.com",
+							AccessLevel: gitlab.DeveloperPermissions,
 						},
 					},
 				},
@@ -1557,7 +1626,7 @@ func TestGroupReadWriter_SetMembers(t *testing.T) {
 type GitLabData struct {
 	users        map[string]*gitlab.User
 	groups       map[string]*gitlab.Group
-	groupMembers map[string]map[string]struct{}
+	groupMembers map[string]map[string]gitlab.AccessLevelValue
 	subgroups    map[string]map[string]struct{}
 }
 
@@ -1628,15 +1697,20 @@ func fakeGitLab(gitlabData *GitLabData) *httptest.Server {
 			fmt.Fprintf(w, "group not found")
 			return
 		}
-		var users []*gitlab.User
-		for username := range members {
+		var users []*gitlab.GroupMember
+		for username, accessLevel := range members {
 			user, ok := gitlabData.users[username]
 			if !ok {
 				w.WriteHeader(500)
 				fmt.Fprintf(w, "user data inconsistency")
 				return
 			}
-			users = append(users, user)
+			users = append(users, &gitlab.GroupMember{
+				ID:          user.ID,
+				Username:    user.Username,
+				Email:       user.Email,
+				AccessLevel: accessLevel,
+			})
 		}
 		jsn, err := json.Marshal(users)
 		if err != nil {
@@ -1686,6 +1760,12 @@ func fakeGitLab(gitlabData *GitLabData) *httptest.Server {
 			fmt.Fprintf(w, "failed to read request body")
 			return
 		}
+		accessLevel, ok := payload["access_level"].(float64)
+		if !ok {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to read access level from request")
+			return
+		}
 		username, ok := payload["username"].(string)
 		if !ok {
 			w.WriteHeader(404)
@@ -1704,10 +1784,78 @@ func fakeGitLab(gitlabData *GitLabData) *httptest.Server {
 			fmt.Fprintf(w, "user not found")
 			return
 		}
-		members[username] = struct{}{}
+		members[username] = gitlab.AccessLevelValue(accessLevel)
 		resp := &gitlab.GroupMember{
-			ID:       user.ID,
-			Username: username,
+			ID:          user.ID,
+			Username:    username,
+			AccessLevel: gitlab.AccessLevelValue(accessLevel),
+		}
+		jsn, err := json.Marshal(resp)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to marshal response")
+			return
+		}
+		_, err = w.Write(jsn)
+		if err != nil {
+			return
+		}
+	}))
+	mux.Handle("PUT /api/v4/groups/{group_id}/members/{user_id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		groupID := r.PathValue("group_id")
+		userID, err := strconv.Atoi(r.PathValue("user_id"))
+		if err != nil {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user not found")
+			return
+		}
+		var username string
+		for _, u := range gitlabData.users {
+			if u.ID == userID {
+				username = u.Username
+				break
+			}
+		}
+		if username == "" {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user not found")
+			return
+		}
+		user, ok := gitlabData.users[username]
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user not found")
+			return
+		}
+		payload := make(map[string]any)
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to read request body")
+			return
+		}
+		accessLevel, ok := payload["access_level"].(float64)
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "access level not found")
+			return
+		}
+		members, ok := gitlabData.groupMembers[groupID]
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "group not found")
+			return
+		}
+		_, isMember := members[username]
+		if !isMember {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user is not member of group")
+			return
+		}
+		members[username] = gitlab.AccessLevelValue(accessLevel)
+		resp := &gitlab.GroupMember{
+			ID:          user.ID,
+			Username:    username,
+			AccessLevel: gitlab.AccessLevelValue(accessLevel),
 		}
 		jsn, err := json.Marshal(resp)
 		if err != nil {

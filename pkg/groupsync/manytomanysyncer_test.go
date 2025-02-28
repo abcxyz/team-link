@@ -1467,6 +1467,20 @@ func (tgm *testGroupMapper) MappedGroupIDs(ctx context.Context, groupID string) 
 	return ids, nil
 }
 
+func (tgm *testGroupMapper) Mappings(ctx context.Context, groupID string) ([]Mapping, error) {
+	mappedGroupIDs, err := tgm.MappedGroupIDs(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	mappings := make([]Mapping, len(mappedGroupIDs))
+	for i, groupID := range mappedGroupIDs {
+		mappings[i] = Mapping{
+			GroupID: groupID,
+		}
+	}
+	return mappings, nil
+}
+
 type testUserMapper struct {
 	m                map[string]string
 	mappedUserIDErrs map[string]error

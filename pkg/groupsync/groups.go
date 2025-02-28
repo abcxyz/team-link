@@ -57,6 +57,22 @@ type OneToManyGroupMapper interface {
 
 	// MappedGroupIDs returns the list of group IDs mapped to the given group ID.
 	MappedGroupIDs(ctx context.Context, groupID string) ([]string, error)
+
+	// Mappings returns the list of Mappings (group ID and arbitrary metadata) mapped to the given group ID.
+	Mappings(ctx context.Context, groupID string) ([]Mapping, error)
+}
+
+// Mapping is a group ID with combinable metadata.
+type Mapping struct {
+	GroupID  string          `json:"group_id,omitempty"`
+	Metadata MappingMetadata `json:"metadata,omitempty"`
+}
+
+// MappingMetadata is arbitrary data that is combinable with other metadata,
+// allowing user-specific data to be calculated based on metadata from
+// multiple source groups mapping a user to a single target group.
+type MappingMetadata interface {
+	Combine(other MappingMetadata) MappingMetadata
 }
 
 // UserMapper maps a user ID to another user ID.
@@ -73,6 +89,9 @@ type User struct {
 	// in the given group system. This field is typically set by
 	// the corresponding GroupReader when retrieving the user.
 	Attributes any `json:"attributes,omitempty"`
+	// Metadata for a user is calculated by combining metadata
+	// from multiple source groups mapping this user to a target group.
+	Metadata MappingMetadata `json:"metadata,omitempty"`
 }
 
 // Group represents a group in a group system.

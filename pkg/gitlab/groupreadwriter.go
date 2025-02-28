@@ -41,9 +41,8 @@ const (
 
 // Config is the configuration for GroupReadWriter.
 type Config struct {
-	includeSubGroups  bool
-	cacheDuration     time.Duration
-	accessLevelMapper AccessLevelMapper
+	includeSubGroups bool
+	cacheDuration    time.Duration
 }
 
 // Opt is a configuration option for GroupReadWriter.
@@ -65,40 +64,29 @@ func WithoutSubGroupsAsMembers() Opt {
 	}
 }
 
-// WithAccessLevelMapper passes in a custom AccessLevelMapper used by the group writer to determine
-// the access level to grant a user being added to a group.
-func WithAccessLevelMapper(m AccessLevelMapper) Opt {
-	return func(config *Config) {
-		config.accessLevelMapper = m
-	}
-}
-
 // GroupReadWriter provides read and write access to GitLab groups.
 type GroupReadWriter struct {
-	clientProvider    *ClientProvider
-	accessLevelMapper AccessLevelMapper
-	userCache         *cache.Cache[*gitlab.User]
-	groupCache        *cache.Cache[*gitlab.Group]
-	includeSubGroups  bool
+	clientProvider   *ClientProvider
+	userCache        *cache.Cache[*gitlab.User]
+	groupCache       *cache.Cache[*gitlab.Group]
+	includeSubGroups bool
 }
 
 // NewGroupReadWriter creates a GroupReadWriter.
 func NewGroupReadWriter(clientProvider *ClientProvider, opts ...Opt) *GroupReadWriter {
 	config := &Config{
-		includeSubGroups:  true,
-		cacheDuration:     DefaultCacheDuration,
-		accessLevelMapper: &DefaultAccessLevelMapper{},
+		includeSubGroups: true,
+		cacheDuration:    DefaultCacheDuration,
 	}
 
 	for _, opt := range opts {
 		opt(config)
 	}
 	return &GroupReadWriter{
-		clientProvider:    clientProvider,
-		accessLevelMapper: config.accessLevelMapper,
-		userCache:         cache.New[*gitlab.User](config.cacheDuration),
-		groupCache:        cache.New[*gitlab.Group](config.cacheDuration),
-		includeSubGroups:  config.includeSubGroups,
+		clientProvider:   clientProvider,
+		userCache:        cache.New[*gitlab.User](config.cacheDuration),
+		groupCache:       cache.New[*gitlab.Group](config.cacheDuration),
+		includeSubGroups: config.includeSubGroups,
 	}
 }
 
@@ -256,6 +244,8 @@ func (rw *GroupReadWriter) SetMembers(ctx context.Context, groupID string, membe
 	addMembers := sets.SubtractMapKeys(newMemberIDs, currentMemberIDs)
 	removeMembers := sets.SubtractMapKeys(currentMemberIDs, newMemberIDs)
 
+	persistentMembers := sets.IntersectMapKeys(newMemberIDs, currentMemberIDs)
+
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "current group members",
 		"group_id", groupID,
@@ -279,7 +269,7 @@ func (rw *GroupReadWriter) SetMembers(ctx context.Context, groupID string, membe
 	for _, member := range addMembers {
 		if member.IsUser() {
 			user, _ := member.User()
-			if err := rw.addUserToGroup(ctx, groupID, user.ID); err != nil {
+			if err := rw.addUserToGroup(ctx, groupID, user); err != nil {
 				merr = errors.Join(merr, err)
 			}
 		} else if member.IsGroup() && rw.includeSubGroups {
@@ -305,25 +295,56 @@ func (rw *GroupReadWriter) SetMembers(ctx context.Context, groupID string, membe
 			}
 		}
 	}
+	// Update Access level for existing users if it has changed.
+	for _, member := range persistentMembers {
+		if !member.IsUser() {
+			continue
+		}
+		user, _ := member.User()
+		newAccessLevelMetadata, ok := user.Metadata.(*AccessLevelMetadata)
+		if !ok {
+			merr = errors.Join(merr, fmt.Errorf("could not read access level metadata for user %s", user.ID))
+			continue
+		}
+		currentUser, err := currentMemberIDs[user.ID].User()
+		if err != nil {
+			merr = errors.Join(merr, fmt.Errorf("could not find existing user %s: %w", user.ID, err))
+			continue
+		}
+		userAttributes, ok := currentUser.Attributes.(*gitlab.GroupMember)
+		if !ok {
+			merr = errors.Join(merr, fmt.Errorf("failed to extract GitLab GroupMember attributes from user(%s)", user.ID))
+			continue
+		}
+		if newAccessLevelMetadata.AccessLevel != userAttributes.AccessLevel {
+			if err := rw.updateUserAccessLevel(ctx, groupID, userAttributes.ID, newAccessLevelMetadata.AccessLevel); err != nil {
+				merr = errors.Join(merr)
+			}
+		}
+	}
 	return merr
 }
 
-func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID, userID string) error {
+func (rw *GroupReadWriter) addUserToGroup(ctx context.Context, groupID string, user *groupsync.User) error {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "adding user to group",
 		"group_id", groupID,
-		"user_id", userID,
+		"user_id", user.ID,
 	)
 
 	client, err := rw.clientProvider.Client(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get gitlab client: %w", err)
 	}
+	accessLevelMetadata, ok := user.Metadata.(*AccessLevelMetadata)
+	if !ok {
+		return fmt.Errorf("expected gitlab user to have AccessLevelMetadata")
+	}
 	if _, _, err := client.GroupMembers.AddGroupMember(groupID, &gitlab.AddGroupMemberOptions{
-		Username:    &userID,
-		AccessLevel: rw.accessLevelMapper.AccessLevel(ctx, groupID, userID),
+		Username:    &user.ID,
+		AccessLevel: &accessLevelMetadata.AccessLevel,
 	}); err != nil {
-		return fmt.Errorf("failed to add GitLab user(%s) for group(%s): %w", userID, groupID, err)
+		return fmt.Errorf("failed to add GitLab user(%s) for group(%s): %w", user.ID, groupID, err)
 	}
 	return nil
 }
@@ -347,6 +368,26 @@ func (rw *GroupReadWriter) removeUserFromGroup(ctx context.Context, groupID stri
 	userID := memberAttributes.ID
 	if _, err := client.GroupMembers.RemoveGroupMember(groupID, userID, &gitlab.RemoveGroupMemberOptions{}); err != nil {
 		return fmt.Errorf("failed to remove GitLab user(%s) for group(%s): %w", user.ID, groupID, err)
+	}
+	return nil
+}
+
+func (rw *GroupReadWriter) updateUserAccessLevel(ctx context.Context, groupID string, userID int, accessLevel gitlab.AccessLevelValue) error {
+	logger := logging.FromContext(ctx)
+	logger.InfoContext(ctx, "changing user access to group",
+		"group_id", groupID,
+		"user_id", userID,
+		"access_level", accessLevel,
+	)
+
+	client, err := rw.clientProvider.Client(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get gitlab client: %w", err)
+	}
+	if _, _, err := client.GroupMembers.EditGroupMember(groupID, userID, &gitlab.EditGroupMemberOptions{
+		AccessLevel: &accessLevel,
+	}); err != nil {
+		return fmt.Errorf("failed to add GitLab user(%d) for group(%s): %w", userID, groupID, err)
 	}
 	return nil
 }
