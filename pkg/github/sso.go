@@ -10,6 +10,8 @@ import (
 )
 
 // GetAllOrgsSamlIdentities get all users that have saml identities from each organization.
+// This function returns a map with each orgID as key and a set of users with samkIdentities
+// as value.
 func GetAllOrgsSamlIdentities(ctx context.Context, s *StaticTokenSource, endpoint string, ghc *github.Client, orgTeamSSORequired map[int64]map[int64]bool) (map[int64]map[string]struct{}, error) {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: s.GetStaticToken(),
