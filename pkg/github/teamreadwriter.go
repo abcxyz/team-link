@@ -381,7 +381,7 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
 		// Conditions below checks if the given team requires saml
 		// and if the user has external saml identities.
-		// The map keys existance check is not really necessary as it's computed
+		// The map keys existence check is not really necessary as it's computed
 		// by the textprotos, they are here just to make the code safer.
 		if teamSSO, ok := g.orgTeamSSORequired[orgID]; ok {
 			if required, ok := teamSSO[teamID]; ok && required {
