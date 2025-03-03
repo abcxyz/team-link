@@ -15,6 +15,18 @@ The supported target system is:
 - GitHub.
 - GitLab (still in process.)
 
+## Architecture
+
+The chart below shows the architecture and workflow for TeamLink.
+
+![tl-arch](./docs/assests/tl-arch.jpg)
+
+1. User defines two config files before triggering the syncer.
+2. An external trigger triggers syncer to start the membership syncing.
+3. Syncer loads the config files and initialize the readers and mappers.
+4. Readers read from source and target system regarding the group and user info.
+5. Syncer uses source system's membership as source of truth and sync target system's membership info.
+
 ## How to use
 
 ### Install
