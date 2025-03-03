@@ -17,7 +17,7 @@ The supported target system is:
 
 ## Architecture
 
-The chart below showes the architecture and workflow for TeamLink.
+The chart below shows the architecture and workflow for TeamLink.
 
 ![tl-arch](./docs/assests/tl-arch.jpg)
 
