@@ -63,6 +63,20 @@ func (m *GroupMapper) MappedGroupIDs(ctx context.Context, key string) ([]string,
 	return ret, nil
 }
 
+func (m *GroupMapper) Mappings(ctx context.Context, key string) ([]groupsync.Mapping, error) {
+	mappedGroupIDs, err := m.MappedGroupIDs(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	mappings := make([]groupsync.Mapping, len(mappedGroupIDs))
+	for i, groupID := range mappedGroupIDs {
+		mappings[i] = groupsync.Mapping{
+			GroupID: groupID,
+		}
+	}
+	return mappings, nil
+}
+
 type BiDirectionalGroupMapper struct {
 	SourceMapper *GroupMapper
 	TargetMapper *GroupMapper

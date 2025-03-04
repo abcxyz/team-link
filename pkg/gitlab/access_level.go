@@ -15,24 +15,40 @@
 package gitlab
 
 import (
-	"context"
-
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/abcxyz/pkg/pointer"
+	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-// AccessLevelMapper provides a gitlab access level for a given group and user.
-type AccessLevelMapper interface {
-	// AccessLevel returns the gitlab access level for a user being added to a group.
-	AccessLevel(ctx context.Context, groupID, userID string) *gitlab.AccessLevelValue
+// AccessLevelMetadata holds an access level for a GitLab user being added to
+// a target group.
+type AccessLevelMetadata struct {
+	AccessLevel gitlab.AccessLevelValue
 }
 
-// DefaultAccessLevelMapper is the default AccessLevelMapper.
-type DefaultAccessLevelMapper struct{}
+// Combine calculates the access level for a Gitlab user being added to
+// a target group by taking the maximum access level granted to the user
+// via a mapping from a source group.
+func (m *AccessLevelMetadata) Combine(other groupsync.MappingMetadata) groupsync.MappingMetadata {
+	if other == nil {
+		return m
+	}
+	otherMetadata, ok := other.(*AccessLevelMetadata)
+	if !ok {
+		return m
+	}
+	if m == nil {
+		return otherMetadata
+	}
 
-// AccessLevel returns DeveloperPermissions for everything by default.
-func (m *DefaultAccessLevelMapper) AccessLevel(ctx context.Context, groupID, userID string) *gitlab.AccessLevelValue {
-	// By default, everyone gets Developer permissions.
-	return pointer.To(gitlab.DeveloperPermissions)
+	// Take maximum access level granted to the user
+	var level gitlab.AccessLevelValue
+	if m.AccessLevel > otherMetadata.AccessLevel {
+		level = m.AccessLevel
+	} else {
+		level = otherMetadata.AccessLevel
+	}
+	return &AccessLevelMetadata{
+		AccessLevel: level,
+	}
 }

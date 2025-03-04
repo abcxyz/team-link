@@ -95,29 +95,29 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		logger.InfoContext(ctx, "syncing target group ID",
 			"target_group_id", targetGroupID,
 		)
-		// get all source group IDs associated with the current target GroupID
-		sourceGroupIDs, err := f.targetGroupMapper.MappedGroupIDs(ctx, targetGroupID)
+		// get all source group mappings associated with the current target GroupID
+		sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroupID)
 		if err != nil {
-			logger.ErrorContext(ctx, "failed getting one ore more source group IDs for target group ID",
+			logger.ErrorContext(ctx, "failed getting one ore more source group mappings for target group ID",
 				"target_group_id", targetGroupID,
-				"source_group_ids", sourceGroupIDs,
+				"source_group_mappings", sourceGroupMappings,
 				"error", err,
 			)
 			merr = errors.Join(merr, fmt.Errorf("error getting associated source group ids: %w", err))
 			// cannot map this targetGroupID successfully so abort and move on to the next one
 			continue
 		}
-		logger.InfoContext(ctx, "found source group ID(s) for target Group ID",
+		logger.InfoContext(ctx, "found source group mappings for target Group ID",
 			"target_group_id", targetGroupID,
-			"source_group_ids", sourceGroupIDs,
+			"source_group_mappings", sourceGroupMappings,
 		)
 
 		// get the union of all users that are members of each source group
-		sourceUsers, err := f.sourceUsers(ctx, sourceGroupIDs)
+		sourceUsers, err := f.sourceUsers(ctx, sourceGroupMappings)
 		sourceUserIds := userIDs(sourceUsers)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed getting one or more source users for source group IDs",
-				"source_group_ids", sourceGroupIDs,
+				"source_group_mappings", sourceGroupMappings,
 				"source_user_ids", sourceUserIds,
 				"error", err,
 			)
@@ -126,7 +126,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			continue
 		}
 		logger.InfoContext(ctx, "found descendant(s) for source group ID(s)",
-			"source_group_ids", sourceGroupIDs,
+			"source_group_mappings", sourceGroupMappings,
 			"source_user_ids", sourceUserIds,
 		)
 
@@ -184,17 +184,30 @@ func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
 	return nil
 }
 
-func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupIDs []string) ([]*User, error) {
+func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupMappings []Mapping) ([]*User, error) {
 	var merr error
 	userMap := make(map[string]*User)
-	for _, sourceGroupID := range sourceGroupIDs {
-		sourceUsers, err := f.sourceGroupReader.Descendants(ctx, sourceGroupID)
+	for _, sourceGroupMapping := range sourceGroupMappings {
+		sourceUsers, err := f.sourceGroupReader.Descendants(ctx, sourceGroupMapping.GroupID)
 		if err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupID, err))
+			merr = errors.Join(merr, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupMapping, err))
 			continue
 		}
 		for _, sourceUser := range sourceUsers {
-			userMap[sourceUser.ID] = sourceUser
+			mappedUser, exists := userMap[sourceUser.ID]
+			metadata := sourceGroupMapping.Metadata
+			if exists {
+				if metadata == nil {
+					metadata = mappedUser.Metadata
+				} else {
+					metadata = metadata.Combine(mappedUser.Metadata)
+				}
+			}
+			userMap[sourceUser.ID] = &User{
+				ID:         sourceUser.ID,
+				Attributes: sourceUser.Attributes,
+				Metadata:   metadata,
+			}
 		}
 	}
 	users := make([]*User, 0, len(userMap))
@@ -217,7 +230,7 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 			continue
 		}
-		targetUsers = append(targetUsers, &User{ID: targetUserID})
+		targetUsers = append(targetUsers, &User{ID: targetUserID, Metadata: sourceUser.Metadata})
 	}
 	return targetUsers, merr
 }
