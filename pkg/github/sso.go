@@ -17,20 +17,16 @@ package github
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/google/go-github/v61/github"
 	"github.com/shurcooL/githubv4"
-	"golang.org/x/oauth2"
 )
 
 // GetAllOrgsSamlIdentities get all users that have saml identities from each organization.
 // This function returns a map with each orgID as key and a set of users with samkIdentities
 // as value.
-func GetAllOrgsSamlIdentities(ctx context.Context, s *StaticTokenSource, endpoint string, ghc *github.Client, orgTeamSSORequired map[int64]map[int64]bool) (map[int64]map[string]struct{}, error) {
-	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
-		AccessToken: s.GetStaticToken(),
-	}))
-
+func GetAllOrgsSamlIdentities(ctx context.Context, httpClient *http.Client, endpoint string, ghc *github.Client, orgTeamSSORequired map[int64]map[int64]bool) (map[int64]map[string]struct{}, error) {
 	var gqlClient *githubv4.Client
 	if endpoint != DefaultGitHubEndpointURL {
 		gqlClient = githubv4.NewEnterpriseClient(endpoint, httpClient)
