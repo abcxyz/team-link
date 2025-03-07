@@ -35,7 +35,8 @@ import (
 const (
 	IDSep = ":"
 	// DefaultCacheDuration is the default time to live for the user and team caches.
-	// We don't expect user info (e.g. username etc.) nor team info (team name etc.)
+	// We don't expect user info (e.g. username etc.) nor team info
+	// (team name etc.)
 	// to change frequently so a time to live of 1 day is the default.
 	DefaultCacheDuration = time.Hour * 24
 )
