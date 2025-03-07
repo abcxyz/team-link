@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v61/github"
+	"github.com/shurcooL/githubv4"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/abcxyz/pkg/testutil"
@@ -748,8 +749,9 @@ func TestTeamReadWriter_GetDescendants(t *testing.T) {
 			defer server.Close()
 
 			client := githubClient(server)
+			gqclient := graphqlClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, nil)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, gqclient, nil)
 
 			got, err := groupRW.Descendants(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -828,8 +830,9 @@ func TestTeamReadWriter_GetUser(t *testing.T) {
 			defer server.Close()
 
 			client := githubClient(server)
+			gqclient := graphqlClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, nil)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, gqclient, nil)
 
 			got, err := groupRW.GetUser(ctx, tc.userID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -2202,6 +2205,11 @@ func githubClient(server *httptest.Server) *github.Client {
 	client := github.NewClient(nil)
 	baseURL, _ := url.Parse(server.URL + "/")
 	client.BaseURL = baseURL
+	return client
+}
+
+func graphqlClient(server *httptest.Server) *githubv4.Client {
+	client := githubv4.NewClient(nil)
 	return client
 }
 
