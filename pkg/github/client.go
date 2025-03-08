@@ -37,12 +37,5 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 		}
 	}
 
-	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
-		AccessToken: s.GetStaticToken(),
-	}))
-	samlIdentities, err := GetAllOrgsSamlIdentities(ctx, httpClient, endpoint, ghc, orgTeamSSORequired)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get org saml identities: %w", err)
-	}
-	return NewTeamReadWriter(s, ghc, orgTeamSSORequired, samlIdentities), nil
+	return NewTeamReadWriter(s, ghc, endpoint, orgTeamSSORequired), nil
 }
