@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v61/github"
-	"github.com/shurcooL/githubv4"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/abcxyz/pkg/testutil"
@@ -124,7 +123,7 @@ func TestTeamReadWriter_GetGroup(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, nil)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, DefaultGitHubEndpointURL, nil)
 
 			got, err := groupRW.GetGroup(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -501,7 +500,7 @@ func TestTeamReadWriter_GetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, nil, tc.opts...)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, DefaultGitHubEndpointURL, nil, tc.opts...)
 
 			got, err := groupRW.GetMembers(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -749,9 +748,8 @@ func TestTeamReadWriter_GetDescendants(t *testing.T) {
 			defer server.Close()
 
 			client := githubClient(server)
-			gqclient := graphqlClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, gqclient, nil)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, DefaultGitHubEndpointURL, nil)
 
 			got, err := groupRW.Descendants(ctx, tc.groupID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -830,9 +828,8 @@ func TestTeamReadWriter_GetUser(t *testing.T) {
 			defer server.Close()
 
 			client := githubClient(server)
-			gqclient := graphqlClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, gqclient, nil)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, DefaultGitHubEndpointURL, nil)
 
 			got, err := groupRW.GetUser(ctx, tc.userID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -2165,7 +2162,7 @@ func TestTeamReadWriter_SetMembers(t *testing.T) {
 
 			client := githubClient(server)
 
-			groupRW := NewTeamReadWriter(tc.tokenSource, client, nil, nil, tc.opts...)
+			groupRW := NewTeamReadWriter(tc.tokenSource, client, DefaultGitHubEndpointURL, nil, tc.opts...)
 
 			err := groupRW.SetMembers(ctx, tc.groupID, tc.inputMembers)
 			if diff := testutil.DiffErrString(err, tc.wantSetErr); diff != "" {
@@ -2205,11 +2202,6 @@ func githubClient(server *httptest.Server) *github.Client {
 	client := github.NewClient(nil)
 	baseURL, _ := url.Parse(server.URL + "/")
 	client.BaseURL = baseURL
-	return client
-}
-
-func graphqlClient(server *httptest.Server) *githubv4.Client {
-	client := githubv4.NewClient(nil)
 	return client
 }
 

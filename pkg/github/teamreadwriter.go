@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-github/v61/github"
 	"github.com/shurcooL/githubv4"
+	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/abcxyz/pkg/cache"
@@ -89,7 +90,7 @@ func WithInviteToOrgIfNotAMember() Opt {
 type TeamReadWriter struct {
 	orgTokenSource          OrgTokenSource
 	client                  *github.Client
-	graphqlClient           *githubv4.Client
+	endpoint                string
 	userCache               *cache.Cache[*github.User]
 	teamCache               *cache.Cache[*github.Team]
 	orgMembershipCache      *cache.Cache[bool]
@@ -109,7 +110,7 @@ type TeamReadWriter struct {
 // The provided orgTeamSSORequired will be used to verify if a team requires user to have
 // sso enabled to sync memberships. If orgTeamSSORequired[org][team] is not found, we will
 // default the value to false.
-func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, graphqlClient *githubv4.Client, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
+func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, endpoint string, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
 	config := &Config{
 		includeSubTeams:         true,
 		inviteToOrgIfNotAMember: false,
@@ -121,7 +122,7 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, gra
 	t := &TeamReadWriter{
 		orgTokenSource:          orgTokenSource,
 		client:                  client,
-		graphqlClient:           graphqlClient,
+		endpoint:                endpoint,
 		includeSubTeams:         config.includeSubTeams,
 		inviteToOrgIfNotAMember: config.inviteToOrgIfNotAMember,
 		userCache:               cache.New[*github.User](config.cacheDuration),
@@ -289,12 +290,16 @@ func (g *TeamReadWriter) GetGitHubOrgSaml(ctx context.Context, orgID int64) (map
 	}
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching org saml identities", "org_id", orgID)
-	res, err := GetOrgSamlIdentitiesByOrgID(ctx, g.client, g.graphqlClient, orgID)
+	gqlClient, err := g.graphqlClientForOrg(ctx, orgID, g.endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create graphQL client: %w", err)
+	}
+	saml, err := GetOrgSamlIdentitiesByOrgID(ctx, g.client, gqlClient, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch org saml identities :w", err)
 	}
-	g.orgSamlIdentitiesCache.Set(orgIDStr, res)
-	return res, nil
+	g.orgSamlIdentitiesCache.Set(orgIDStr, saml)
+	return saml, nil
 }
 
 // SetMembers replaces the members of the GitHub team with the given ID with the given members.
@@ -388,6 +393,23 @@ func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*
 		return nil, fmt.Errorf("failed to get github token: %w", err)
 	}
 	return g.client.WithAuthToken(token), nil
+}
+
+func (g *TeamReadWriter) graphqlClientForOrg(ctx context.Context, orgID int64, endpoint string) (*githubv4.Client, error) {
+	token, err := g.orgTokenSource.TokenForOrg(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get github token: %w", err)
+	}
+	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: token,
+	}))
+	var gqlClient *githubv4.Client
+	if endpoint != DefaultGitHubEndpointURL {
+		gqlClient = githubv4.NewEnterpriseClient(endpoint, httpClient)
+	} else {
+		gqlClient = githubv4.NewClient(httpClient)
+	}
+	return gqlClient, nil
 }
 
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
