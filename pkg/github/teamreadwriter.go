@@ -390,14 +390,6 @@ func (g *TeamReadWriter) githubClientForOrg(ctx context.Context, orgID int64) (*
 	return g.client.WithAuthToken(token), nil
 }
 
-func (g *TeamReadWriter) githubGraphQLClientForOrg(ctx context.Context, orgID int64) (*githubv4.Client, error) {
-	_, err := g.orgTokenSource.TokenForOrg(ctx, orgID)
-	if err != nil {
-		return nil, nil
-	}
-	return nil, nil
-}
-
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
 	logger := logging.FromContext(ctx)
 	orgIDStr := strconv.FormatInt(orgID, 10)
@@ -417,7 +409,7 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 				if err != nil {
 					return fmt.Errorf("failed to get saml identity: %w", err)
 				}
-				if _, ok := saml[userID]; ok {
+				if _, ok := saml[userID]; !ok {
 					logger.WarnContext(ctx, "github user was not added to github group due to group sso requirement",
 						"user", userID,
 						"team", teamID)
