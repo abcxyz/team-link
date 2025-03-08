@@ -282,7 +282,7 @@ func (g *TeamReadWriter) getGitHubUser(ctx context.Context, client *github.Clien
 
 // GetGitHubOrgSaml gets the saml identities for the github org.
 // If the saml for the given orgID is expired in cache or does not exisit,
-// it will retreive the newest saml identitiy information.
+// it will retrieve the newest saml identitiy information.
 func (g *TeamReadWriter) GetGitHubOrgSaml(ctx context.Context, orgID int64) (map[string]struct{}, error) {
 	orgIDStr := strconv.FormatInt(orgID, 10)
 	if orgSaml, ok := g.orgSamlIdentitiesCache.Lookup(orgIDStr); ok {
@@ -296,7 +296,7 @@ func (g *TeamReadWriter) GetGitHubOrgSaml(ctx context.Context, orgID int64) (map
 	}
 	saml, err := GetOrgSamlIdentitiesByOrgID(ctx, g.client, gqlClient, orgID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch org saml identities :w", err)
+		return nil, fmt.Errorf("failed to fetch org saml identities: %w", err)
 	}
 	g.orgSamlIdentitiesCache.Set(orgIDStr, saml)
 	return saml, nil
