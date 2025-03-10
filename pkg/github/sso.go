@@ -23,10 +23,10 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-// GetAllOrgsSamlIdentities get all users that have saml identities from each organization.
+// GetAllOrgsSAMLIdentities get all users that have SAML identities from each organization.
 // This function returns a map with each orgID as key and a set of users with samkIdentities
 // as value.
-func GetAllOrgsSamlIdentities(ctx context.Context, httpClient *http.Client, endpoint string, ghc *github.Client, orgTeamSSORequired map[int64]map[int64]bool) (map[int64]map[string]struct{}, error) {
+func GetAllOrgsSAMLIdentities(ctx context.Context, httpClient *http.Client, endpoint string, ghc *github.Client, orgTeamSSORequired map[int64]map[int64]bool) (map[int64]map[string]struct{}, error) {
 	var gqlClient *githubv4.Client
 	if endpoint != DefaultGitHubEndpointURL {
 		gqlClient = githubv4.NewEnterpriseClient(endpoint, httpClient)
@@ -34,41 +34,41 @@ func GetAllOrgsSamlIdentities(ctx context.Context, httpClient *http.Client, endp
 		gqlClient = githubv4.NewClient(httpClient)
 	}
 
-	orgsSamlMap := make(map[int64]map[string]struct{})
+	orgsSAMLMap := make(map[int64]map[string]struct{})
 
 	for id := range orgTeamSSORequired {
-		// GraphQL only supports query saml using orgLogin.
+		// GraphQL only supports query SAML using orgLogin.
 		// We only know org ID, thus we need to get orgLogin info
-		// before we run graphQL to get saml info.
+		// before we run graphQL to get SAML info.
 		org, _, err := ghc.Organizations.GetByID(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get organization with id %d: %w", id, err)
 		}
-		res, err := GetOrgSamlIdentities(ctx, gqlClient, *org.Login)
+		res, err := GetOrgSAMLIdentities(ctx, gqlClient, *org.Login)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get SAML info for org %s (org id: %d)", *org.Login, id)
 		}
-		orgsSamlMap[id] = res
+		orgsSAMLMap[id] = res
 	}
-	return orgsSamlMap, nil
+	return orgsSAMLMap, nil
 }
 
-// GetOrgSamlIdentitiesByOrgID get saml identities for the github org.
-// The return is a map with users have external saml identity attached.
-func GetOrgSamlIdentitiesByOrgID(ctx context.Context, ghc *github.Client, gqc *githubv4.Client, orgID int64) (map[string]struct{}, error) {
+// GetOrgSAMLIdentitiesByOrgID get SAML identities for the github org.
+// The return is a map with users have external SAML identity attached.
+func GetOrgSAMLIdentitiesByOrgID(ctx context.Context, ghc *github.Client, gqc *githubv4.Client, orgID int64) (map[string]struct{}, error) {
 	org, _, err := ghc.Organizations.GetByID(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization with id %d: %w", orgID, err)
 	}
-	res, err := GetOrgSamlIdentities(ctx, gqc, *org.Login)
+	res, err := GetOrgSAMLIdentities(ctx, gqc, *org.Login)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SAML info for org %s (org id: %d): %w", *org.Login, orgID, err)
 	}
 	return res, nil
 }
 
-// GetOrgSamlIdentities get all users with saml identities from the given org.
-func GetOrgSamlIdentities(ctx context.Context, client *githubv4.Client, orglogin string) (map[string]struct{}, error) {
+// GetOrgSAMLIdentities get all users with SAML identities from the given org.
+func GetOrgSAMLIdentities(ctx context.Context, client *githubv4.Client, orglogin string) (map[string]struct{}, error) {
 	var samlQuery struct {
 		Organization struct {
 			SAMLIdentityProvider struct {
@@ -96,17 +96,17 @@ func GetOrgSamlIdentities(ctx context.Context, client *githubv4.Client, orglogin
 		"cursor": (*githubv4.String)(nil),
 	}
 
-	orgSamlMembers := make(map[string]struct{})
+	orgSAMLMembers := make(map[string]struct{})
 
 	for {
 		if err := client.Query(ctx, &samlQuery, vars); err != nil {
 			return nil, fmt.Errorf("executing GraphQL query: %w", err)
 		}
-		// We don't need to save the external saml email nor check the externalSAML email domain,
-		// this is because the above graphQL query only returns all users with external saml identitys
+		// We don't need to save the external SAML email nor check the externalSAML email domain,
+		// this is because the above graphQL query only returns all users with external SAML identitys
 		// in the given org. And each github org can only have sso.
 		for _, edge := range samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.Edges {
-			orgSamlMembers[edge.Node.User.Login] = struct{}{}
+			orgSAMLMembers[edge.Node.User.Login] = struct{}{}
 		}
 		if !samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.HasNextPage {
 			break
@@ -114,5 +114,5 @@ func GetOrgSamlIdentities(ctx context.Context, client *githubv4.Client, orglogin
 		vars["cursor"] = githubv4.NewString(samlQuery.Organization.SAMLIdentityProvider.ExternalIdentities.PageInfo.EndCursor)
 	}
 
-	return orgSamlMembers, nil
+	return orgSAMLMembers, nil
 }

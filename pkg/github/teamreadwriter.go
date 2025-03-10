@@ -97,7 +97,7 @@ type TeamReadWriter struct {
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
 	orgTeamSSORequired      map[int64]map[int64]bool
-	orgSamlIdentitiesCache  *cache.Cache[map[string]struct{}]
+	orgSAMLIdentitiesCache  *cache.Cache[map[string]struct{}]
 }
 
 // NewTeamReadWriter creates a new TeamReadWriter. By default, TeamReadWriter considers
@@ -129,7 +129,7 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, end
 		teamCache:               cache.New[*github.Team](config.cacheDuration),
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
 		orgTeamSSORequired:      orgTeamSSORequired,
-		orgSamlIdentitiesCache:  cache.New[map[string]struct{}](config.cacheDuration),
+		orgSAMLIdentitiesCache:  cache.New[map[string]struct{}](config.cacheDuration),
 	}
 	return t
 }
@@ -280,25 +280,25 @@ func (g *TeamReadWriter) getGitHubUser(ctx context.Context, client *github.Clien
 	return user, nil
 }
 
-// GetGitHubOrgSaml gets the saml identities for the github org.
-// If the saml for the given orgID is expired in cache or does not exisit,
-// it will retrieve the newest saml identitiy information.
-func (g *TeamReadWriter) GetGitHubOrgSaml(ctx context.Context, orgID int64) (map[string]struct{}, error) {
+// GetGitHubOrgSAML gets the SAML identities for the github org.
+// If the SAML for the given orgID is expired in cache or does not exisit,
+// it will retrieve the newest SAML identitiy information.
+func (g *TeamReadWriter) GetGitHubOrgSAML(ctx context.Context, orgID int64) (map[string]struct{}, error) {
 	orgIDStr := strconv.FormatInt(orgID, 10)
-	if orgSaml, ok := g.orgSamlIdentitiesCache.Lookup(orgIDStr); ok {
-		return orgSaml, nil
+	if orgSAML, ok := g.orgSAMLIdentitiesCache.Lookup(orgIDStr); ok {
+		return orgSAML, nil
 	}
 	logger := logging.FromContext(ctx)
-	logger.InfoContext(ctx, "fetching org saml identities", "org_id", orgID)
+	logger.InfoContext(ctx, "fetching org SAML identities", "org_id", orgID)
 	gqlClient, err := g.graphqlClientForOrg(ctx, orgID, g.endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create graphQL client: %w", err)
 	}
-	saml, err := GetOrgSamlIdentitiesByOrgID(ctx, g.client, gqlClient, orgID)
+	saml, err := GetOrgSAMLIdentitiesByOrgID(ctx, g.client, gqlClient, orgID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch org saml identities: %w", err)
+		return nil, fmt.Errorf("failed to fetch org SAML identities: %w", err)
 	}
-	g.orgSamlIdentitiesCache.Set(orgIDStr, saml)
+	g.orgSAMLIdentitiesCache.Set(orgIDStr, saml)
 	return saml, nil
 }
 
@@ -427,13 +427,13 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 	}
 	if isMember {
 		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
-		// Conditions below checks if the given team requires saml
-		// and if the user has external saml identities.
+		// Conditions below checks if the given team requires SAML
+		// and if the user has external SAML identities.
 		// The map keys existence check is not really necessary as it's computed
 		// by the textprotos, they are here just to make the code safer.
 		if teamSSO, ok := g.orgTeamSSORequired[orgID]; ok {
 			if required, ok := teamSSO[teamID]; ok && required {
-				saml, err := g.GetGitHubOrgSaml(ctx, orgID)
+				saml, err := g.GetGitHubOrgSAML(ctx, orgID)
 				if err != nil {
 					return fmt.Errorf("failed to get saml identity: %w", err)
 				}
