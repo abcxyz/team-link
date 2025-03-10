@@ -55,14 +55,14 @@ func GetAllOrgsSamlIdentities(ctx context.Context, httpClient *http.Client, endp
 
 // GetOrgSamlIdentitiesByOrgID get saml identities for the github org.
 // The return is a map with users have external saml identity attached.
-func GetOrgSamlIdentitiesByOrgID(ctx context.Context, ghc *github.Client, graphqlClient *githubv4.Client, orgID int64) (map[string]struct{}, error) {
+func GetOrgSamlIdentitiesByOrgID(ctx context.Context, ghc *github.Client, gqc *githubv4.Client, orgID int64) (map[string]struct{}, error) {
 	org, _, err := ghc.Organizations.GetByID(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization with id %d: %w", orgID, err)
 	}
-	res, err := GetOrgSamlIdentities(ctx, graphqlClient, *org.Login)
+	res, err := GetOrgSamlIdentities(ctx, gqc, *org.Login)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SAML info for org %s (org id: %d)", *org.Login, orgID)
+		return nil, fmt.Errorf("failed to get SAML info for org %s (org id: %d): %w", *org.Login, orgID, err)
 	}
 	return res, nil
 }

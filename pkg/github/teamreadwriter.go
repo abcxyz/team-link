@@ -107,7 +107,7 @@ type TeamReadWriter struct {
 // will be considered as members of a team. By default, TeamReadWriter does not attempt
 // to add users to an org if they are not already members. This can be enabled by
 // WithInviteToOrgIfNotAMember option.
-// The provided orgTeamSSORequired will be used to verify if a team requires user to have
+// OrgTeamSSORequired will be used to verify if a team requires user to have
 // sso enabled to sync memberships. If orgTeamSSORequired[org][team] is not found, we will
 // default the value to false.
 func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, endpoint string, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
