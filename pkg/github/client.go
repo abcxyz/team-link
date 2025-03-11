@@ -42,7 +42,7 @@ func NewTeamReadWriterWithStaticTokenSource(ctx context.Context, s *StaticTokenS
 }
 
 // CreateGraphQLClientWithToken creates a graphQL client with a static token.
-func CreateGraphQLClientWithToken(ctx context.Context, token string, endpoint string) *githubv4.Client {
+func CreateGraphQLClientWithToken(ctx context.Context, token, endpoint string) *githubv4.Client {
 	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: token,
 	}))
