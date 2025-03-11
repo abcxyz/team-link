@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/go-github/v61/github"
 	"github.com/shurcooL/githubv4"
-	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/abcxyz/pkg/cache"
@@ -400,22 +399,7 @@ func (g *TeamReadWriter) graphqlClientForOrg(ctx context.Context, orgID int64, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to get github token: %w", err)
 	}
-	// GraphQL library doesn't support `WithAuthToken()` feature,
-	// instead it expects the provided http client to handle authentications,
-	// therefore, everytime graphql client is needed, we need to use the token
-	// to create a new http client.
-	// Some users are using teamlink as a service, this way the graphQL can still
-	// work if the token rotated when service is running.
-	httpClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{
-		AccessToken: token,
-	}))
-	var gqlClient *githubv4.Client
-	if endpoint != DefaultGitHubEndpointURL {
-		gqlClient = githubv4.NewEnterpriseClient(endpoint, httpClient)
-	} else {
-		gqlClient = githubv4.NewClient(httpClient)
-	}
-	return gqlClient, nil
+	return CreateGraphQLClientWithToken(ctx, token, endpoint), nil
 }
 
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
