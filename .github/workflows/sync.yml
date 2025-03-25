@@ -40,7 +40,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: 'Token Minter Auth'
-        id: "ghtm-auth"
+        id: 'ghtm-auth'
         uses: 'google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f' # ratchet:google-github-actions/auth@v2
         with:
           create_credentials_file: false
