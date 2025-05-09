@@ -62,6 +62,21 @@ type OneToManyGroupMapper interface {
 	Mappings(ctx context.Context, groupID string) ([]Mapping, error)
 }
 
+// OneToOneGroupMapper maps one group ID to another group ID.
+type OneToOneGroupMapper interface {
+	// AllGroupIDs returns the set of groupIDs being mapped (the key set).
+	AllGroupIDs(ctx context.Context) ([]string, error)
+
+	// ContainsGroupID returns whether this mapper contains a mapping for the given group ID.
+	ContainsGroupID(ctx context.Context, groupID string) (bool, error)
+
+	// MappedGroupID returns the group ID mapped to the given group ID.
+	MappedGroupID(ctx context.Context, groupID string) (string, error)
+
+	// Mapping returns the Mapping (group ID and arbitrary metadata) mapped to the given group ID.
+	Mapping(ctx context.Context, groupID string) (Mapping, error)
+}
+
 // Mapping is a group ID with combinable metadata.
 type Mapping struct {
 	GroupID  string          `json:"group_id,omitempty"`
@@ -73,6 +88,34 @@ type Mapping struct {
 // multiple source groups mapping a user to a single target group.
 type MappingMetadata interface {
 	Combine(other MappingMetadata) MappingMetadata
+}
+
+// GroupMappingMetadata contains information about the group mapping required
+// for ManyToOneSyncer.
+type GroupMappingMetadata struct {
+	System   string          `json:"system,omitempty"`
+	Metadata MappingMetadata `json:"metadata,omitempty"`
+}
+
+// Implements MappingMetadata interface.
+func (g *GroupMappingMetadata) Combine(other MappingMetadata) MappingMetadata {
+	if g == nil {
+		return other
+	}
+	if other == nil {
+		return g
+	}
+
+	new, ok := other.(*GroupMappingMetadata)
+	if !ok {
+		return &GroupMappingMetadata{System: g.System, Metadata: g.Metadata.Combine(other)}
+	}
+
+	// Preserve the original system.
+	if g.System != "" {
+		return &GroupMappingMetadata{System: g.System, Metadata: g.Metadata.Combine(new.Metadata)}
+	}
+	return &GroupMappingMetadata{System: new.System, Metadata: g.Metadata.Combine(new.Metadata)}
 }
 
 // UserMapper maps a user ID to another user ID.
