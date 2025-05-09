@@ -23,8 +23,27 @@ import (
 	"github.com/abcxyz/pkg/testutil"
 )
 
+var (
+	injectedMappedGroupIDErr = fmt.Errorf("injectedMappedGroupIdsErr")
+	injectedAllGroupIDsErr   = fmt.Errorf("allGroupIDsErr")
+)
+
 func TestSync(t *testing.T) {
 	t.Parallel()
+
+	sourceGroupMapping := map[string][]Mapping{
+		"1": {Mapping{GroupID: "99"}, Mapping{GroupID: "98"}},
+		"2": {Mapping{GroupID: "97"}},
+		"3": {Mapping{GroupID: "96"}},
+		"4": {Mapping{GroupID: "97"}},
+		"5": {Mapping{GroupID: "98"}},
+	}
+	targetGroupMapping := map[string][]Mapping{
+		"99": {Mapping{GroupID: "1"}},
+		"98": {Mapping{GroupID: "1"}, Mapping{GroupID: "5"}},
+		"97": {Mapping{GroupID: "2"}, Mapping{GroupID: "4"}},
+		"96": {Mapping{GroupID: "3"}},
+	}
 
 	cases := []struct {
 		name              string
@@ -95,22 +114,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -194,22 +202,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -244,8 +241,8 @@ func TestSync(t *testing.T) {
 			targetSystem:      "target",
 			sourceGroupClient: &testReadWriteGroupClient{},
 			targetGroupClient: &testReadWriteGroupClient{},
-			sourceGroupMapper: &testGroupMapper{},
-			targetGroupMapper: &testGroupMapper{},
+			sourceGroupMapper: &testOneToManyGroupMapper{},
+			targetGroupMapper: &testOneToManyGroupMapper{},
 			userMapper:        &testUserMapper{},
 			syncID:            "45",
 			wantErr:           "error fetching target group IDs",
@@ -312,20 +309,13 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"97": {"2", "4"},
-					"96": {"3"},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
+				mappedGroupIdsErr: map[string]error{
+					"98": injectedMappedGroupIDErr,
 				},
 			},
 			userMapper: &testUserMapper{
@@ -349,7 +339,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: "error getting associated source group ids: group 98 not mapped",
+			wantErr: fmt.Sprintf("error getting associated source group ids: %s", injectedMappedGroupIDErr.Error()),
 		},
 		{
 			name:         "error_getting_source_users_partial",
@@ -409,22 +399,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -502,22 +481,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -597,22 +565,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -691,22 +648,11 @@ func TestSync(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{},
 			syncID:     "1",
@@ -783,22 +729,11 @@ func TestSync(t *testing.T) {
 					"99": fmt.Errorf("error setting members for group 99"),
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -890,22 +825,11 @@ func TestSync(t *testing.T) {
 					"99": fmt.Errorf("error setting members for group 99"),
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -944,6 +868,7 @@ func TestSync(t *testing.T) {
 			)
 
 			err := syncer.Sync(ctx, tc.syncID)
+			t.Logf("test sync ID: %s", tc.syncID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-want, +got):\n%s", diff)
 			}
@@ -963,6 +888,20 @@ func TestSync(t *testing.T) {
 
 func TestSyncAll(t *testing.T) {
 	t.Parallel()
+
+	sourceGroupMapping := map[string][]Mapping{
+		"1": {Mapping{GroupID: "99"}, Mapping{GroupID: "98"}},
+		"2": {Mapping{GroupID: "97"}},
+		"3": {Mapping{GroupID: "96"}},
+		"4": {Mapping{GroupID: "97"}},
+		"5": {Mapping{GroupID: "98"}},
+	}
+	targetGroupMapping := map[string][]Mapping{
+		"99": {Mapping{GroupID: "1"}},
+		"98": {Mapping{GroupID: "1"}, Mapping{GroupID: "5"}},
+		"97": {Mapping{GroupID: "2"}, Mapping{GroupID: "4"}},
+		"96": {Mapping{GroupID: "3"}},
+	}
 
 	cases := []struct {
 		name              string
@@ -1032,22 +971,11 @@ func TestSyncAll(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"99", "98"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -1091,10 +1019,10 @@ func TestSyncAll(t *testing.T) {
 			targetSystem:      "target",
 			sourceGroupClient: &testReadWriteGroupClient{},
 			targetGroupClient: &testReadWriteGroupClient{},
-			sourceGroupMapper: &testGroupMapper{
-				allGroupIDsErr: fmt.Errorf("allGroupIDsErr"),
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				allGroupIDsErr: injectedAllGroupIDsErr,
 			},
-			targetGroupMapper: &testGroupMapper{},
+			targetGroupMapper: &testOneToManyGroupMapper{},
 			userMapper:        &testUserMapper{},
 			wantErr:           "error fetching source group IDs",
 		},
@@ -1154,25 +1082,14 @@ func TestSyncAll(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"98", "99"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 				mappedGroupIdsErr: map[string]error{
-					"1": fmt.Errorf("mappedGroupIdsErr"),
+					"1": injectedMappedGroupIDErr,
 				},
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -1262,29 +1179,18 @@ func TestSyncAll(t *testing.T) {
 					"96": {},
 				},
 			},
-			sourceGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"1": {"98", "99"},
-					"2": {"97"},
-					"3": {"96"},
-					"4": {"97"},
-					"5": {"98"},
-				},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
 				mappedGroupIdsErr: map[string]error{
-					"1": fmt.Errorf("mappedGroupIdsErr"),
-					"2": fmt.Errorf("mappedGroupIdsErr"),
-					"3": fmt.Errorf("mappedGroupIdsErr"),
-					"4": fmt.Errorf("mappedGroupIdsErr"),
-					"5": fmt.Errorf("mappedGroupIdsErr"),
+					"1": injectedMappedGroupIDErr,
+					"2": injectedMappedGroupIDErr,
+					"3": injectedMappedGroupIDErr,
+					"4": injectedMappedGroupIDErr,
+					"5": injectedMappedGroupIDErr,
 				},
 			},
-			targetGroupMapper: &testGroupMapper{
-				m: map[string][]string{
-					"99": {"1"},
-					"98": {"1", "5"},
-					"97": {"2", "4"},
-					"96": {"3"},
-				},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
