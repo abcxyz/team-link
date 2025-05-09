@@ -17,7 +17,7 @@ package github
 import (
 	"fmt"
 
-	"github.com/google/go-github/v61/github"
+	"github.com/google/go-github/v67/github"
 )
 
 // paginate is a helper function that iterates through a series of

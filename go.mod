@@ -7,7 +7,7 @@ toolchain go1.24.0
 require (
 	github.com/abcxyz/pkg v1.4.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/go-github/v61 v61.0.0
+	github.com/google/go-github/v67 v67.0.0
 	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	gitlab.com/gitlab-org/api/client-go v0.122.0
 	golang.org/x/oauth2 v0.26.0
