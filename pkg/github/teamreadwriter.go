@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v61/github"
+	"github.com/google/go-github/v67/github"
 	"github.com/shurcooL/githubv4"
 	"google.golang.org/protobuf/proto"
 
