@@ -145,6 +145,30 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			return
 		}
 	}))
+
+	mux.Handle("GET /orgs/{org_id}/members/{username}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "missing or malformed authorization header")
+			return
+		}
+		orgID := r.PathValue("org_id")
+		username := r.PathValue("username")
+		orgMembers, ok := githubData.orgMembers[orgID]
+		if !ok {
+			w.WriteHeader(302)
+			fmt.Fprintf(w, "orgID not found")
+			return
+		}
+		_, exist := orgMembers[username]
+		if !exist {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org member not found")
+			return
+		}
+		w.WriteHeader(204)
+	}))
 	mux.Handle("DELETE /orgs/{org_id}/memberships/{username}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
