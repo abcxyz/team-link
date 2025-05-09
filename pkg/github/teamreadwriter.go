@@ -73,11 +73,8 @@ func WithCacheDuration(duration time.Duration) Opt {
 // WithInviteToOrgIfNotAMember toggles sending an invitation to the user if they are not a
 // member of the org being synced to. If the TeamReadWriter is trying to add a user to a team,
 // it will first check if they are a member of the org the team belongs. If the user does not
-// belong to the org, then the TeamReadWriter will send an invitation to org instead of attempting
-// to directly add them to the team.
-//
-// When enabled, this option may result in several API calls made per user being synced, and thus
-// consideration should be made to rate limiting effects when enabling this option.
+// belong to the org, then the TeamReadWriter will send an invitation to add the user to the
+// org and the team.
 func WithInviteToOrgIfNotAMember() Opt {
 	return func(config *Config) {
 		config.inviteToOrgIfNotAMember = true
@@ -405,11 +402,11 @@ func (g *TeamReadWriter) graphqlClientForOrg(ctx context.Context, orgID int64, e
 func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Client, orgID, teamID int64, userID string) error {
 	logger := logging.FromContext(ctx)
 	orgIDStr := strconv.FormatInt(orgID, 10)
-	isMember, err := g.isOrgMember(ctx, client, orgIDStr, userID)
+	shouldAddOrInvite, err := g.shouldAddOrInvite(ctx, client, orgIDStr, userID)
 	if err != nil {
-		return fmt.Errorf("could not check if user is a member of organization %d: %w", orgID, err)
+		return err
 	}
-	if isMember {
+	if shouldAddOrInvite {
 		membershipOpt := &github.TeamAddTeamMembershipOptions{Role: "member"}
 		// Conditions below checks if the given team requires SAML
 		// and if the user has external SAML identities.
@@ -429,14 +426,19 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 				}
 			}
 		}
+		// This call adds or invites a user to a team even if the user is not an org member.
 		if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
 			return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
 		}
-	} else {
-		if err := g.inviteToOrg(ctx, client, orgIDStr, teamID, userID); err != nil {
-			return fmt.Errorf("failed to invite GitHub user(%s) to org(%d): %w", userID, orgID, err)
-		}
 	}
+
+	logger.WarnContext(
+		ctx,
+		"github user was not added to github team as the user is not an org member and invite non org members is disabled",
+		"user", userID,
+		"team", teamID,
+		"org", orgIDStr,
+	)
 	return nil
 }
 
@@ -454,9 +456,9 @@ func (g *TeamReadWriter) removeSubTeamFromTeam(ctx context.Context, client *gith
 	return nil
 }
 
-func (g *TeamReadWriter) isOrgMember(ctx context.Context, client *github.Client, orgID, username string) (bool, error) {
-	if !g.inviteToOrgIfNotAMember {
-		// if inviting to org is not enabled then we will just assume the user is part of the org
+// Returns true if inviteToOrgIfNotAMember is true or the user is an org member.
+func (g *TeamReadWriter) shouldAddOrInvite(ctx context.Context, client *github.Client, orgID, username string) (bool, error) {
+	if g.inviteToOrgIfNotAMember {
 		return true, nil
 	}
 	cacheKey := fmt.Sprintf("%s:%s", orgID, username)
@@ -466,7 +468,7 @@ func (g *TeamReadWriter) isOrgMember(ctx context.Context, client *github.Client,
 	// check if the user is a member of the org
 	isMember, _, err := client.Organizations.IsMember(ctx, orgID, username)
 	if err != nil {
-		return false, fmt.Errorf("could not check if user is a member of organization %s: %w", orgID, err)
+		return false, fmt.Errorf("could not check if user(%s) is a member of organization %s: %w", username, orgID, err)
 	}
 	if isMember {
 		// only cache positive memberships as:
@@ -475,22 +477,6 @@ func (g *TeamReadWriter) isOrgMember(ctx context.Context, client *github.Client,
 		g.orgMembershipCache.Set(cacheKey, isMember)
 	}
 	return isMember, nil
-}
-
-func (g *TeamReadWriter) inviteToOrg(ctx context.Context, client *github.Client, orgID string, teamID int64, username string) error {
-	user, err := g.getGitHubUser(ctx, client, username)
-	if err != nil {
-		return fmt.Errorf("failed to fetch user(%s) info: %w", username, err)
-	}
-	invitation := &github.CreateOrgInvitationOptions{
-		InviteeID: user.ID,
-		Role:      proto.String("direct_member"),
-		TeamID:    []int64{teamID},
-	}
-	if _, _, err := client.Organizations.CreateOrgInvitation(ctx, orgID, invitation); err != nil {
-		return fmt.Errorf("could not create invitation for user %s to organization %s: %w", username, orgID, err)
-	}
-	return nil
 }
 
 // parseID parses an ID string formatted using encode.
