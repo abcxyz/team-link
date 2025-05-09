@@ -77,9 +77,11 @@ type OneToOneGroupMapper interface {
 	Mapping(ctx context.Context, groupID string) (Mapping, error)
 }
 
-// Mapping is a group ID with combinable metadata.
+// Mapping is a group ID with the group system and other combinable metadata.
 type Mapping struct {
-	GroupID  string          `json:"group_id,omitempty"`
+	GroupID string `json:"group_id,omitempty"`
+	// The system where the Group is comming from.
+	System   string          `json:"system,omitempty"`
 	Metadata MappingMetadata `json:"metadata,omitempty"`
 }
 

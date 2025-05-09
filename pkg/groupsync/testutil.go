@@ -176,3 +176,52 @@ func (tum *testUserMapper) MappedUserID(ctx context.Context, userID string) (str
 	}
 	return id, nil
 }
+
+// Implements OneToOneGroupMapper interface.
+type testOneToOneGroupMapper struct {
+	m                   map[string]Mapping
+	allGroupIDsErr      error
+	containsGroupIDErrs map[string]error
+	mappedGroupIdErr    map[string]error
+}
+
+func (tgm *testOneToOneGroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
+	if tgm.allGroupIDsErr != nil {
+		return nil, tgm.allGroupIDsErr
+	}
+	ids := make([]string, 0, len(tgm.m))
+	for id := range tgm.m {
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func (tgm *testOneToOneGroupMapper) ContainsGroupID(ctx context.Context, groupID string) (bool, error) {
+	if err, ok := tgm.containsGroupIDErrs[groupID]; ok {
+		return false, err
+	}
+	_, ok := tgm.m[groupID]
+	return ok, nil
+}
+
+func (tgm *testOneToOneGroupMapper) MappedGroupID(ctx context.Context, groupID string) (string, error) {
+	if err, ok := tgm.mappedGroupIdErr[groupID]; ok {
+		return "", err
+	}
+	mapping, ok := tgm.m[groupID]
+	if !ok {
+		return "", fmt.Errorf("group %s not mapped", groupID)
+	}
+	return mapping.GroupID, nil
+}
+
+func (tgm *testOneToOneGroupMapper) Mapping(ctx context.Context, groupID string) (Mapping, error) {
+	if err, ok := tgm.mappedGroupIdErr[groupID]; ok {
+		return Mapping{}, err
+	}
+	mapping, ok := tgm.m[groupID]
+	if !ok {
+		return Mapping{}, fmt.Errorf("group %s not mapped", groupID)
+	}
+	return mapping, nil
+}
