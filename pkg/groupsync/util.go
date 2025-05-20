@@ -53,11 +53,3 @@ func ConcurrentSync(ctx context.Context, syncer v1alpha3.GroupSyncer, sourceGrou
 	}
 	return merr
 }
-
-func userIDs(users []*User) []string {
-	ids := make([]string, 0, len(users))
-	for _, user := range users {
-		ids = append(ids, user.ID)
-	}
-	return ids
-}

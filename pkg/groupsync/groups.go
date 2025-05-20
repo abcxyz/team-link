@@ -90,34 +90,6 @@ type MappingMetadata interface {
 	Combine(other MappingMetadata) MappingMetadata
 }
 
-// GroupMappingMetadata contains information about the group mapping required
-// for ManyToOneSyncer.
-type GroupMappingMetadata struct {
-	System   string          `json:"system,omitempty"`
-	Metadata MappingMetadata `json:"metadata,omitempty"`
-}
-
-// Implements MappingMetadata interface.
-func (g *GroupMappingMetadata) Combine(other MappingMetadata) MappingMetadata {
-	if g == nil {
-		return other
-	}
-	if other == nil {
-		return g
-	}
-
-	new, ok := other.(*GroupMappingMetadata)
-	if !ok {
-		return &GroupMappingMetadata{System: g.System, Metadata: g.Metadata.Combine(other)}
-	}
-
-	// Preserve the original system.
-	if g.System != "" {
-		return &GroupMappingMetadata{System: g.System, Metadata: g.Metadata.Combine(new.Metadata)}
-	}
-	return &GroupMappingMetadata{System: new.System, Metadata: g.Metadata.Combine(new.Metadata)}
-}
-
 // UserMapper maps a user ID to another user ID.
 type UserMapper interface {
 	// MappedUserID returns the user ID mapped to the given user ID.
