@@ -62,6 +62,21 @@ type OneToManyGroupMapper interface {
 	Mappings(ctx context.Context, groupID string) ([]Mapping, error)
 }
 
+// OneToOneGroupMapper maps one group ID to another group ID.
+type OneToOneGroupMapper interface {
+	// AllGroupIDs returns the set of groupIDs being mapped (the key set).
+	AllGroupIDs(ctx context.Context) ([]string, error)
+
+	// ContainsGroupID returns whether this mapper contains a mapping for the given group ID.
+	ContainsGroupID(ctx context.Context, groupID string) (bool, error)
+
+	// MappedGroupID returns the group ID mapped to the given group ID.
+	MappedGroupID(ctx context.Context, groupID string) (string, error)
+
+	// Mapping returns the Mapping (group ID and arbitrary metadata) mapped to the given group ID.
+	Mapping(ctx context.Context, groupID string) (Mapping, error)
+}
+
 // Mapping is a group ID with combinable metadata.
 type Mapping struct {
 	GroupID  string          `json:"group_id,omitempty"`
