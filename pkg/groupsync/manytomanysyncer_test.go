@@ -868,7 +868,6 @@ func TestSync(t *testing.T) {
 			)
 
 			err := syncer.Sync(ctx, tc.syncID)
-			t.Logf("test sync ID: %s", tc.syncID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
 				t.Errorf("unexpected error (-want, +got):\n%s", diff)
 			}
