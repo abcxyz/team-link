@@ -25,7 +25,7 @@ import (
 
 var (
 	errMappedGroupIDNotFound = fmt.Errorf("errMappedGroupIDNotFound")
-	errAllGroupIDs   = fmt.Errorf("errAllGroupIDs")
+	errAllGroupIDs           = fmt.Errorf("errAllGroupIDs")
 )
 
 func TestSync(t *testing.T) {
