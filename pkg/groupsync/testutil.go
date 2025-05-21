@@ -109,14 +109,14 @@ func (tc *testReadWriteGroupClient) SetMembers(ctx context.Context, groupID stri
 	return nil
 }
 
-type testGroupMapper struct {
-	m                   map[string][]string
+type testOneToManyGroupMapper struct {
+	m                   map[string][]Mapping
 	allGroupIDsErr      error
 	containsGroupIDErrs map[string]error
 	mappedGroupIdsErr   map[string]error
 }
 
-func (tgm *testGroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
+func (tgm *testOneToManyGroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 	if tgm.allGroupIDsErr != nil {
 		return nil, tgm.allGroupIDsErr
 	}
@@ -127,7 +127,7 @@ func (tgm *testGroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
 	return ids, nil
 }
 
-func (tgm *testGroupMapper) ContainsGroupID(ctx context.Context, groupID string) (bool, error) {
+func (tgm *testOneToManyGroupMapper) ContainsGroupID(ctx context.Context, groupID string) (bool, error) {
 	if err, ok := tgm.containsGroupIDErrs[groupID]; ok {
 		return false, err
 	}
@@ -135,29 +135,30 @@ func (tgm *testGroupMapper) ContainsGroupID(ctx context.Context, groupID string)
 	return ok, nil
 }
 
-func (tgm *testGroupMapper) MappedGroupIDs(ctx context.Context, groupID string) ([]string, error) {
+func (tgm *testOneToManyGroupMapper) MappedGroupIDs(ctx context.Context, groupID string) ([]string, error) {
 	if err, ok := tgm.mappedGroupIdsErr[groupID]; ok {
 		return nil, err
 	}
-	ids, ok := tgm.m[groupID]
+	mappings, ok := tgm.m[groupID]
 	if !ok {
 		return nil, fmt.Errorf("group %s not mapped", groupID)
+	}
+	ids := make([]string, 0, len(mappings))
+	for _, mapping := range mappings {
+		ids = append(ids, mapping.GroupID)
 	}
 	return ids, nil
 }
 
-func (tgm *testGroupMapper) Mappings(ctx context.Context, groupID string) ([]Mapping, error) {
-	mappedGroupIDs, err := tgm.MappedGroupIDs(ctx, groupID)
-	if err != nil {
+func (tgm *testOneToManyGroupMapper) Mappings(ctx context.Context, groupID string) ([]Mapping, error) {
+	if err, ok := tgm.mappedGroupIdsErr[groupID]; ok {
 		return nil, err
 	}
-	mappings := make([]Mapping, len(mappedGroupIDs))
-	for i, groupID := range mappedGroupIDs {
-		mappings[i] = Mapping{
-			GroupID: groupID,
-		}
+	mapping, exist := tgm.m[groupID]
+	if !exist {
+		return nil, fmt.Errorf("group %s not mapped", groupID)
 	}
-	return mappings, nil
+	return mapping, nil
 }
 
 type testUserMapper struct {
