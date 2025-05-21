@@ -32,17 +32,17 @@ func TestSync(t *testing.T) {
 	t.Parallel()
 
 	sourceGroupMapping := map[string][]Mapping{
-		"1": {Mapping{GroupID: "99"}, Mapping{GroupID: "98"}},
-		"2": {Mapping{GroupID: "97"}},
-		"3": {Mapping{GroupID: "96"}},
-		"4": {Mapping{GroupID: "97"}},
-		"5": {Mapping{GroupID: "98"}},
+		"1": {{GroupID: "99"}, {GroupID: "98"}},
+		"2": {{GroupID: "97"}},
+		"3": {{GroupID: "96"}},
+		"4": {{GroupID: "97"}},
+		"5": {{GroupID: "98"}},
 	}
 	targetGroupMapping := map[string][]Mapping{
-		"99": {Mapping{GroupID: "1"}},
-		"98": {Mapping{GroupID: "1"}, Mapping{GroupID: "5"}},
-		"97": {Mapping{GroupID: "2"}, Mapping{GroupID: "4"}},
-		"96": {Mapping{GroupID: "3"}},
+		"99": {{GroupID: "1"}},
+		"98": {{GroupID: "1"}, {GroupID: "5"}},
+		"97": {{GroupID: "2"}, {GroupID: "4"}},
+		"96": {{GroupID: "3"}},
 	}
 
 	cases := []struct {
@@ -889,17 +889,17 @@ func TestSyncAll(t *testing.T) {
 	t.Parallel()
 
 	sourceGroupMapping := map[string][]Mapping{
-		"1": {Mapping{GroupID: "99"}, Mapping{GroupID: "98"}},
-		"2": {Mapping{GroupID: "97"}},
-		"3": {Mapping{GroupID: "96"}},
-		"4": {Mapping{GroupID: "97"}},
-		"5": {Mapping{GroupID: "98"}},
+		"1": {{GroupID: "99"}, {GroupID: "98"}},
+		"2": {{GroupID: "97"}},
+		"3": {{GroupID: "96"}},
+		"4": {{GroupID: "97"}},
+		"5": {{GroupID: "98"}},
 	}
 	targetGroupMapping := map[string][]Mapping{
-		"99": {Mapping{GroupID: "1"}},
-		"98": {Mapping{GroupID: "1"}, Mapping{GroupID: "5"}},
-		"97": {Mapping{GroupID: "2"}, Mapping{GroupID: "4"}},
-		"96": {Mapping{GroupID: "3"}},
+		"99": {{GroupID: "1"}},
+		"98": {{GroupID: "1"}, {GroupID: "5"}},
+		"97": {{GroupID: "2"}, {GroupID: "4"}},
+		"96": {{GroupID: "3"}},
 	}
 
 	cases := []struct {
