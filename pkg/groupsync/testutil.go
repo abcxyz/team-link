@@ -182,7 +182,7 @@ type testOneToOneGroupMapper struct {
 	m                   map[string]Mapping
 	allGroupIDsErr      error
 	containsGroupIDErrs map[string]error
-	mappedGroupIdErr    map[string]error
+	mappedGroupIDErr    map[string]error
 }
 
 func (tgm *testOneToOneGroupMapper) AllGroupIDs(ctx context.Context) ([]string, error) {
@@ -205,7 +205,7 @@ func (tgm *testOneToOneGroupMapper) ContainsGroupID(ctx context.Context, groupID
 }
 
 func (tgm *testOneToOneGroupMapper) MappedGroupID(ctx context.Context, groupID string) (string, error) {
-	if err, ok := tgm.mappedGroupIdErr[groupID]; ok {
+	if err, ok := tgm.mappedGroupIDErr[groupID]; ok {
 		return "", err
 	}
 	mapping, ok := tgm.m[groupID]
@@ -216,7 +216,7 @@ func (tgm *testOneToOneGroupMapper) MappedGroupID(ctx context.Context, groupID s
 }
 
 func (tgm *testOneToOneGroupMapper) Mapping(ctx context.Context, groupID string) (Mapping, error) {
-	if err, ok := tgm.mappedGroupIdErr[groupID]; ok {
+	if err, ok := tgm.mappedGroupIDErr[groupID]; ok {
 		return Mapping{}, err
 	}
 	mapping, ok := tgm.m[groupID]

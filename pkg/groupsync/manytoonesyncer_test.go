@@ -772,7 +772,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIdErr: map[string]error{
+				mappedGroupIDErr: map[string]error{
 					"sg1": fmt.Errorf("injected mappedGroupIdErr for sg1"),
 				},
 			},
@@ -825,7 +825,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIdErr: map[string]error{
+				mappedGroupIDErr: map[string]error{
 					"sg1": fmt.Errorf("injected mappedGroupIdsErr"),
 					"sg2": fmt.Errorf("injected mappedGroupIdsErr"),
 					"sg3": fmt.Errorf("injected mappedGroupIdsErr"),
