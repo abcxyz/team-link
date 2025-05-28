@@ -1,4 +1,4 @@
-// Copyright 2024 The Authors (see AUTHORS file)
+// Copyright 2025 The Authors (see AUTHORS file)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func TestOrgMembershipReadWriter_GetMembers(t *testing.T) {
 		name        string
 		tokenSource OrgTokenSource
 		data        *GitHubData
-		opts        []Opt
+		opts        []OrgRWOpt
 		groupID     string
 		want        []groupsync.Member
 		wantErr     string
@@ -154,14 +154,25 @@ func TestOrgMembershipReadWriter_GetMembers(t *testing.T) {
 						Name: proto.String("org2"),
 					},
 				},
-				orgMembers: map[string]map[string]struct{}{
+				orgMembers: map[string]map[string]*github.Membership{
 					"8583": { // org1
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
 					},
 					"4701": { // org2
-						"user2": struct{}{},
+						"user2": &github.Membership{Role: proto.String("member")},
 					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {
+						&github.Invitation{
+							ID:    proto.Int64(123),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+							Role:  proto.String("admin"),
+						},
+					},
+					"4701": {},
 				},
 			},
 			groupID: "8583",
@@ -170,20 +181,122 @@ func TestOrgMembershipReadWriter_GetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &github.User{
-							ID:    proto.Int64(2286),
-							Login: proto.String("user1"),
-							Email: proto.String("user1@example.com"),
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.Invitation{
+							ID:    proto.Int64(123),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+							Role:  proto.String("admin"),
+						},
+						Metadata: &RoleMetadata{Role: Admin},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &github.User{
-							ID:    proto.Int64(3208),
-							Login: proto.String("user3"),
-							Email: proto.String("user3@example.com"),
+							ID:       proto.Int64(3208),
+							Login:    proto.String("user3"),
+							Email:    proto.String("user3@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+			},
+		},
+		{
+			name: "success_ignore_invitations",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			opts: []OrgRWOpt{WithoutInvitations()},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				orgs: map[string]*github.Organization{
+					"8583": {
+						ID:   proto.Int64(8583),
+						Name: proto.String("org1"),
+					},
+					"4701": {
+						ID:   proto.Int64(4701),
+						Name: proto.String("org2"),
+					},
+				},
+				orgMembers: map[string]map[string]*github.Membership{
+					"8583": { // org1
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
+					},
+					"4701": { // org2
+						"user2": &github.Membership{Role: proto.String("member")},
+					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {
+						&github.Invitation{
+							ID:    proto.Int64(123),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+							Role:  proto.String("admin"),
+						},
+					},
+					"4701": {},
+				},
+			},
+			groupID: "8583",
+			want: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:       proto.Int64(3208),
+							Login:    proto.String("user3"),
+							Email:    proto.String("user3@example.com"),
+							RoleName: proto.String("member"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -277,14 +390,18 @@ func TestOrgMembershipReadWriter_GetDescendants(t *testing.T) {
 						Name: proto.String("org2"),
 					},
 				},
-				orgMembers: map[string]map[string]struct{}{
+				orgMembers: map[string]map[string]*github.Membership{
 					"8583": { // org1
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
 					},
 					"4701": { // org2
-						"user2": struct{}{},
+						"user2": &github.Membership{Role: proto.String("member")},
 					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
 				},
 			},
 			groupID: "8583",
@@ -292,18 +409,22 @@ func TestOrgMembershipReadWriter_GetDescendants(t *testing.T) {
 				{
 					ID: "user1",
 					Attributes: &github.User{
-						ID:    proto.Int64(2286),
-						Login: proto.String("user1"),
-						Email: proto.String("user1@example.com"),
+						ID:       proto.Int64(2286),
+						Login:    proto.String("user1"),
+						Email:    proto.String("user1@example.com"),
+						RoleName: proto.String("member"),
 					},
+					Metadata: &RoleMetadata{Role: Member},
 				},
 				{
 					ID: "user3",
 					Attributes: &github.User{
-						ID:    proto.Int64(3208),
-						Login: proto.String("user3"),
-						Email: proto.String("user3@example.com"),
+						ID:       proto.Int64(3208),
+						Login:    proto.String("user3"),
+						Email:    proto.String("user3@example.com"),
+						RoleName: proto.String("member"),
 					},
+					Metadata: &RoleMetadata{Role: Member},
 				},
 			},
 		},
@@ -433,7 +554,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 		name         string
 		tokenSource  OrgTokenSource
 		data         *GitHubData
-		opts         []Opt
+		opts         []OrgRWOpt
 		groupID      string
 		inputMembers []groupsync.Member
 		wantMembers  []groupsync.Member
@@ -476,14 +597,18 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 						Name: proto.String("org2"),
 					},
 				},
-				orgMembers: map[string]map[string]struct{}{
+				orgMembers: map[string]map[string]*github.Membership{
 					"8583": { // org1
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
 					},
 					"4701": { // org2
-						"user2": struct{}{},
+						"user2": &github.Membership{Role: proto.String("member")},
 					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
 				},
 			},
 			groupID: "8583",
@@ -496,6 +621,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user1"),
 							Email: proto.String("user1@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 				&groupsync.UserMember{
@@ -506,6 +632,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user2"),
 							Email: proto.String("user2@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Admin},
 					},
 				},
 				&groupsync.UserMember{
@@ -516,6 +643,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user3"),
 							Email: proto.String("user3@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -524,30 +652,36 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &github.User{
-							ID:    proto.Int64(2286),
-							Login: proto.String("user1"),
-							Email: proto.String("user1@example.com"),
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user2",
-						Attributes: &github.User{
-							ID:    proto.Int64(5660),
+						Attributes: &github.Invitation{
+							ID:    proto.Int64(1),
 							Login: proto.String("user2"),
 							Email: proto.String("user2@example.com"),
+							Role:  proto.String("admin"),
 						},
+						Metadata: &RoleMetadata{Role: Admin},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user3",
 						Attributes: &github.User{
-							ID:    proto.Int64(3208),
-							Login: proto.String("user3"),
-							Email: proto.String("user3@example.com"),
+							ID:       proto.Int64(3208),
+							Login:    proto.String("user3"),
+							Email:    proto.String("user3@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -588,15 +722,19 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 						Name: proto.String("org2"),
 					},
 				},
-				orgMembers: map[string]map[string]struct{}{
+				orgMembers: map[string]map[string]*github.Membership{
 					"8583": { // org1
-						"user2": struct{}{},
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user2": &github.Membership{Role: proto.String("member")},
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
 					},
 					"4701": { // org2
-						"user1": struct{}{},
+						"user1": &github.Membership{Role: proto.String("member")},
 					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
 				},
 			},
 			groupID: "8583",
@@ -609,6 +747,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user1"),
 							Email: proto.String("user1@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -617,10 +756,12 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &github.User{
-							ID:    proto.Int64(2286),
-							Login: proto.String("user1"),
-							Email: proto.String("user1@example.com"),
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -661,14 +802,18 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 						Name: proto.String("org2"),
 					},
 				},
-				orgMembers: map[string]map[string]struct{}{
+				orgMembers: map[string]map[string]*github.Membership{
 					"8583": { // org1
-						"user1": struct{}{},
-						"user3": struct{}{},
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
 					},
 					"4701": { // org2
-						"user2": struct{}{},
+						"user2": &github.Membership{Role: proto.String("member")},
 					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
 				},
 			},
 			groupID: "8583",
@@ -681,6 +826,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user1"),
 							Email: proto.String("user1@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 				&groupsync.UserMember{
@@ -691,6 +837,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 							Login: proto.String("user2"),
 							Email: proto.String("user2@example.com"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 			},
@@ -699,20 +846,234 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 					Usr: &groupsync.User{
 						ID: "user1",
 						Attributes: &github.User{
-							ID:    proto.Int64(2286),
-							Login: proto.String("user1"),
-							Email: proto.String("user1@example.com"),
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user2",
-						Attributes: &github.User{
-							ID:    proto.Int64(5660),
+						Attributes: &github.Invitation{
+							ID:    proto.Int64(1),
 							Login: proto.String("user2"),
 							Email: proto.String("user2@example.com"),
+							Role:  proto.String("direct_member"),
 						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+			},
+		},
+		{
+			name: "success_change_roles",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				orgs: map[string]*github.Organization{
+					"8583": {
+						ID:   proto.Int64(8583),
+						Name: proto.String("org1"),
+					},
+					"4701": {
+						ID:   proto.Int64(4701),
+						Name: proto.String("org2"),
+					},
+				},
+				orgMembers: map[string]map[string]*github.Membership{
+					"8583": { // org1
+						"user1": &github.Membership{Role: proto.String("admin")},
+					},
+					"4701": { // org2
+						"user2": &github.Membership{Role: proto.String("member")},
+					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {
+						&github.Invitation{
+							ID:    proto.Int64(1),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+							Role:  proto.String("direct_member"),
+						},
+					},
+					"4701": {},
+				},
+			},
+			groupID: "8583",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Admin},
+					},
+				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.Invitation{
+							ID:    proto.Int64(1),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+							Role:  proto.String("admin"),
+						},
+						Metadata: &RoleMetadata{Role: Admin},
+					},
+				},
+			},
+		},
+		{
+			name: "success_without_invites",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			opts: []OrgRWOpt{WithoutInvitations()},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				orgs: map[string]*github.Organization{
+					"8583": {
+						ID:   proto.Int64(8583),
+						Name: proto.String("org1"),
+					},
+					"4701": {
+						ID:   proto.Int64(4701),
+						Name: proto.String("org2"),
+					},
+				},
+				orgMembers: map[string]map[string]*github.Membership{
+					"8583": { // org1
+						"user1": &github.Membership{Role: proto.String("admin")},
+					},
+					"4701": { // org2
+						"user2": &github.Membership{Role: proto.String("member")},
+					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
+				},
+			},
+			groupID: "8583",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:    proto.Int64(2286),
+							Login: proto.String("user1"),
+							Email: proto.String("user1@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:    proto.Int64(3208),
+							Login: proto.String("user3"),
+							Email: proto.String("user3@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Admin},
+					},
+				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user1",
+						Attributes: &github.User{
+							ID:       proto.Int64(2286),
+							Login:    proto.String("user1"),
+							Email:    proto.String("user1@example.com"),
+							RoleName: proto.String("member"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user3",
+						Attributes: &github.User{
+							ID:       proto.Int64(3208),
+							Login:    proto.String("user3"),
+							Email:    proto.String("user3@example.com"),
+							RoleName: proto.String("admin"),
+						},
+						Metadata: &RoleMetadata{Role: Admin},
 					},
 				},
 			},

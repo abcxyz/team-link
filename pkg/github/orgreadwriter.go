@@ -1,4 +1,4 @@
-// Copyright 2024 The Authors (see AUTHORS file)
+// Copyright 2025 The Authors (see AUTHORS file)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/google/go-github/v67/github"
 	"google.golang.org/protobuf/proto"
@@ -37,15 +38,37 @@ type OrgMembershipReadWriter struct {
 	client         *github.Client
 	userCache      *cache.Cache[*github.User]
 	orgCache       *cache.Cache[*github.Organization]
+	useInvitations bool
 }
 
-type OrgRWConfig struct{}
+type OrgRWConfig struct {
+	cacheDuration  time.Duration
+	useInvitations bool
+}
+
+// OrgRWOpt is a configuration option for OrgMembershipReadWriter.
+type OrgRWOpt func(writer *OrgRWConfig)
+
+// WithOrgCacheDuration sets the time to live for the user and org cache entries.
+func WithOrgCacheDuration(duration time.Duration) OrgRWOpt {
+	return func(config *OrgRWConfig) {
+		config.cacheDuration = duration
+	}
+}
+
+// WithoutInvitations avoids using the APIs for Invitations in GitHub.
+// GHES does not have invitations APIs so this option is required for GHES.
+func WithoutInvitations() OrgRWOpt {
+	return func(config *OrgRWConfig) {
+		config.useInvitations = false
+	}
+}
 
 // NewOrgMembershipReadWriter creates a new OrgMembershipReadWriter.
-func NewOrgMembershipReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...Opt) *OrgMembershipReadWriter {
-	config := &Config{
-		cacheDuration: DefaultCacheDuration,
-		orgs:          OrgRWConfig{},
+func NewOrgMembershipReadWriter(orgTokenSource OrgTokenSource, client *github.Client, opts ...OrgRWOpt) *OrgMembershipReadWriter {
+	config := &OrgRWConfig{
+		cacheDuration:  DefaultCacheDuration,
+		useInvitations: true,
 	}
 	for _, opt := range opts {
 		opt(config)
@@ -55,6 +78,7 @@ func NewOrgMembershipReadWriter(orgTokenSource OrgTokenSource, client *github.Cl
 		client:         client,
 		userCache:      cache.New[*github.User](config.cacheDuration),
 		orgCache:       cache.New[*github.Organization](config.cacheDuration),
+		useInvitations: config.useInvitations,
 	}
 	return t
 }
@@ -108,24 +132,64 @@ func (rw *OrgMembershipReadWriter) GetMembers(ctx context.Context, groupID strin
 	if err != nil {
 		return nil, fmt.Errorf("could not create github client: %w", err)
 	}
-	org, err := rw.getGitHubOrg(ctx, client, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get org: %w", err)
-	}
-	orgName := org.GetName()
 
+	users, err := rw.getUsers(ctx, client, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	members := make([]groupsync.Member, 0, len(users))
+	for _, user := range users {
+		members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: user.GetLogin(), Attributes: user, Metadata: NewRoleMetadata(user.GetRoleName())}})
+	}
+
+	if rw.useInvitations {
+		pendingInvites, err := rw.getPendingInvites(ctx, client, groupID)
+		if err != nil {
+			return nil, err
+		}
+		for id, invite := range pendingInvites {
+			members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: id, Attributes: invite, Metadata: NewRoleMetadata(invite.GetRole())}})
+		}
+	}
+
+	return members, nil
+}
+
+// getUsers gets all users in a GitHub org, annotated with RoleName.
+func (rw *OrgMembershipReadWriter) getUsers(ctx context.Context, client *github.Client, orgID string) (map[string]*github.User, error) {
+	roles := []string{RoleMember, RoleAdmin}
+	users := make(map[string]*github.User)
+	for _, role := range roles {
+		roleUsers, err := rw.getUsersForRole(ctx, client, orgID, role)
+		if err != nil {
+			return nil, err
+		}
+		for id, u := range roleUsers {
+			users[id] = u
+		}
+	}
+	return users, nil
+}
+
+func (rw *OrgMembershipReadWriter) getUsersForRole(ctx context.Context, client *github.Client, orgID, role string) (map[string]*github.User, error) {
 	users := make(map[string]*github.User, 32)
 	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
 		opts := &github.ListMembersOptions{
+			Role:        role,
 			ListOptions: *listOpts,
 		}
 
-		members, resp, err := client.Organizations.ListMembers(ctx, orgName, opts)
+		members, resp, err := client.Organizations.ListMembers(ctx, orgID, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list org membership: %w", err)
 		}
 
 		for _, m := range members {
+			// Set RoleName ourselves because the ListMembers API does not
+			if role != RoleAll {
+				m.RoleName = proto.String(role)
+			}
 			// just checking, login should be provided for active members.
 			if v := m.GetLogin(); v != "" {
 				users[v] = m
@@ -135,13 +199,30 @@ func (rw *OrgMembershipReadWriter) GetMembers(ctx context.Context, groupID strin
 	}); err != nil {
 		return nil, err
 	}
+	return users, nil
+}
 
-	members := make([]groupsync.Member, 0, len(users))
-	for _, user := range users {
-		members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: user.GetLogin(), Attributes: user}})
+func (rw *OrgMembershipReadWriter) getPendingInvites(ctx context.Context, client *github.Client, orgID string) (map[string]*github.Invitation, error) {
+	pendingInvites := make(map[string]*github.Invitation)
+	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
+		invites, resp, err := client.Organizations.ListPendingOrgInvitations(ctx, orgID, listOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list pending org invites: %w", err)
+		}
+		for _, i := range invites {
+			// Invites can either have a login (for existing GH users) or an email address (for users who haven't joined GH yet)
+			if i.GetLogin() != "" {
+				pendingInvites[i.GetLogin()] = i
+			} else if i.GetEmail() != "" {
+				pendingInvites[i.GetEmail()] = i
+			}
+		}
+
+		return resp, nil
+	}); err != nil {
+		return nil, err
 	}
-
-	return members, nil
+	return pendingInvites, nil
 }
 
 // Descendants retrieve all users (children, recursively) of the GitHub org with the given ID.
@@ -194,14 +275,10 @@ func (rw *OrgMembershipReadWriter) SetMembers(ctx context.Context, groupID strin
 	if err != nil {
 		return fmt.Errorf("could not create github client: %w", err)
 	}
-	org, err := rw.getGitHubOrg(ctx, client, orgID)
-	if err != nil {
-		return fmt.Errorf("failed to get org: %w", err)
-	}
-	orgName := org.GetName()
+
 	currentMembers, err := rw.GetMembers(ctx, groupID)
 	if err != nil {
-		return fmt.Errorf("could not get current members: %w", err)
+		return fmt.Errorf("failed to get org members: %w", err)
 	}
 
 	// GitHub usernames are case-insensitive. So we should map each id
@@ -211,6 +288,8 @@ func (rw *OrgMembershipReadWriter) SetMembers(ctx context.Context, groupID strin
 
 	addMembers := sets.SubtractMapKeys(newMemberIDs, currentMemberIDs)
 	removeMembers := sets.SubtractMapKeys(currentMemberIDs, newMemberIDs)
+
+	persistentMembers := sets.IntersectMapKeys(newMemberIDs, currentMemberIDs)
 
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "current org members",
@@ -235,8 +314,19 @@ func (rw *OrgMembershipReadWriter) SetMembers(ctx context.Context, groupID strin
 	for _, member := range addMembers {
 		if member.IsUser() {
 			user, _ := member.User()
-			if err := rw.inviteToOrg(ctx, client, orgName, user.ID); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to add user(%s) to org(%s): %w", user.ID, orgName, err))
+			roleMetadata, ok := user.Metadata.(*RoleMetadata)
+			if !ok {
+				merr = errors.Join(merr, fmt.Errorf("failed to read role metadata for user(%s) in org(%s)", user.ID, groupID))
+				continue
+			}
+			if rw.useInvitations {
+				if err := rw.inviteToOrg(ctx, client, groupID, user.ID, roleMetadata.Role); err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to invite user(%s) to org(%s): %w", user.ID, groupID, err))
+				}
+			} else {
+				if err := rw.setOrgMembershipForUser(ctx, client, groupID, user.ID, roleMetadata.Role); err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to add user(%s) to org(%s): %w", user.ID, groupID, err))
+				}
 			}
 		}
 	}
@@ -244,25 +334,77 @@ func (rw *OrgMembershipReadWriter) SetMembers(ctx context.Context, groupID strin
 	for _, member := range removeMembers {
 		if member.IsUser() {
 			user, _ := member.User()
-			if _, err := client.Organizations.RemoveOrgMembership(ctx, user.ID, orgName); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to remove user(%s) membership from org(%s): %w", user.ID, orgName, err))
+			if _, ok := user.Attributes.(*github.User); ok {
+				if _, err := client.Organizations.RemoveOrgMembership(ctx, user.ID, groupID); err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to remove user(%s) membership from org(%s): %w", user.ID, groupID, err))
+				}
+			} else if invitation, ok := user.Attributes.(*github.Invitation); rw.useInvitations && ok {
+				if invitation.ID == nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to extract invitation ID for user(%s) in org(%s)", user.ID, groupID))
+					continue
+				}
+				_, err = client.Organizations.CancelInvite(ctx, groupID, invitation.GetID())
+				if err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to cancel invite(%d) for user(%s) in org(%s): %w", invitation.GetID(), user.ID, groupID, err))
+				}
 			}
 		}
 	}
+	// Update role for existing users whose role changed
+	for id, member := range persistentMembers {
+		if member.IsUser() {
+			user, _ := member.User()
+			newRoleMetdata, hasNewMetadata := user.Metadata.(*RoleMetadata)
+			currentUser, _ := currentMemberIDs[id].User()
+			currentRoleMetadata, hasCurrentMetadata := currentUser.Metadata.(*RoleMetadata)
+			if !hasNewMetadata || !hasCurrentMetadata {
+				merr = errors.Join(merr, fmt.Errorf("failed to read role metadata for user(%s) in org(%s)", user.ID, groupID))
+				continue
+			}
+			if newRoleMetdata.Role != currentRoleMetadata.Role {
+				if _, isUser := currentUser.Attributes.(*github.User); isUser {
+					err := rw.setOrgMembershipForUser(ctx, client, groupID, user.ID, newRoleMetdata.Role)
+					if err != nil {
+						merr = errors.Join(merr, fmt.Errorf("failed to edit org role for user(%s) in org(%s)", user.ID, groupID))
+					}
+				} else if invitation, isInvitee := currentUser.Attributes.(*github.Invitation); rw.useInvitations && isInvitee {
+					_, err := client.Organizations.CancelInvite(ctx, groupID, invitation.GetID())
+					if err != nil {
+						merr = errors.Join(merr, fmt.Errorf("failed to cancel invite(%d) in org(%s)", invitation.GetID(), groupID))
+					}
+					err = rw.inviteToOrg(ctx, client, groupID, user.ID, newRoleMetdata.Role)
+					if err != nil {
+						merr = errors.Join(merr, fmt.Errorf("failed to add user(%s) to org(%s): %w", user.ID, groupID, err))
+					}
+				}
+			}
+		}
+	}
+
 	return merr
 }
 
-func (rw *OrgMembershipReadWriter) inviteToOrg(ctx context.Context, client *github.Client, orgName, username string) error {
+func (rw *OrgMembershipReadWriter) inviteToOrg(ctx context.Context, client *github.Client, orgID, username string, role Role) error {
 	user, err := rw.getGitHubUser(ctx, client, username)
 	if err != nil {
 		return fmt.Errorf("failed to fetch user(%s) info: %w", username, err)
 	}
 	invitation := &github.CreateOrgInvitationOptions{
-		InviteeID: proto.Int64(*user.ID),
-		Role:      proto.String("direct_member"),
+		InviteeID: proto.Int64(user.GetID()),
+		Role:      proto.String(role.InviteString()),
 	}
-	if _, _, err := client.Organizations.CreateOrgInvitation(ctx, orgName, invitation); err != nil {
-		return fmt.Errorf("could not create invitation for user %s to organization %s: %w", username, orgName, err)
+	if _, _, err := client.Organizations.CreateOrgInvitation(ctx, orgID, invitation); err != nil {
+		return fmt.Errorf("could not create invitation for user %s to organization %s: %w", username, orgID, err)
+	}
+	return nil
+}
+
+func (rw *OrgMembershipReadWriter) setOrgMembershipForUser(ctx context.Context, client *github.Client, orgID, user string, role Role) error {
+	membership := &github.Membership{
+		Role: proto.String(role.String()),
+	}
+	if _, _, err := client.Organizations.EditOrgMembership(ctx, user, orgID, membership); err != nil {
+		return fmt.Errorf("could not set user %s as member in organization %s: %w", user, orgID, err)
 	}
 	return nil
 }

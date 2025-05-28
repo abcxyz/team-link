@@ -44,7 +44,8 @@ type GitHubData struct {
 	teams       map[string]map[string]*github.Team
 	teamMembers map[string]map[string]map[string]struct{}
 	orgs        map[string]*github.Organization
-	orgMembers  map[string]map[string]struct{}
+	orgMembers  map[string]map[string]*github.Membership
+	invitations map[string][]*github.Invitation
 }
 
 func githubClient(server *httptest.Server) *github.Client {
@@ -86,7 +87,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 		org, ok := githubData.orgs[orgID]
 		if !ok {
 			w.WriteHeader(404)
-			fmt.Fprintf(w, "orgID not found")
+			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
 		jsn, err := json.Marshal(org)
@@ -100,35 +101,31 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			return
 		}
 	}))
-	mux.Handle("GET /orgs/{org_name}/members", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /orgs/{org_id}/members", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "missing or malformed authorization header")
 			return
 		}
-		orgName := r.PathValue("org_name")
-		var org *github.Organization
-		for _, o := range githubData.orgs {
-			if *o.Name == orgName {
-				org = o
-				break
-			}
-		}
-		if org == nil {
+		orgID := r.PathValue("org_id")
+		if _, ok := githubData.orgs[orgID]; !ok {
 			w.WriteHeader(404)
-			fmt.Fprintf(w, "org %s not found", orgName)
+			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
-		orgID := strconv.FormatInt(*org.ID, 10)
 		members, ok := githubData.orgMembers[orgID]
 		if !ok {
 			w.WriteHeader(404)
 			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
+		roleQuery := r.URL.Query().Get("role")
 		var users []*github.User
-		for username := range members {
+		for username, membership := range members {
+			if roleQuery != "" && membership.GetRole() != roleQuery {
+				continue
+			}
 			user, ok := githubData.users[username]
 			if !ok {
 				w.WriteHeader(500)
@@ -148,27 +145,19 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			return
 		}
 	}))
-	mux.Handle("DELETE /orgs/{org_name}/memberships/{username}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("DELETE /orgs/{org_id}/memberships/{username}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "missing or malformed authorization header")
 			return
 		}
-		orgName := r.PathValue("org_name")
-		var org *github.Organization
-		for _, o := range githubData.orgs {
-			if *o.Name == orgName {
-				org = o
-				break
-			}
-		}
-		if org == nil {
+		orgID := r.PathValue("org_id")
+		if _, ok := githubData.orgs[orgID]; !ok {
 			w.WriteHeader(404)
-			fmt.Fprintf(w, "org %s not found", orgName)
+			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
-		orgID := strconv.FormatInt(*org.ID, 10)
 		username := r.PathValue("username")
 		members, ok := githubData.orgMembers[orgID]
 		if !ok {
@@ -176,8 +165,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
-		_, ok = githubData.users[username]
-		if !ok {
+		if _, ok = githubData.users[username]; !ok {
 			w.WriteHeader(404)
 			fmt.Fprintf(w, "user not found")
 			return
@@ -185,28 +173,50 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 		delete(members, username)
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	mux.Handle("POST /orgs/{org_name}/invitations", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /orgs/{org_id}/invitations", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "missing or malformed authorization header")
 			return
 		}
-		orgName := r.PathValue("org_name")
-		var org *github.Organization
-		for _, o := range githubData.orgs {
-			if *o.Name == orgName {
-				org = o
-				break
-			}
-		}
-		if org == nil {
+		orgID := r.PathValue("org_id")
+		if _, ok := githubData.orgs[orgID]; !ok {
 			w.WriteHeader(404)
-			fmt.Fprintf(w, "org %s not found", orgName)
+			fmt.Fprintf(w, "org %s not found", orgID)
 			return
 		}
-		orgID := strconv.FormatInt(*org.ID, 10)
-		members, ok := githubData.orgMembers[orgID]
+		invitations, ok := githubData.invitations[orgID]
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		jsn, err := json.Marshal(invitations)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to marshal invitations")
+			return
+		}
+		_, err = w.Write(jsn)
+		if err != nil {
+			return
+		}
+	}))
+	mux.Handle("POST /orgs/{org_id}/invitations", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "missing or malformed authorization header")
+			return
+		}
+		orgID := r.PathValue("org_id")
+		if _, ok := githubData.orgs[orgID]; !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		invitations, ok := githubData.invitations[orgID]
 		if !ok {
 			w.WriteHeader(404)
 			fmt.Fprintf(w, "org %s not found", orgID)
@@ -231,10 +241,88 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			fmt.Fprintf(w, "user not found from inviteeID: %d", userID)
 			return
 		}
-		members[*user.Login] = struct{}{}
-		jsn, err := json.Marshal(github.Invitation{
-			ID: proto.Int64(1),
+		invitation := &github.Invitation{
+			ID:    proto.Int64(1),
+			Login: user.Login,
+			Email: user.Email,
+			Role:  payload.Role,
+		}
+		githubData.invitations[orgID] = append(invitations, invitation)
+		jsn, err := json.Marshal(invitation)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to marshal response")
+			return
+		}
+		_, err = w.Write(jsn)
+		if err != nil {
+			return
+		}
+	}))
+	mux.Handle("DELETE /orgs/{org_id}/invitations/{invitation_id}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "missing or malformed authorization header")
+			return
+		}
+		orgID := r.PathValue("org_id")
+		if _, ok := githubData.orgs[orgID]; !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		invitations, ok := githubData.invitations[orgID]
+		if !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		invitationID, err := strconv.ParseInt(r.PathValue("invitation_id"), 10, 64)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "could not parse invitation ID")
+			return
+		}
+		githubData.invitations[orgID] = slices.DeleteFunc(invitations, func(i *github.Invitation) bool {
+			return *i.ID == invitationID
 		})
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	mux.Handle("PUT /orgs/{org_id}/memberships/{username}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "missing or malformed authorization header")
+			return
+		}
+		orgID := r.PathValue("org_id")
+
+		if _, ok := githubData.orgs[orgID]; !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		username := r.PathValue("username")
+		if _, ok := githubData.users[username]; !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "user %s not found", orgID)
+			return
+		}
+		payload := github.Membership{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "failed to read request body")
+			return
+		}
+
+		if _, ok := githubData.orgMembers[orgID]; !ok {
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "org %s not found", orgID)
+			return
+		}
+		githubData.orgMembers[orgID][username] = &payload
+		jsn, err := json.Marshal(payload)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "failed to marshal response")
@@ -340,8 +428,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			fmt.Fprintf(w, "team not found")
 			return
 		}
-		_, ok = githubData.users[username]
-		if !ok {
+		if _, ok = githubData.users[username]; !ok {
 			w.WriteHeader(404)
 			fmt.Fprintf(w, "user not found")
 			return
@@ -384,8 +471,7 @@ func fakeGitHub(githubData *GitHubData) *httptest.Server {
 			fmt.Fprintf(w, "team not found")
 			return
 		}
-		_, ok = githubData.users[username]
-		if !ok {
+		if _, ok = githubData.users[username]; !ok {
 			w.WriteHeader(404)
 			fmt.Fprintf(w, "user not found")
 			return

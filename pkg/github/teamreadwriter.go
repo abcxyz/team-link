@@ -46,15 +46,10 @@ type OrgTokenSource interface {
 	TokenForOrg(ctx context.Context, orgID int64) (string, error)
 }
 
-type TeamRWConfig struct {
+type Config struct {
 	includeSubTeams         bool
 	inviteToOrgIfNotAMember bool
-}
-
-type Config struct {
-	cacheDuration time.Duration
-	teams         TeamRWConfig
-	orgs          OrgRWConfig
+	cacheDuration           time.Duration
 }
 
 type Opt func(writer *Config)
@@ -64,7 +59,7 @@ type Opt func(writer *Config)
 // Similarly, TeamReadWriter.SetMembers will only consider user members when setting members.
 func WithoutSubTeamsAsMembers() Opt {
 	return func(config *Config) {
-		config.teams.includeSubTeams = false
+		config.includeSubTeams = false
 	}
 }
 
@@ -85,7 +80,7 @@ func WithCacheDuration(duration time.Duration) Opt {
 // consideration should be made to rate limiting effects when enabling this option.
 func WithInviteToOrgIfNotAMember() Opt {
 	return func(config *Config) {
-		config.teams.inviteToOrgIfNotAMember = true
+		config.inviteToOrgIfNotAMember = true
 	}
 }
 
@@ -116,11 +111,9 @@ type TeamReadWriter struct {
 // default the value to false.
 func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, endpoint string, orgTeamSSORequired map[int64]map[int64]bool, opts ...Opt) *TeamReadWriter {
 	config := &Config{
-		teams: TeamRWConfig{
-			includeSubTeams:         true,
-			inviteToOrgIfNotAMember: false,
-		},
-		cacheDuration: DefaultCacheDuration,
+		includeSubTeams:         true,
+		inviteToOrgIfNotAMember: false,
+		cacheDuration:           DefaultCacheDuration,
 	}
 	for _, opt := range opts {
 		opt(config)
@@ -129,8 +122,8 @@ func NewTeamReadWriter(orgTokenSource OrgTokenSource, client *github.Client, end
 		orgTokenSource:          orgTokenSource,
 		client:                  client,
 		endpoint:                endpoint,
-		includeSubTeams:         config.teams.includeSubTeams,
-		inviteToOrgIfNotAMember: config.teams.inviteToOrgIfNotAMember,
+		includeSubTeams:         config.includeSubTeams,
+		inviteToOrgIfNotAMember: config.inviteToOrgIfNotAMember,
 		userCache:               cache.New[*github.User](config.cacheDuration),
 		teamCache:               cache.New[*github.Team](config.cacheDuration),
 		orgMembershipCache:      cache.New[bool](config.cacheDuration),
