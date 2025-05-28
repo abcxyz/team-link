@@ -520,6 +520,26 @@ func TestOrgMembershipReadWriter_GetUser(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "not_found",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+				},
+			},
+			userID:  "fakeuser",
+			wantErr: "could not get user",
+		},
 	}
 
 	for _, tc := range cases {
@@ -867,6 +887,97 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "partial_failure_add_and_remove",
+			tokenSource: &fakeTokenSource{
+				orgTokens: map[int64]string{
+					8583: "org_1_test_token",
+					4701: "org_2_test_token",
+				},
+			},
+			data: &GitHubData{
+				users: map[string]*github.User{
+					"user1": {
+						ID:    proto.Int64(2286),
+						Login: proto.String("user1"),
+						Email: proto.String("user1@example.com"),
+					},
+					"user2": {
+						ID:    proto.Int64(5660),
+						Login: proto.String("user2"),
+						Email: proto.String("user2@example.com"),
+					},
+					"user3": {
+						ID:    proto.Int64(3208),
+						Login: proto.String("user3"),
+						Email: proto.String("user3@example.com"),
+					},
+				},
+				orgs: map[string]*github.Organization{
+					"8583": {
+						ID:   proto.Int64(8583),
+						Name: proto.String("org1"),
+					},
+					"4701": {
+						ID:   proto.Int64(4701),
+						Name: proto.String("org2"),
+					},
+				},
+				orgMembers: map[string]map[string]*github.Membership{
+					"8583": { // org1
+						"user1": &github.Membership{Role: proto.String("member")},
+						"user3": &github.Membership{Role: proto.String("member")},
+					},
+					"4701": { // org2
+						"user2": &github.Membership{Role: proto.String("member")},
+					},
+				},
+				invitations: map[string][]*github.Invitation{
+					"8583": {},
+					"4701": {},
+				},
+			},
+			groupID: "8583",
+			inputMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "fakeuser",
+						Attributes: &github.User{
+							ID:    proto.Int64(1234),
+							Login: proto.String("fakeuser"),
+							Email: proto.String("fakeuser@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.User{
+							ID:    proto.Int64(5660),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+			},
+			wantMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "user2",
+						Attributes: &github.Invitation{
+							ID:    proto.Int64(1),
+							Login: proto.String("user2"),
+							Email: proto.String("user2@example.com"),
+							Role:  proto.String("direct_member"),
+						},
+						Metadata: &RoleMetadata{Role: Member},
+					},
+				},
+			},
+			wantSetErr: "failed to invite user(fakeuser)",
 		},
 		{
 			name: "success_change_roles",
