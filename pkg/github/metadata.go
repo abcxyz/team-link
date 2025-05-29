@@ -36,8 +36,9 @@ const (
 )
 
 var roleName = map[Role]string{
-	Member: RoleMember,
-	Admin:  RoleAdmin,
+	Member:          RoleMember,
+	Admin:           RoleAdmin,
+	RoleUnspecified: RoleMember,
 }
 
 // String gives the string for the role used by GitHub APIs.
@@ -46,8 +47,9 @@ func (r Role) String() string {
 }
 
 var inviteRoleName = map[Role]string{
-	Member: RoleDirectMember,
-	Admin:  RoleAdmin,
+	Member:          RoleDirectMember,
+	Admin:           RoleAdmin,
+	RoleUnspecified: RoleDirectMember,
 }
 
 // InviteString gives the string for the role used by the GitHub APIs for Invitations.

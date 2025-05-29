@@ -43,8 +43,8 @@ func TestRoleMetadataStrings(t *testing.T) {
 		{
 			name:          "unspecified",
 			metadata:      RoleMetadata{Role: RoleUnspecified},
-			wantStr:       "",
-			wantInviteStr: "",
+			wantStr:       "member",
+			wantInviteStr: "direct_member",
 		},
 	}
 
