@@ -96,12 +96,12 @@ func NewStaticTokenSourceFromEnvVar(envVarName string) (*StaticTokenSource, erro
 	}, nil
 }
 
-// AppKeySignerProvider provides a GitHub private key signer from a GitHub app private key
+// AppKeySignerProvider provides a GitHub private key signer from a GitHub app private key.
 type AppKeySignerProvider struct {
 	keyProvider credentials.KeyProvider
 }
 
-// Signer provides the key signer, implementing the SignerProvider interface
+// Signer provides the key signer, implementing the SignerProvider interface.
 func (p *AppKeySignerProvider) Signer(ctx context.Context) (crypto.Signer, error) {
 	privateKey, err := p.keyProvider.Key(ctx)
 	if err != nil {
