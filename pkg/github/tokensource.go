@@ -16,6 +16,7 @@ package github
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"os"
 	"strconv"
@@ -29,29 +30,24 @@ import (
 const DefaultStaticTokenEnvVar = "TEAM_LINK_GITHUB_TOKEN" // #nosec G101
 
 type AppTokenSource struct {
-	keyProvider credentials.KeyProvider
-	appID       string
-	appOpts     []githubauth.Option
+	signerProvider credentials.SignerProvider
+	appID          string
+	appOpts        []githubauth.Option
 }
 
-func NewAppTokenSource(keyProvider credentials.KeyProvider, appID string, appOpts ...githubauth.Option) *AppTokenSource {
+func NewAppTokenSource(signerProvider credentials.SignerProvider, appID string, appOpts ...githubauth.Option) *AppTokenSource {
 	return &AppTokenSource{
-		keyProvider: keyProvider,
-		appID:       appID,
-		appOpts:     appOpts,
+		signerProvider: signerProvider,
+		appID:          appID,
+		appOpts:        appOpts,
 	}
 }
 
 func (s *AppTokenSource) TokenForOrg(ctx context.Context, orgID int64) (string, error) {
 	// TODO(https://github.com/abcxyz/team-link/issues/45): Consider caching the tokens we mint in this method.
-	privateKey, err := s.keyProvider.Key(ctx)
+	signer, err := s.signerProvider.Signer(ctx)
 	if err != nil {
-		return "", fmt.Errorf("unable to get GitHub app private key: %w", err)
-	}
-
-	signer, err := githubauth.NewPrivateKeySigner(privateKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to create private key signer: %w", err)
+		return "", fmt.Errorf("failed to create signer: %w", err)
 	}
 	app, err := githubauth.NewApp(s.appID, signer, s.appOpts...)
 	if err != nil {
@@ -98,4 +94,23 @@ func NewStaticTokenSourceFromEnvVar(envVarName string) (*StaticTokenSource, erro
 	return &StaticTokenSource{
 		token: token,
 	}, nil
+}
+
+// AppKeySignerProvider provides a GitHub private key signer from a GitHub app private key
+type AppKeySignerProvider struct {
+	keyProvider credentials.KeyProvider
+}
+
+// Signer provides the key signer, implementing the SignerProvider interface
+func (p *AppKeySignerProvider) Signer(ctx context.Context) (crypto.Signer, error) {
+	privateKey, err := p.keyProvider.Key(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get GitHub app private key: %w", err)
+	}
+
+	signer, err := githubauth.NewPrivateKeySigner(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create private key signer: %w", err)
+	}
+	return signer, nil
 }
