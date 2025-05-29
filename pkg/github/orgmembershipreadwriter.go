@@ -173,7 +173,7 @@ func (rw *OrgMembershipReadWriter) getUsers(ctx context.Context, client *github.
 }
 
 func (rw *OrgMembershipReadWriter) getUsersForRole(ctx context.Context, client *github.Client, orgID, role string) (map[string]*github.User, error) {
-	users := make(map[string]*github.User, 32)
+	users := make(map[string]*github.User, 128)
 	if err := paginate(func(listOpts *github.ListOptions) (*github.Response, error) {
 		opts := &github.ListMembersOptions{
 			Role:        role,
@@ -226,13 +226,19 @@ func (rw *OrgMembershipReadWriter) getPendingInvites(ctx context.Context, client
 }
 
 // Descendants retrieve all users (children, recursively) of the GitHub org with the given ID.
-// For orgs, in practice this is the same as GetMembers.
 func (rw *OrgMembershipReadWriter) Descendants(ctx context.Context, groupID string) ([]*groupsync.User, error) {
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "fetching descendants for org", "org_id", groupID)
-	users, err := groupsync.Descendants(ctx, groupID, rw.GetMembers)
+	members, err := rw.GetMembers(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get descendants: %w", err)
+	}
+	var users []*groupsync.User
+	for _, member := range members {
+		if member.IsUser() {
+			user, _ := member.User()
+			users = append(users, user)
+		}
 	}
 	return users, nil
 }
@@ -294,18 +300,22 @@ func (rw *OrgMembershipReadWriter) SetMembers(ctx context.Context, groupID strin
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "current org members",
 		"org_id", groupID,
+		"current_member_count", len(currentMemberIDs),
 		"current_member_ids", utils.MapKeys(currentMemberIDs),
 	)
 	logger.InfoContext(ctx, "authoritative org members",
 		"org_id", groupID,
+		"authoritative_member_count", len(newMemberIDs),
 		"authoritative_member_ids", utils.MapKeys(newMemberIDs),
 	)
 	logger.InfoContext(ctx, "members to add",
 		"org_id", groupID,
+		"add_member_count", len(addMembers),
 		"add_member_ids", utils.MapKeys(addMembers),
 	)
 	logger.InfoContext(ctx, "members to remove",
 		"org_id", groupID,
+		"remove_member_count", len(removeMembers),
 		"remove_member_ids", utils.MapKeys(removeMembers),
 	)
 
