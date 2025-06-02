@@ -98,6 +98,10 @@ func (f *fakeSyncer) TargetSystem() string {
 	return "testTarget"
 }
 
+func (f *fakeSyncer) Name() string {
+	return "fakeSycner"
+}
+
 func (f *fakeSyncer) Sync(_ context.Context, sourceGroupID string) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()

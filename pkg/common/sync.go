@@ -64,7 +64,7 @@ func Sync(ctx context.Context, mappingFile, configFile string) error {
 		return fmt.Errorf("failed to create user mapper")
 	}
 
-	syncer := groupsync.NewManyToManySyncer(sourceSystem, targetSystem, reader, writer, srcMapper, targetMapper, userMapper)
+	syncer := groupsync.NewManyToManySyncer("many to many sync", sourceSystem, targetSystem, reader, writer, srcMapper, targetMapper, userMapper)
 	if err := syncer.SyncAll(ctx); err != nil {
 		return fmt.Errorf("failed to sync membership: %w", err)
 	}

@@ -23,6 +23,25 @@ import (
 	"github.com/abcxyz/pkg/testutil"
 )
 
+func TestManyToOneSyncer_Name(t *testing.T) {
+	t.Parallel()
+
+	syncer := NewManyToOneSyncer(
+		"test syncer",
+		"target",
+		map[string]GroupReader{},
+		&testReadWriteGroupClient{},
+		&testOneToOneGroupMapper{},
+		&testOneToManyGroupMapper{},
+		&testUserMapper{},
+	)
+
+	res := syncer.Name()
+	if res != "test syncer" {
+		t.Errorf("unexpected name: %q", res)
+	}
+}
+
 func TestManyToOneSyncer_Sync(t *testing.T) {
 	t.Parallel()
 
@@ -556,6 +575,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			ctx := t.Context()
 
 			syncer := NewManyToOneSyncer(
+				tc.name,
 				"target",
 				tc.sourceGroupClients,
 				tc.targetGroupClient,
@@ -855,6 +875,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			ctx := t.Context()
 
 			syncer := NewManyToOneSyncer(
+				tc.name,
 				"target",
 				tc.sourceGroupClients,
 				tc.targetGroupClient,

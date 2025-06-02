@@ -18,6 +18,10 @@ import "context"
 
 // GroupSyncer syncs groups from a source system to a target system.
 type GroupSyncer interface {
+	// Name provides descriptive name or identifier of the GroupSyncer
+	// implementation. It will be used for logging purpose.
+	Name() string
+
 	// SourceSystem provides the name of the source group system.
 	SourceSystem() string
 

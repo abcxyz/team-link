@@ -35,6 +35,7 @@ import (
 //     forming the target member set.
 //  4. The target member set is then synced to the target group.
 type ManyToOneSyncer struct {
+	name               string   // A descriptiven name or identifier for the syncer.
 	sourceSystems      []string // The key set of sourceGroupReaders.
 	targetSystem       string
 	sourceGroupReaders map[string]GroupReader // Key represents source system.
@@ -46,6 +47,7 @@ type ManyToOneSyncer struct {
 
 // NewManyToOneSyncer creates a new ManyToOneSyncer.
 func NewManyToOneSyncer(
+	name string,
 	targetSystem string,
 	sourceGroupClients map[string]GroupReader,
 	targetGroupClient GroupWriter,
@@ -59,6 +61,7 @@ func NewManyToOneSyncer(
 		sources = append(sources, k)
 	}
 	return &ManyToOneSyncer{
+		name:               name,
 		sourceSystems:      sources,
 		targetSystem:       targetSystem,
 		sourceGroupReaders: sourceGroupClients,
@@ -77,6 +80,11 @@ func (f *ManyToOneSyncer) SourceSystem() string {
 // TargetSystem returns the name of the target group system.
 func (f *ManyToOneSyncer) TargetSystem() string {
 	return f.targetSystem
+}
+
+// Name returns the syncer name.
+func (f *ManyToOneSyncer) Name() string {
+	return f.name
 }
 
 // Sync syncs the source group with the given ID to the target group system.
