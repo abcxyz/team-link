@@ -16,9 +16,15 @@ package credentials
 
 import (
 	"context"
+	"crypto"
 )
 
 // KeyProvider provides a private key.
 type KeyProvider interface {
 	Key(ctx context.Context) ([]byte, error)
+}
+
+// SignerProvider provides a crypto.Signer.
+type SignerProvider interface {
+	Signer(ctx context.Context) (crypto.Signer, error)
 }

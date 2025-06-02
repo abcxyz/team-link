@@ -23,11 +23,6 @@ import (
 	"github.com/abcxyz/pkg/testutil"
 )
 
-var (
-	errMappedGroupIDNotFound = fmt.Errorf("errMappedGroupIDNotFound")
-	errAllGroupIDs           = fmt.Errorf("errAllGroupIDs")
-)
-
 func TestManyToManySyncer_Name(t *testing.T) {
 	t.Parallel()
 
@@ -335,7 +330,7 @@ func TestSync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 				mappedGroupIdsErr: map[string]error{
-					"98": errMappedGroupIDNotFound,
+					"98": fmt.Errorf("injected mappedGroupIdsErr"),
 				},
 			},
 			userMapper: &testUserMapper{
@@ -359,7 +354,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: fmt.Sprintf("error getting associated source group ids: %s", errMappedGroupIDNotFound.Error()),
+			wantErr: fmt.Sprintf("error getting associated source group ids: %s", "injected mappedGroupIdsErr"),
 		},
 		{
 			name:         "error_getting_source_users_partial",
@@ -1040,7 +1035,7 @@ func TestSyncAll(t *testing.T) {
 			sourceGroupClient: &testReadWriteGroupClient{},
 			targetGroupClient: &testReadWriteGroupClient{},
 			sourceGroupMapper: &testOneToManyGroupMapper{
-				allGroupIDsErr: errAllGroupIDs,
+				allGroupIDsErr: fmt.Errorf("injected allGroupIDsErr"),
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{},
 			userMapper:        &testUserMapper{},
@@ -1105,7 +1100,7 @@ func TestSyncAll(t *testing.T) {
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
 				mappedGroupIdsErr: map[string]error{
-					"1": errMappedGroupIDNotFound,
+					"1": fmt.Errorf("injected mappedGroupIdsErr"),
 				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
@@ -1202,11 +1197,11 @@ func TestSyncAll(t *testing.T) {
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
 				mappedGroupIdsErr: map[string]error{
-					"1": errMappedGroupIDNotFound,
-					"2": errMappedGroupIDNotFound,
-					"3": errMappedGroupIDNotFound,
-					"4": errMappedGroupIDNotFound,
-					"5": errMappedGroupIDNotFound,
+					"1": fmt.Errorf("injected mappedGroupIdsErr"),
+					"2": fmt.Errorf("injected mappedGroupIdsErr"),
+					"3": fmt.Errorf("injected mappedGroupIdsErr"),
+					"4": fmt.Errorf("injected mappedGroupIdsErr"),
+					"5": fmt.Errorf("injected mappedGroupIdsErr"),
 				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
