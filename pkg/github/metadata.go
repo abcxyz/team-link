@@ -15,47 +15,41 @@
 package github
 
 import (
+	"slices"
+
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
 
-type Role int
+type Role string
 
 const (
-	RoleUnspecified Role = iota
-	Member
-	Admin
+	Member          Role = "member"
+	Admin           Role = "admin"
+	RoleUnspecified Role = Member
 )
 
+// List of roles ordered by lowest to highest privileges. Ensure any new roles added are properly ordered.
+var Roles []Role = []Role{Member, Admin}
+
 const (
-	RoleMember = "member"
-	RoleAdmin  = "admin"
 	// "all" used in queries to get users with all roles.
 	RoleAll = "all"
 	// github.Invitation has "direct_member" instead of "member" as the role string.
 	RoleDirectMember = "direct_member"
 )
 
-var roleName = map[Role]string{
-	Member:          RoleMember,
-	Admin:           RoleAdmin,
-	RoleUnspecified: RoleMember,
-}
-
 // String gives the string for the role used by GitHub APIs.
 func (r Role) String() string {
-	return roleName[r]
-}
-
-var inviteRoleName = map[Role]string{
-	Member:          RoleDirectMember,
-	Admin:           RoleAdmin,
-	RoleUnspecified: RoleDirectMember,
+	return string(r)
 }
 
 // InviteString gives the string for the role used by the GitHub APIs for Invitations.
 // The only difference is that "direct_member" is used instead of "member" for Invitations.
 func (r Role) InviteString() string {
-	return inviteRoleName[r]
+	if r == Member {
+		return RoleDirectMember
+	}
+	return string(r)
 }
 
 // RoleMetadata holds a role for a github user being added to
@@ -73,6 +67,8 @@ func (m *RoleMetadata) Combine(other groupsync.MappingMetadata) groupsync.Mappin
 	}
 	otherMetadata, ok := other.(*RoleMetadata)
 	if !ok {
+		// Conversion will fail if other RoleMetadata was not specified in its Mapping object.
+		// In this case, just return self metadata.
 		return m
 	}
 	if m == nil {
@@ -80,10 +76,8 @@ func (m *RoleMetadata) Combine(other groupsync.MappingMetadata) groupsync.Mappin
 	}
 
 	// Take maximum access role granted to the user
-	var role Role
-	if m.Role > otherMetadata.Role {
-		role = m.Role
-	} else {
+	role := m.Role
+	if omLevel := slices.Index(Roles, otherMetadata.Role); omLevel > slices.Index(Roles, role) {
 		role = otherMetadata.Role
 	}
 	return &RoleMetadata{
@@ -91,19 +85,10 @@ func (m *RoleMetadata) Combine(other groupsync.MappingMetadata) groupsync.Mappin
 	}
 }
 
-var stringToRole = map[string]Role{
-	RoleMember:       Member,
-	RoleDirectMember: Member,
-	RoleAdmin:        Admin,
-}
-
 func NewRoleMetadata(roleStr string) groupsync.MappingMetadata {
-	role, ok := stringToRole[roleStr]
-	if !ok {
-		// Default to member role if role string is something we don't handle, like "hiring_manager"
-		return &RoleMetadata{Role: Member}
+	if slices.Contains(Roles, Role(roleStr)) {
+		return &RoleMetadata{Role: Role(roleStr)}
 	}
-	return &RoleMetadata{
-		Role: role,
-	}
+	// Default to member role if role string is something we don't handle, like "hiring_manager"
+	return &RoleMetadata{Role: Member}
 }
