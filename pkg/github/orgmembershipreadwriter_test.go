@@ -77,7 +77,7 @@ func TestOrgMembershipReadWriter_GetGroup(t *testing.T) {
 			},
 			data:    &GitHubData{},
 			groupID: "invalidID",
-			wantErr: "could not parse orgID from groupID: invalidID",
+			wantErr: "could not parse orgID invalidID",
 		},
 	}
 
@@ -223,7 +223,7 @@ func TestOrgMembershipReadWriter_GetMembers(t *testing.T) {
 					4701: "org_2_test_token",
 				},
 			},
-			opts: []OrgRWOpt{WithoutInvitations()},
+			opts: []OrgRWOpt{WithInvitations(false)},
 			data: &GitHubData{
 				users: map[string]*github.User{
 					"user1": {
@@ -311,7 +311,7 @@ func TestOrgMembershipReadWriter_GetMembers(t *testing.T) {
 			},
 			data:    &GitHubData{},
 			groupID: "invalidID",
-			wantErr: "could not parse orgID from groupID: invalidID",
+			wantErr: "could not parse orgID invalidID",
 		},
 	}
 
@@ -438,7 +438,7 @@ func TestOrgMembershipReadWriter_GetDescendants(t *testing.T) {
 			},
 			data:    &GitHubData{},
 			groupID: "invalidID",
-			wantErr: "could not parse orgID from groupID: invalidID",
+			wantErr: "could not parse orgID invalidID",
 		},
 	}
 
@@ -1095,7 +1095,7 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 					4701: "org_2_test_token",
 				},
 			},
-			opts: []OrgRWOpt{WithoutInvitations()},
+			opts: []OrgRWOpt{WithInvitations(false)},
 			data: &GitHubData{
 				users: map[string]*github.User{
 					"user1": {
@@ -1199,8 +1199,8 @@ func TestOrgMembershipReadWriter_SetMembers(t *testing.T) {
 			},
 			data:       &GitHubData{},
 			groupID:    "invalidID",
-			wantGetErr: "could not parse orgID from groupID: invalidID",
-			wantSetErr: "could not parse orgID from groupID: invalidID",
+			wantGetErr: "could not parse orgID invalidID",
+			wantSetErr: "could not parse orgID invalidID",
 		},
 	}
 
