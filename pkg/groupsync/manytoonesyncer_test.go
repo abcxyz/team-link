@@ -33,7 +33,7 @@ func TestManyToOneSyncer_Name(t *testing.T) {
 		&testReadWriteGroupClient{},
 		&testOneToOneGroupMapper{},
 		&testOneToManyGroupMapper{},
-		&testUserMapper{},
+		map[string]UserMapper{},
 	)
 
 	res := syncer.Name()
@@ -46,11 +46,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 	t.Parallel()
 
 	// key: source user, value: target user
-	userMapping := map[string]string{
+	userMapping1 := map[string]string{
 		"su1": "tu1",
 		"su2": "tu2",
 		"su3": "tu3",
 		"su4": "tu4",
+	}
+	userMapping2 := map[string]string{
 		"su5": "tu5",
 	}
 
@@ -145,7 +147,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 		targetGroupClient  GroupReadWriter
 		sourceGroupMapper  OneToOneGroupMapper
 		targetGroupMapper  OneToManyGroupMapper
-		userMapper         UserMapper
+		userMappers        map[string]UserMapper
 		syncID             string
 		want               map[string][]Member
 		wantErr            string
@@ -175,8 +177,10 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
@@ -219,8 +223,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			syncID: "sg6",
 			want: map[string][]Member{
@@ -262,8 +271,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			syncID: "sg4",
 			want: map[string][]Member{
@@ -284,7 +298,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupClient:  &testReadWriteGroupClient{},
 			sourceGroupMapper:  &testOneToOneGroupMapper{},
 			targetGroupMapper:  &testOneToManyGroupMapper{},
-			userMapper:         &testUserMapper{},
+			userMappers:        map[string]UserMapper{},
 			syncID:             "sg1",
 			wantErr:            "error fetching target group id",
 		},
@@ -316,8 +330,10 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					"tg1": fmt.Errorf("injected mappedGroupIdsErr for tg1"),
 				},
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
@@ -352,8 +368,10 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
 			},
 			syncID: "sg4",
 			want: map[string][]Member{
@@ -401,8 +419,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			syncID: "sg4",
 			want: map[string][]Member{
@@ -436,8 +459,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
@@ -472,10 +500,12 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
-				mappedUserIDErrs: map[string]error{
-					"su1": fmt.Errorf("injected mappedUserIDErrs for su1"),
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+					mappedUserIDErrs: map[string]error{
+						"su1": fmt.Errorf("injected mappedUserIDErrs for su1"),
+					},
 				},
 			},
 			syncID: "sg1",
@@ -513,19 +543,14 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				mappedUserIDErrs: map[string]error{
-					"su1": fmt.Errorf("injected mappedUserIDErrs"),
-					"su2": fmt.Errorf("injected mappedUserIDErrs"),
-				},
-			},
-			syncID: "sg1",
+			userMappers: map[string]UserMapper{},
+			syncID:      "sg5", // Mapped to both source systems.
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
 				"tg3": {},
 			},
-			wantErr: "injected mappedUserIDErrs",
+			wantErr: "user mapper not found",
 		},
 		{
 			name: "error_setting_members",
@@ -555,8 +580,10 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
@@ -581,7 +608,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				tc.targetGroupClient,
 				tc.sourceGroupMapper,
 				tc.targetGroupMapper,
-				tc.userMapper,
+				tc.userMappers,
 			)
 
 			err := syncer.Sync(ctx, tc.syncID)
@@ -605,12 +632,13 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 func TestManyToOneSyncer_SyncAll(t *testing.T) {
 	t.Parallel()
 
-	// key: source user, value: target user
-	userMapping := map[string]string{
+	userMapping1 := map[string]string{
 		"su1": "tu1",
 		"su2": "tu2",
 		"su3": "tu3",
 		"su4": "tu4",
+	}
+	userMapping2 := map[string]string{
 		"su5": "tu5",
 	}
 
@@ -698,13 +726,12 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 		targetGroupClient  GroupReadWriter
 		sourceGroupMapper  OneToOneGroupMapper
 		targetGroupMapper  OneToManyGroupMapper
-		userMapper         UserMapper
+		userMappers        map[string]UserMapper
 		want               map[string][]Member
 		wantErr            string
 	}{
 		{
 			name: "sync_all_success",
-
 			sourceGroupClients: map[string]GroupReader{
 				sourceSystem1: &testReadWriteGroupClient{
 					groups:       sourceGroups1,
@@ -733,8 +760,13 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			want: map[string][]Member{
 				"tg1": {
@@ -763,7 +795,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 				allGroupIDsErr: fmt.Errorf("injected allGroupIDsErr"),
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{},
-			userMapper:        &testUserMapper{},
+			userMappers:       map[string]UserMapper{},
 			wantErr:           "injected allGroupIDsErr",
 		},
 		{
@@ -799,8 +831,13 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			want: map[string][]Member{
 				"tg1": {},
@@ -856,8 +893,13 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
 			},
-			userMapper: &testUserMapper{
-				m: userMapping,
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+				},
+				sourceSystem2: &testUserMapper{
+					m: userMapping2,
+				},
 			},
 			want: map[string][]Member{
 				"tg1": {},
@@ -881,7 +923,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 				tc.targetGroupClient,
 				tc.sourceGroupMapper,
 				tc.targetGroupMapper,
-				tc.userMapper,
+				tc.userMappers,
 			)
 
 			err := syncer.SyncAll(ctx)

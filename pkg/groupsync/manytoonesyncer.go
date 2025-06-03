@@ -42,7 +42,7 @@ type ManyToOneSyncer struct {
 	targetGroupWriter  GroupWriter
 	sourceGroupMapper  OneToOneGroupMapper
 	targetGroupMapper  OneToManyGroupMapper
-	userMapper         UserMapper
+	userMappers        map[string]UserMapper // Key represents source system.
 }
 
 // NewManyToOneSyncer creates a new ManyToOneSyncer.
@@ -53,7 +53,7 @@ func NewManyToOneSyncer(
 	targetGroupClient GroupWriter,
 	sourceGroupMapper OneToOneGroupMapper,
 	targetGroupMapper OneToManyGroupMapper,
-	userMapper UserMapper,
+	userMappers map[string]UserMapper,
 ) *ManyToOneSyncer {
 	// Abstract the source systems from the sourceGroupClients map.
 	sources := make([]string, 0, len(sourceGroupClients))
@@ -68,7 +68,7 @@ func NewManyToOneSyncer(
 		targetGroupWriter:  targetGroupClient,
 		sourceGroupMapper:  sourceGroupMapper,
 		targetGroupMapper:  targetGroupMapper,
-		userMapper:         userMapper,
+		userMappers:        userMappers,
 	}
 }
 
@@ -193,11 +193,12 @@ func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings [
 	var merr error
 	userMap := make(map[string]*User)
 	for _, sourceGroupMapping := range sourceGroupMappings {
-		if sourceGroupMapping.System == "" {
+		system := sourceGroupMapping.System
+		if system == "" {
 			merr = errors.Join(merr, fmt.Errorf("missing source system for source group reader: %s", sourceGroupMapping))
 			continue
 		}
-		groupReader, exist := f.sourceGroupReaders[sourceGroupMapping.System]
+		groupReader, exist := f.sourceGroupReaders[system]
 		if !exist {
 			merr = errors.Join(merr, fmt.Errorf("source group reader not found: %s", sourceGroupMapping))
 			continue
@@ -219,6 +220,7 @@ func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings [
 			}
 			userMap[sourceUser.ID] = &User{
 				ID:         sourceUser.ID,
+				System:     system,
 				Attributes: sourceUser.Attributes,
 				Metadata:   metadata,
 			}
@@ -236,13 +238,23 @@ func (f *ManyToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) 
 	var merr error
 	targetUsers := make([]*User, 0, len(sourceUsers))
 	for _, sourceUser := range sourceUsers {
-		targetUserID, err := f.userMapper.MappedUserID(ctx, sourceUser.ID)
+		system := sourceUser.System
+		if system == "" {
+			merr = errors.Join(merr, fmt.Errorf("missing source system for source user id %s", sourceUser.ID))
+			continue
+		}
+		userMapper, exist := f.userMappers[system]
+		if !exist {
+			merr = errors.Join(merr, fmt.Errorf("user mapper not found for system %s, source user id %s", sourceUser.System, sourceUser.ID))
+			continue
+		}
+		targetUserID, err := userMapper.MappedUserID(ctx, sourceUser.ID)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
 			// if there is no mapping for the target user we will just skip them.
 			continue
 		}
 		if err != nil {
-			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
+			merr = errors.Join(merr, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err))
 			continue
 		}
 		targetUsers = append(targetUsers, &User{ID: targetUserID, Metadata: sourceUser.Metadata})
