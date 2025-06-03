@@ -101,6 +101,11 @@ type AppKeySignerProvider struct {
 	keyProvider credentials.KeyProvider
 }
 
+// NewAppKeySignerProvider creates a signer provider with the given key provider.
+func NewAppKeySignerProvider(kp credentials.KeyProvider) credentials.SignerProvider {
+	return &AppKeySignerProvider{keyProvider: kp}
+}
+
 // Signer provides the key signer, implementing the SignerProvider interface.
 func (p *AppKeySignerProvider) Signer(ctx context.Context) (crypto.Signer, error) {
 	privateKey, err := p.keyProvider.Key(ctx)
