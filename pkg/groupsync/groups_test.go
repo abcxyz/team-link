@@ -15,21 +15,19 @@
 package groupsync
 
 import (
-	"context"
 	"testing"
+
+	"github.com/abcxyz/pkg/testutil"
 )
 
 func TestNoopUserMapper_MappedUserID(t *testing.T) {
 	t.Parallel()
 
-	mapper := NewNoopUserMapper()
-	ctx := context.Background()
-
 	cases := []struct {
 		name    string
 		inputID string
 		wantID  string
-		wantErr error
+		wantErr string
 	}{
 		{
 			name:    "normal_case",
@@ -47,10 +45,12 @@ func TestNoopUserMapper_MappedUserID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctx := t.Context()
+
+			mapper := NewNoopUserMapper()
 			gotID, gotErr := mapper.MappedUserID(ctx, tc.inputID)
-			if gotErr != tc.wantErr {
-				t.Errorf("MappedUserID() error = %v, wantErr %v", gotErr, tc.wantErr)
-				return
+			if diff := testutil.DiffErrString(gotErr, tc.wantErr); diff != "" {
+				t.Errorf("unexpected error (-want, +got):\n%s", diff)
 			}
 			if gotID != tc.wantID {
 				t.Errorf("MappedUserID() gotID = %v, wantID %v", gotID, tc.wantID)
