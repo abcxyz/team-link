@@ -98,6 +98,21 @@ type UserMapper interface {
 	MappedUserID(ctx context.Context, userID string) (string, error)
 }
 
+// noopUserMapper is an implementation of UserMapper that performs no operation.
+// It simply returns the input user ID as is.
+type noopUserMapper struct{}
+
+// NewNoopUserMapper creates and returns a new instance of noopUserMapper.
+func NewNoopUserMapper() UserMapper {
+	return &noopUserMapper{}
+}
+
+// MappedUserID implements the UserMapper interface for noopUserMapper.
+// It takes a context and a user ID, and returns the same user ID without any modification.
+func (m *noopUserMapper) MappedUserID(ctx context.Context, userID string) (string, error) {
+	return userID, nil
+}
+
 // User represents a user in a group system.
 type User struct {
 	// ID is the user's ID in the group system.
