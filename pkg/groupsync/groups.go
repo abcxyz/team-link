@@ -117,6 +117,8 @@ func (m *noopUserMapper) MappedUserID(ctx context.Context, userID string) (strin
 type User struct {
 	// ID is the user's ID in the group system.
 	ID string `json:"id,omitempty"`
+	// System is where the user comes from.
+	System string `json:"system,omitempty"`
 	// Attributes represent arbitrary attributes about the user
 	// in the given group system. This field is typically set by
 	// the corresponding GroupReader when retrieving the user.
