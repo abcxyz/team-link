@@ -111,7 +111,12 @@ func fakeEnterprise(t *testing.T, data *EnterpriseUserData) *httptest.Server {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
-			user.Active = github.Bool(false)
+			var patch github.SCIMUserAttributes
+			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			user.Active = patch.Active
 			if err := json.NewEncoder(w).Encode(user); err != nil {
 				t.Fatalf("failed to encode create response: %v", err)
 			}
@@ -456,6 +461,59 @@ func TestSCIMClient_DeactivateUser(t *testing.T) {
 			}
 
 			got, _, err := client.DeactivateUser(ctx, tc.scimIDToDeactivate)
+			if diff := testutil.DiffErrString(err, tc.wantErrStr); diff != "" {
+				t.Errorf("error mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantUser, got); diff != "" {
+				t.Errorf("user mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSCIMClient_ReactivateUser(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name               string
+		scimIDToReactivate string
+		users              map[string]*github.SCIMUserAttributes
+		wantUser           *github.SCIMUserAttributes
+		wantErrStr         string
+	}{
+		{
+			name:               "success",
+			scimIDToReactivate: "id1",
+			users: map[string]*github.SCIMUserAttributes{
+				"id1": {ID: github.String("id1"), UserName: "test.user", Active: github.Bool(false)},
+			},
+			wantUser: &github.SCIMUserAttributes{
+				ID:       github.String("id1"),
+				UserName: "test.user",
+				Active:   github.Bool(true),
+			},
+		},
+		{
+			name:               "error_not_found",
+			scimIDToReactivate: "nonexistent",
+			wantErrStr:         "request failed with status 404",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			userData := &EnterpriseUserData{allUsers: tc.users}
+			srv := fakeEnterprise(t, userData)
+			defer srv.Close()
+
+			client, err := NewSCIMClient(srv.Client(), srv.URL)
+			if err != nil {
+				t.Fatalf("NewSCIMClient failed: %v", err)
+			}
+
+			got, _, err := client.ReactivateUser(ctx, tc.scimIDToReactivate)
 			if diff := testutil.DiffErrString(err, tc.wantErrStr); diff != "" {
 				t.Errorf("error mismatch (-want +got):\n%s", diff)
 			}
