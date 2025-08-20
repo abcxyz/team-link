@@ -97,11 +97,12 @@ func (g GroupReader) GetMembers(ctx context.Context, groupID string) ([]groupsyn
 	if err := g.identity.Groups.Memberships.List(groupID).Context(ctx).View("FULL").Pages(ctx,
 		func(page *cloudidentity.ListMembershipsResponse) error {
 			for _, m := range page.Memberships {
-				if m.Type == MemberTypeGroup {
+				switch m.Type {
+				case MemberTypeGroup:
 					members = append(members, &groupsync.GroupMember{Grp: &groupsync.Group{ID: m.PreferredMemberKey.Id}})
-				} else if m.Type == MemberTypeUser {
+				case MemberTypeUser:
 					members = append(members, &groupsync.UserMember{Usr: &groupsync.User{ID: m.PreferredMemberKey.Id}})
-				} else {
+				default:
 					logger.WarnContext(ctx, "unrecognized member type encountered",
 						"group_id", groupID,
 						"member", m,
