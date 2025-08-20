@@ -28,6 +28,8 @@ import (
 	"github.com/google/go-github/v67/github"
 )
 
+const scimURLSuffix = "/api/v3/scim/v2/"
+
 // SCIMClient handles direct HTTP communication with the GHES SCIM API.
 // API doc: https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/provisioning-users-and-groups-with-scim-using-the-rest-api#provisioning-users-with-the-rest-api
 type SCIMClient struct {
@@ -37,7 +39,7 @@ type SCIMClient struct {
 
 // NewSCIMClient creates a new client for the GHES SCIM API.
 func NewSCIMClient(httpClient *http.Client, baseURL string) (*SCIMClient, error) {
-	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + "/api/v3/scim/v2/")
+	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + scimURLSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base url %q: %w", baseURL, err)
 	}
@@ -49,18 +51,14 @@ func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*github.SCIMUser
 	allUsers := make(map[string]*github.SCIMUserAttributes)
 	startIndex := 1
 	for {
-		path := "Users"
-		rel, err := url.Parse(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse path %q: %w", path, err)
-		}
-		q := rel.Query()
+		url := &url.URL{Path: "Users"}
+		q := url.Query()
 		q.Set("startIndex", strconv.Itoa(startIndex))
 		q.Set("count", "100")
-		rel.RawQuery = q.Encode()
+		url.RawQuery = q.Encode()
 
 		var result github.SCIMProvisionedIdentities
-		if _, err := c.do(ctx, http.MethodGet, c.baseURL.ResolveReference(rel).String(), nil, &result); err != nil {
+		if _, err := c.do(ctx, http.MethodGet, c.baseURL.ResolveReference(url).String(), nil, &result); err != nil {
 			return nil, fmt.Errorf("failed to list scim users starting at index %d: %w", startIndex, err)
 		}
 
