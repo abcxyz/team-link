@@ -30,20 +30,20 @@ const defaultMaxUsersToProvision = 1000
 
 var _ groupsync.GroupWriter = (*EnterpriseUserWriter)(nil)
 
-// OrgRWOpt is a configuration option for EnterpriseUserReadWriter.
+// ENterpriseRWOpt is a configuration option for EnterpriseUserReadWriter.
 type EnterpriseRWOpt func(rw *EnterpriseUserWriter)
 
 // WithMaxUsersToProvision sets the maximum number of SCIM provisioned users.
 func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 	return func(rw *EnterpriseUserWriter) {
-		rw.max_users_to_provision = num
+		rw.maxUsersToProvision = num
 	}
 }
 
 // EnterpriseUserWriter manages enterprise users via a direct GHES SCIM API client.
 type EnterpriseUserWriter struct {
-	scimClient             *SCIMClient
-	max_users_to_provision int64
+	scimClient          *SCIMClient
+	maxUsersToProvision int64
 }
 
 // NewEnterpriseUserWriter creates a new EnterpriseUserWriter with default 1000
@@ -54,8 +54,8 @@ func NewEnterpriseUserWriter(httpClient *http.Client, enterpriseBaseURL string, 
 		return nil, fmt.Errorf("failed to create scim client: %w", err)
 	}
 	w := &EnterpriseUserWriter{
-		max_users_to_provision: defaultMaxUsersToProvision,
-		scimClient:             scimClient,
+		maxUsersToProvision: defaultMaxUsersToProvision,
+		scimClient:          scimClient,
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -89,11 +89,12 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 	var merr error
 	// 1. Deactivate users to free up license seats first.
 	for username, scimUser := range currentUsersMap {
+		// Skip deactivated user
+		if scimUser.Active != nil && !*scimUser.Active {
+			continue
+		}
+		// Deactivate user who is not in desiredUsersMap
 		if _, ok := desiredUsersMap[username]; !ok {
-			if scimUser.Active != nil && !*scimUser.Active {
-				continue
-			}
-
 			logger.InfoContext(ctx, "deactivating user", "user", username)
 			if _, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
@@ -105,23 +106,26 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 	var count int64
 	for username, desiredUser := range desiredUsersMap {
 		count++
-		if count > w.max_users_to_provision {
-			merr = errors.Join(merr, fmt.Errorf("exceeded max users to provision: %d", w.max_users_to_provision))
+		if count > w.maxUsersToProvision {
+			merr = errors.Join(merr, fmt.Errorf("exceeded max users to provision: %d", w.maxUsersToProvision))
 			break
 		}
-		// Check if the user need to be reactived.
-		if _, ok := currentUsersMap[username]; ok {
-			if currentUsersMap[username].Active != nil && *currentUsersMap[username].Active {
-				continue
+
+		scimUser, ok := currentUsersMap[username]
+		if !ok {
+			// Create user if not found in currentUsersMap
+			logger.InfoContext(ctx, "creating user", "user", username)
+			if _, _, err := w.scimClient.CreateUser(ctx, desiredUser); err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
 			}
-			if _, _, err := w.scimClient.ReactivateUser(ctx, *currentUsersMap[username].ID); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to reactivate %q: %w", username, err))
+		} else {
+			// Reactivate user if user status is unknown or deactivated.
+			if scimUser.Active == nil || !*scimUser.Active {
+				logger.InfoContext(ctx, "reactivating user", "user", username)
+				if _, _, err := w.scimClient.ReactivateUser(ctx, *scimUser.ID); err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to reactivate %q: %w", username, err))
+				}
 			}
-			continue
-		}
-		// Create User
-		if _, _, err := w.scimClient.CreateUser(ctx, desiredUser); err != nil {
-			merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
 		}
 	}
 	return merr
