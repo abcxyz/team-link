@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-github/v67/github"
 )
 
-const scimURLSuffix = "/api/v3/scim/v2/"
+const ghesSCIMURLPath = "/api/v3/scim/v2/"
 
 // SCIMClient handles direct HTTP communication with the GHES SCIM API.
 // API doc: https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/provisioning-users-and-groups-with-scim-using-the-rest-api#provisioning-users-with-the-rest-api
@@ -39,7 +39,7 @@ type SCIMClient struct {
 
 // NewSCIMClient creates a new client for the GHES SCIM API.
 func NewSCIMClient(httpClient *http.Client, baseURL string) (*SCIMClient, error) {
-	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + scimURLSuffix)
+	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + ghesSCIMURLPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base url %q: %w", baseURL, err)
 	}
@@ -120,6 +120,19 @@ func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github
 		return nil, resp, err
 	}
 	return &deactivatedUser, resp, err
+}
+
+// ReactivateUser reinstating a suspended user.
+// https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/deprovisioning-and-reinstating-users#reinstating-a-user-account-that-was-soft-deprovisioned
+func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
+	path := fmt.Sprintf("Users/%s", scimID)
+	payload := &github.SCIMUserAttributes{Active: github.Bool(true)}
+	var reactivatedUser github.SCIMUserAttributes
+	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &reactivatedUser)
+	if err != nil {
+		return nil, resp, err
+	}
+	return &reactivatedUser, resp, err
 }
 
 // DeleteUser deactivates a user.
