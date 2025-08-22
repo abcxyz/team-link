@@ -126,7 +126,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 	)
 
 	// map each targetUser to Member type
-	var targetMembers []Member
+	targetMembers := make([]Member, 0, len(targetUsers))
 	for _, user := range targetUsers {
 		targetMembers = append(targetMembers, &UserMember{Usr: user})
 	}
