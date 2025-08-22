@@ -96,6 +96,8 @@ type MappingMetadata interface {
 type UserMapper interface {
 	// MappedUserID returns the user ID mapped to the given user ID.
 	MappedUserID(ctx context.Context, userID string) (string, error)
+	// MappedUser returns the user mapped to the given user.
+	MappedUser(ctx context.Context, user *User) (*User, error)
 }
 
 // noopUserMapper is an implementation of UserMapper that performs no operation.
@@ -111,6 +113,12 @@ func NewNoopUserMapper() UserMapper {
 // It takes a context and a user ID, and returns the same user ID without any modification.
 func (m *noopUserMapper) MappedUserID(ctx context.Context, userID string) (string, error) {
 	return userID, nil
+}
+
+// MappedUser implements the UserMapper interface for noopUserMapper.
+// It takes a context and a user, and returns the same user without any modification.
+func (m *noopUserMapper) MappedUser(ctx context.Context, user *User) (*User, error) {
+	return user, nil
 }
 
 // User represents a user in a group system.

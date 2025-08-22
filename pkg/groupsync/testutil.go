@@ -177,6 +177,17 @@ func (tum *testUserMapper) MappedUserID(ctx context.Context, userID string) (str
 	return id, nil
 }
 
+func (tum *testUserMapper) MappedUser(ctx context.Context, user *User) (*User, error) {
+	if err, ok := tum.mappedUserIDErrs[user.ID]; ok {
+		return nil, err
+	}
+	u, ok := tum.m[user.ID]
+	if !ok {
+		return nil, fmt.Errorf("user %s not mapped", user.ID)
+	}
+	return &User{ID: u}, nil
+}
+
 // Implements OneToOneGroupMapper interface.
 type testOneToOneGroupMapper struct {
 	m                   map[string]Mapping

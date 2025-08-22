@@ -110,6 +110,17 @@ func (m *GoogleGroupGitHubUserMapper) MappedUserID(ctx context.Context, userID s
 	return v, nil
 }
 
+func (m *GoogleGroupGitHubUserMapper) MappedUser(ctx context.Context, user *groupsync.User) (*groupsync.User, error) {
+	v, ok := m.mappings[user.ID]
+	if !ok {
+		return nil, groupsync.ErrTargetUserIDNotFound
+	}
+	return &groupsync.User{
+		ID:       v,
+		Metadata: user.Metadata,
+	}, nil
+}
+
 // NewUserMapper create a UserMapper for mapping from GoogleGroupUSer to GithubUser.
 func NewUserMapper(ctx context.Context, mappings *api.UserMappings) *GoogleGroupGitHubUserMapper {
 	logger := logging.FromContext(ctx)
