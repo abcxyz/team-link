@@ -72,6 +72,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 	desiredUsersMap := make(map[string]*github.SCIMUserAttributes)
+	// Use a list to maintain the ordering of the desired users to avoid unit test flakiness.
 	desiredUsersName := []string{}
 	for _, m := range members {
 		if !m.IsUser() {

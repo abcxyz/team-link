@@ -41,24 +41,26 @@ type OneToOneSyncer struct {
 	userMapper        UserMapper
 }
 
+type OneToOneSyncerParams struct {
+	Name              string
+	SourceSystem      string
+	TargetSystem      string
+	SourceGroupReader GroupReader
+	TargetGroupWriter GroupWriter
+	SourceGroupMapper OneToOneGroupMapper
+	UserMapper        UserMapper
+}
+
 // NewOneToOneSyncer creates a new OneToOneSyncer.
-func NewOneToOneSyncer(
-	name string,
-	sourceSystem string,
-	targetSystem string,
-	sourceGroupClient GroupReader,
-	targetGroupClient GroupWriter,
-	sourceGroupMapper OneToOneGroupMapper,
-	userMapper UserMapper,
-) *OneToOneSyncer {
+func NewOneToOneSyncer(params *OneToOneSyncerParams) *OneToOneSyncer {
 	return &OneToOneSyncer{
-		name:              name,
-		sourceSystem:      sourceSystem,
-		targetSystem:      targetSystem,
-		sourceGroupReader: sourceGroupClient,
-		targetGroupWriter: targetGroupClient,
-		sourceGroupMapper: sourceGroupMapper,
-		userMapper:        userMapper,
+		name:              params.Name,
+		sourceSystem:      params.SourceSystem,
+		targetSystem:      params.TargetSystem,
+		sourceGroupReader: params.SourceGroupReader,
+		targetGroupWriter: params.TargetGroupWriter,
+		sourceGroupMapper: params.SourceGroupMapper,
+		userMapper:        params.UserMapper,
 	}
 }
 
@@ -124,7 +126,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 	)
 
 	// map each targetUser to Member type
-	targetMembers := make([]Member, 0, len(targetUsers))
+	var targetMembers []Member
 	for _, user := range targetUsers {
 		targetMembers = append(targetMembers, &UserMember{Usr: user})
 	}

@@ -26,15 +26,16 @@ import (
 func TestOneToOneSyncer_NewOneToOneSyncer(t *testing.T) {
 	t.Parallel()
 
-	syncer := NewOneToOneSyncer(
-		"test_syncer",
-		"source",
-		"target",
-		&testReadWriteGroupClient{},
-		&testReadWriteGroupClient{},
-		&testOneToOneGroupMapper{},
-		&testUserMapper{},
-	)
+	params := &OneToOneSyncerParams{
+		Name:              "test_syncer",
+		SourceSystem:      "source",
+		TargetSystem:      "target",
+		SourceGroupReader: &testReadWriteGroupClient{},
+		TargetGroupWriter: &testReadWriteGroupClient{},
+		SourceGroupMapper: &testOneToOneGroupMapper{},
+		UserMapper:        &testUserMapper{},
+	}
+	syncer := NewOneToOneSyncer(params)
 
 	if got, want := syncer.Name(), "test_syncer"; got != want {
 		t.Errorf("unexpected name: got %q, want %q", got, want)
@@ -214,15 +215,15 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 
 			ctx := t.Context()
 
-			syncer := NewOneToOneSyncer(
-				tc.name,
-				"source",
-				"target",
-				tc.sourceGroupClient,
-				tc.targetGroupClient,
-				tc.sourceGroupMapper,
-				tc.userMapper,
-			)
+			syncer := NewOneToOneSyncer(&OneToOneSyncerParams{
+				Name:              tc.name,
+				SourceSystem:      "source",
+				TargetSystem:      "target",
+				SourceGroupReader: tc.sourceGroupClient,
+				TargetGroupWriter: tc.targetGroupClient,
+				SourceGroupMapper: tc.sourceGroupMapper,
+				UserMapper:        tc.userMapper,
+			})
 
 			err := syncer.Sync(ctx, tc.syncID)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
@@ -370,15 +371,15 @@ func TestOneToOneSyncer_SyncAll(t *testing.T) {
 
 			ctx := t.Context()
 
-			syncer := NewOneToOneSyncer(
-				tc.name,
-				"source",
-				"target",
-				tc.sourceGroupClient,
-				tc.targetGroupClient,
-				tc.sourceGroupMapper,
-				tc.userMapper,
-			)
+			syncer := NewOneToOneSyncer(&OneToOneSyncerParams{
+				Name:              tc.name,
+				SourceSystem:      "source",
+				TargetSystem:      "target",
+				SourceGroupReader: tc.sourceGroupClient,
+				TargetGroupWriter: tc.targetGroupClient,
+				SourceGroupMapper: tc.sourceGroupMapper,
+				UserMapper:        tc.userMapper,
+			})
 
 			err := syncer.SyncAll(ctx)
 			if diff := testutil.DiffErrString(err, tc.wantErr); diff != "" {
