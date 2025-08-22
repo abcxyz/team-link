@@ -72,6 +72,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 	desiredUsersMap := make(map[string]*github.SCIMUserAttributes)
+	desiredUsersName := []string{}
 	for _, m := range members {
 		if !m.IsUser() {
 			logger.DebugContext(ctx, "skipping non-user member", "member", m.ID())
@@ -84,6 +85,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			continue
 		}
 		desiredUsersMap[scimUser.UserName] = scimUser
+		desiredUsersName = append(desiredUsersName, scimUser.UserName)
 	}
 
 	var merr error
@@ -104,7 +106,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 
 	// 2. Create and reactivate users.
 	var count int64
-	for username, desiredUser := range desiredUsersMap {
+	for _, username := range desiredUsersName {
 		count++
 		if count > w.maxUsersToProvision {
 			merr = errors.Join(merr, fmt.Errorf("exceeded max users to provision: %d", w.maxUsersToProvision))
@@ -115,7 +117,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		if !ok {
 			// Create user if not found in currentUsersMap
 			logger.InfoContext(ctx, "creating user", "user", username)
-			if _, _, err := w.scimClient.CreateUser(ctx, desiredUser); err != nil {
+			if _, _, err := w.scimClient.CreateUser(ctx, desiredUsersMap[username]); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
 			}
 		} else {
