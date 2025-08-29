@@ -430,15 +430,16 @@ func (g *TeamReadWriter) addUserToTeam(ctx context.Context, client *github.Clien
 		if _, _, err := client.Teams.AddTeamMembershipByID(ctx, orgID, teamID, userID, membershipOpt); err != nil {
 			return fmt.Errorf("failed to add GitHub user(%s) for team(%d): %w", userID, teamID, err)
 		}
+	} else {
+		logger.WarnContext(
+			ctx,
+			"github user was not added to github team as the user is not an org member and invite non org members is disabled",
+			"user", userID,
+			"team", teamID,
+			"org", orgIDStr,
+			"invite_to_org_if_not_a_member flag", g.inviteToOrgIfNotAMember,
+		)
 	}
-
-	logger.WarnContext(
-		ctx,
-		"github user was not added to github team as the user is not an org member and invite non org members is disabled",
-		"user", userID,
-		"team", teamID,
-		"org", orgIDStr,
-	)
 	return nil
 }
 
