@@ -37,6 +37,21 @@ type SCIMClient struct {
 	baseURL    *url.URL
 }
 
+// scimPatchOp represents a single SCIM patch operation.
+// https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
+type scimPatchOp struct {
+	Op    string `json:"op"`
+	Path  string `json:"path,omitempty"`
+	Value any    `json:"value,omitempty"`
+}
+
+// scimPatchPayload is the body of a SCIM PATCH request.
+// https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
+type scimPatchPayload struct {
+	Schemas    []string      `json:"schemas"`
+	Operations []scimPatchOp `json:"Operations"`
+}
+
 // NewSCIMClient creates a new client for the GHES SCIM API.
 func NewSCIMClient(httpClient *http.Client, baseURL string) (*SCIMClient, error) {
 	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + ghesSCIMURLPath)
@@ -79,6 +94,9 @@ func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*github.SCIMUser
 // CreateUser provisions a new user.
 func (c *SCIMClient) CreateUser(ctx context.Context, user *github.SCIMUserAttributes) (*github.SCIMUserAttributes, *github.Response, error) {
 	path := "Users"
+	// Schema for POST: https://datatracker.ietf.org/doc/html/rfc7644#section-3.3
+	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
+	user.Active = github.Bool(true)
 	var createdUser github.SCIMUserAttributes
 	resp, err := c.do(ctx, http.MethodPost, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &createdUser)
 	if err != nil {
@@ -101,6 +119,8 @@ func (c *SCIMClient) GetUser(ctx context.Context, scimID string) (*github.SCIMUs
 // UpdateUser updates a user's attributes.
 func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *github.SCIMUserAttributes) (*github.SCIMUserAttributes, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
+	// Schema for PUT: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.1
+	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
 	var updatedUser github.SCIMUserAttributes
 	resp, err := c.do(ctx, http.MethodPut, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &updatedUser)
 	if err != nil {
@@ -113,7 +133,16 @@ func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *github
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/provisioning-users-and-groups-with-scim-using-the-rest-api#soft-deprovisioning-users-with-the-rest-api
 func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
-	payload := &github.SCIMUserAttributes{Active: github.Bool(false)}
+	// Schema for PATCH: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
+	payload := &scimPatchPayload{
+		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		Operations: []scimPatchOp{
+			{
+				Op:    "replace",
+				Value: map[string]bool{"active": false},
+			},
+		},
+	}
 	var deactivatedUser github.SCIMUserAttributes
 	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &deactivatedUser)
 	if err != nil {
@@ -126,7 +155,15 @@ func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/deprovisioning-and-reinstating-users#reinstating-a-user-account-that-was-soft-deprovisioned
 func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
-	payload := &github.SCIMUserAttributes{Active: github.Bool(true)}
+	payload := &scimPatchPayload{
+		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		Operations: []scimPatchOp{
+			{
+				Op:    "replace",
+				Value: map[string]bool{"active": true},
+			},
+		},
+	}
 	var reactivatedUser github.SCIMUserAttributes
 	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &reactivatedUser)
 	if err != nil {

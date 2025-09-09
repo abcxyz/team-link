@@ -111,12 +111,22 @@ func fakeEnterprise(t *testing.T, data *EnterpriseUserData) *httptest.Server {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
-			var patch github.SCIMUserAttributes
+			var patch scimPatchPayload
 			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			user.Active = patch.Active
+			if len(patch.Operations) > 0 {
+				op := patch.Operations[0]
+				if op.Op == "replace" {
+					if value, ok := op.Value.(map[string]interface{}); ok {
+						if active, ok := value["active"].(bool); ok {
+							user.Active = github.Bool(active)
+						}
+					}
+				}
+			}
+
 			if err := json.NewEncoder(w).Encode(user); err != nil {
 				t.Fatalf("failed to encode create response: %v", err)
 			}
@@ -217,6 +227,9 @@ func TestSCIMClient_UpdateUser(t *testing.T) {
 			wantFinalUser: &github.SCIMUserAttributes{
 				ID:   github.String("id1"),
 				Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+				Schemas: []string{
+					"urn:ietf:params:scim:schemas:core:2.0:User",
+				},
 			},
 			wantServerCount: 1,
 		},
@@ -327,6 +340,10 @@ func TestSCIMClient_CreateUser(t *testing.T) {
 			wantUserOnServer: &github.SCIMUserAttributes{
 				ID:       github.String("scim-id-new.user"),
 				UserName: "new.user",
+				Schemas: []string{
+					"urn:ietf:params:scim:schemas:core:2.0:User",
+				},
+				Active: github.Bool(true),
 			},
 			wantServerUserCount: 1,
 		},
