@@ -124,10 +124,19 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		} else {
 			// Reactivate user if user status is unknown or deactivated.
 			if scimUser.Active == nil || !*scimUser.Active {
-				logger.InfoContext(ctx, "reactivating user", "user", username)
+				logger.InfoContext(ctx, "deactivating user before reactivating", "user", username, "active", scimUser.Active)
+				if _, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID); err != nil {
+					merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
+				}
+				logger.InfoContext(ctx, "reactivating user", "user", username, "active", scimUser.Active)
 				if _, _, err := w.scimClient.ReactivateUser(ctx, *scimUser.ID); err != nil {
 					merr = errors.Join(merr, fmt.Errorf("failed to reactivate %q: %w", username, err))
 				}
+				updated, _, err := w.scimClient.GetUser(ctx, *scimUser.ID)
+				if err != nil {
+					merr = errors.Join(merr, fmt.Errorf("after reactivation, failed to get %q: %w", username, err))
+				}
+				logger.InfoContext(ctx, "reactivated user", "user", updated.UserName, "active", updated.Active)
 			}
 		}
 	}
