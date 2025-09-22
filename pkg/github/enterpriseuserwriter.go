@@ -128,12 +128,13 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 					"user", username,
 					"active", scimUser.Active,
 				)
-				if _, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID); err != nil {
+				deactivated, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID)
+				if err != nil {
 					merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
 				}
 				logger.InfoContext(ctx, "reactivating user",
-					"user", username,
-					"active", scimUser.Active,
+					"user", deactivated.UserName,
+					"active", deactivated.Active,
 				)
 				if _, _, err := w.scimClient.ReactivateUser(ctx, *scimUser.ID); err != nil {
 					merr = errors.Join(merr, fmt.Errorf("failed to reactivate %q: %w", username, err))
