@@ -14,13 +14,13 @@
 
 package utils
 
-import "slices"
+import (
+	"cmp"
+	"maps"
+	"slices"
+)
 
-func MapKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return keys
+// MapKeys returns the keys in a map, sorted with the default sorter.
+func MapKeys[K cmp.Ordered, V any](m map[K]V) []K {
+	return slices.Sorted(maps.Keys(m))
 }
