@@ -40,10 +40,17 @@ func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 	}
 }
 
+func WithRoleBinding(role string, members ...*groupsync.User) EnterpriseRWOpt {
+	return func(rw *EnterpriseUserWriter) {
+		rw.roleBindings[role] = members
+	}
+}
+
 // EnterpriseUserWriter manages enterprise users via a direct GHES SCIM API client.
 type EnterpriseUserWriter struct {
 	scimClient          *SCIMClient
 	maxUsersToProvision int64
+	roleBindings        map[string][]*groupsync.User
 }
 
 // NewEnterpriseUserWriter creates a new EnterpriseUserWriter with default 1000
@@ -56,6 +63,7 @@ func NewEnterpriseUserWriter(httpClient *http.Client, enterpriseBaseURL string, 
 	w := &EnterpriseUserWriter{
 		maxUsersToProvision: defaultMaxUsersToProvision,
 		scimClient:          scimClient,
+		roleBindings:        make(map[string][]*groupsync.User),
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -118,8 +126,10 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		if !ok {
 			// Create user if not found in currentUsersMap
 			logger.InfoContext(ctx, "creating user", "user", username)
-			if _, _, err := w.scimClient.CreateUser(ctx, desiredUsersMap[username]); err != nil {
+			if user, _, err := w.scimClient.CreateUser(ctx, desiredUsersMap[username]); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
+			} else {
+				currentUsersMap[username] = user
 			}
 		} else {
 			// Reactivate user if user status is unknown or deactivated.
@@ -131,5 +141,26 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			}
 		}
 	}
+
+	// 3. Assign and remove optional enerprise-wide role grants.
+	if w.scimClient.baseURL.Host == "github.com" && len(w.roleBindings) > 0 {
+		logger.WarnContext(ctx, "skipping role sync as it is only supported in GHES for now.")
+		return merr
+	}
+	userToRoles := make(map[string][]string)
+	for role, userList := range w.roleBindings {
+		for _, user := range userList {
+			userToRoles[user.ID] = append(userToRoles[user.ID], role)
+		}
+	}
+	logger.InfoContext(ctx, "beginning role assignment")
+	for username, scimUser := range currentUsersMap {
+		roles := userToRoles[username] // Safe to ignore failed lookup because SetUserRoles handles it.
+		logger.InfoContext(ctx, "setting roles", "user", username, "roles", roles)
+		if _, _, err := w.scimClient.SetUserRoles(ctx, *scimUser.ID, roles); err != nil {
+			merr = errors.Join(merr, fmt.Errorf("failed to set roles %v for %q: %w", roles, username, err))
+		}
+	}
+
 	return merr
 }

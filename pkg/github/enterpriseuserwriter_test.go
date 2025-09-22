@@ -32,7 +32,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 		name                string
 		initialUsers        map[string]*github.SCIMUserAttributes
 		desiredMembers      []groupsync.Member
-		maxUsersToProvision int64
+		opt                 EnterpriseRWOpt
 		failCreateUserCalls bool
 		failListUserCalls   bool
 		wantUsersOnServer   map[string]*github.SCIMUserAttributes
@@ -223,9 +223,9 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			},
 		},
 		{
-			name:                "error_exceeds_max_users",
-			maxUsersToProvision: 1,
-			initialUsers:        map[string]*github.SCIMUserAttributes{},
+			name:         "error_exceeds_max_users",
+			opt:          WithMaxUsersToProvision(1),
+			initialUsers: map[string]*github.SCIMUserAttributes{},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
@@ -250,6 +250,45 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "add user to enterprise role",
+			initialUsers: map[string]*github.SCIMUserAttributes{
+				"user.one": {
+					ID:     github.String("user.one"),
+					Active: github.Bool(true),
+				},
+				"user.two": {
+					ID: github.String("user.two"),
+				},
+			},
+			opt: WithRoleBinding("enterprise_owner",
+				&groupsync.User{ID: "user.one"},
+				&groupsync.User{ID: "user.two"},   // Deactivated.
+				&groupsync.User{ID: "user.three"}, // Does not exist.
+				&groupsync.User{ID: "user.four"},  // To be created.
+			),
+			desiredMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{ID: "user.one"},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{ID: "user.four"},
+				},
+			},
+			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+				"user.one": {
+					ID:     github.String("user.one"),
+					Active: github.Bool(true),
+				},
+				"user.two": {
+					ID: github.String("user.two"),
+				},
+				"user.four": {
+					ID:     github.String("user.four"),
+					Active: github.Bool(true),
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -265,12 +304,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			srv := fakeEnterprise(t, userData)
 			defer srv.Close()
 
-			var opts []EnterpriseRWOpt
-			if tc.maxUsersToProvision > 0 {
-				opts = append(opts, WithMaxUsersToProvision(tc.maxUsersToProvision))
-			}
-
-			writer, err := NewEnterpriseUserWriter(srv.Client(), srv.URL, opts...)
+			writer, err := NewEnterpriseUserWriter(srv.Client(), srv.URL, tc.opt)
 			if err != nil {
 				t.Fatalf("NewEnterpriseUserWriter failed: %v", err)
 			}

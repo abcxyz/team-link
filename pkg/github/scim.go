@@ -132,44 +132,51 @@ func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *github
 // DeactivateUser deactivates a user.
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/provisioning-users-and-groups-with-scim-using-the-rest-api#soft-deprovisioning-users-with-the-rest-api
 func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
-	path := fmt.Sprintf("Users/%s", scimID)
-	// Schema for PATCH: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
-	payload := &scimPatchPayload{
-		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		Operations: []scimPatchOp{
-			{
-				Op:    "replace",
-				Value: map[string]bool{"active": false},
-			},
-		},
+	op := scimPatchOp{
+		Op:    "replace",
+		Value: map[string]bool{"active": false},
 	}
-	var deactivatedUser github.SCIMUserAttributes
-	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &deactivatedUser)
-	if err != nil {
-		return nil, resp, err
-	}
-	return &deactivatedUser, resp, err
+	return c.patchUser(ctx, scimID, op)
 }
 
 // ReactivateUser reinstating a suspended user.
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/deprovisioning-and-reinstating-users#reinstating-a-user-account-that-was-soft-deprovisioned
 func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
+	op := scimPatchOp{
+		Op:    "replace",
+		Value: map[string]bool{"active": true},
+	}
+	return c.patchUser(ctx, scimID, op)
+}
+
+// SetUserRoles sets the roles granted to the user, overwriting previous role grants.
+// If no role is specified, the default "user" role is applied.
+// https://docs.github.com/en/enterprise-server@3.17/rest/enterprise-admin/scim?apiVersion=2022-11-28#update-an-attribute-for-a-scim-enterprise-user
+func (c *SCIMClient) SetUserRoles(ctx context.Context, scimID string, roleNames []string) (*github.SCIMUserAttributes, *github.Response, error) {
+	roles := make([]map[string]any, 0, len(roleNames))
+	for _, name := range roleNames {
+		roles = append(roles, map[string]any{"value": name})
+	}
+	op := scimPatchOp{
+		Op:    "replace",
+		Path:  "roles",
+		Value: roles,
+	}
+	return c.patchUser(ctx, scimID, op)
+}
+
+func (c *SCIMClient) patchUser(ctx context.Context, scimID string, ops ...scimPatchOp) (*github.SCIMUserAttributes, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
 	payload := &scimPatchPayload{
-		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		Operations: []scimPatchOp{
-			{
-				Op:    "replace",
-				Value: map[string]bool{"active": true},
-			},
-		},
+		Schemas:    []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		Operations: ops,
 	}
-	var reactivatedUser github.SCIMUserAttributes
-	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &reactivatedUser)
+	var user github.SCIMUserAttributes
+	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &user)
 	if err != nil {
 		return nil, resp, err
 	}
-	return &reactivatedUser, resp, err
+	return &user, resp, err
 }
 
 // DeleteUser deactivates a user.
