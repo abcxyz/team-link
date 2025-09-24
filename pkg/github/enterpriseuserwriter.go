@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v67/github"
-
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/team-link/pkg/groupsync"
 )
@@ -71,7 +69,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 	if err != nil {
 		return fmt.Errorf("failed to list users: %w", err)
 	}
-	desiredUsersMap := make(map[string]*github.SCIMUserAttributes)
+	desiredUsersMap := make(map[string]*SCIMUser)
 	// Use a list to maintain the ordering of the desired users to avoid unit test flakiness.
 	desiredUsersName := []string{}
 	for _, m := range members {
@@ -80,7 +78,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			continue
 		}
 		u, _ := m.User()
-		scimUser, ok := u.Attributes.(*github.SCIMUserAttributes)
+		scimUser, ok := u.Attributes.(*SCIMUser)
 		if !ok {
 			logger.DebugContext(ctx, "skipping non-SCIM user member", "member", m.ID())
 			continue

@@ -37,6 +37,37 @@ type SCIMClient struct {
 	baseURL    *url.URL
 }
 
+// SCIMProvisionedIdentities represents the result of calling ListSCIMProvisionedIdentities.
+// This is a copy/paste of the upstream SCIMProvisionedIdentities struct, with the Resources
+// field typed as *SCIMUser instead of *SCIMUserAttributes.
+// Temporary pending https://github.com/google/go-github/pull/3728.
+type SCIMProvisionedIdentities struct {
+	Schemas      []string    `json:"schemas,omitempty"`
+	TotalResults *int        `json:"totalResults,omitempty"`
+	ItemsPerPage *int        `json:"itemsPerPage,omitempty"`
+	StartIndex   *int        `json:"startIndex,omitempty"`
+	Resources    []*SCIMUser `json:"Resources,omitempty"`
+}
+
+// SCIMUser is a wrapper around the upstream SCIMUserAttributes struct that includes roles.
+// Temporary pending https://github.com/google/go-github/pull/3728.
+type SCIMUser struct {
+	github.SCIMUserAttributes
+	Roles []*SCIMUserRole `json:"roles,omitempty"`
+}
+
+// SCIMUserRole is an enterprise-wide role granted to the user. This is only
+// supported in GitHub Enterprise Server, and not GitHub Enterprise Cloud.
+// See the docs for allowed role names.
+//
+// https://docs.github.com/en/enterprise-server@latest/rest/enterprise-admin/scim?apiVersion=2022-11-28#provision-a-scim-enterprise-user
+type SCIMUserRole struct {
+	Value   string  `json:"value"`             // (Required.)
+	Display *string `json:"display,omitempty"` // (Optional.)
+	Type    *string `json:"type,omitempty"`    // (Optional.)
+	Primary *bool   `json:"primary,omitempty"` // (Optional.)
+}
+
 // scimPatchOp represents a single SCIM patch operation.
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
 type scimPatchOp struct {
@@ -62,8 +93,8 @@ func NewSCIMClient(httpClient *http.Client, baseURL string) (*SCIMClient, error)
 }
 
 // ListUsers fetches all SCIM provisioned users from the enterprise, handling SCIM pagination.
-func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*github.SCIMUserAttributes, error) {
-	allUsers := make(map[string]*github.SCIMUserAttributes)
+func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*SCIMUser, error) {
+	allUsers := make(map[string]*SCIMUser)
 	startIndex := 1
 	for {
 		url := &url.URL{Path: "Users"}
@@ -72,7 +103,7 @@ func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*github.SCIMUser
 		q.Set("count", "100")
 		url.RawQuery = q.Encode()
 
-		var result github.SCIMProvisionedIdentities
+		var result SCIMProvisionedIdentities
 		if _, err := c.do(ctx, http.MethodGet, c.baseURL.ResolveReference(url).String(), nil, &result); err != nil {
 			return nil, fmt.Errorf("failed to list scim users starting at index %d: %w", startIndex, err)
 		}
@@ -92,12 +123,12 @@ func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*github.SCIMUser
 }
 
 // CreateUser provisions a new user.
-func (c *SCIMClient) CreateUser(ctx context.Context, user *github.SCIMUserAttributes) (*github.SCIMUserAttributes, *github.Response, error) {
+func (c *SCIMClient) CreateUser(ctx context.Context, user *SCIMUser) (*SCIMUser, *github.Response, error) {
 	path := "Users"
 	// Schema for POST: https://datatracker.ietf.org/doc/html/rfc7644#section-3.3
 	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
 	user.Active = github.Bool(true)
-	var createdUser github.SCIMUserAttributes
+	var createdUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPost, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &createdUser)
 	if err != nil {
 		return nil, resp, err
@@ -106,9 +137,9 @@ func (c *SCIMClient) CreateUser(ctx context.Context, user *github.SCIMUserAttrib
 }
 
 // GetUser gets a SCIM provisioned user by their SCIM ID.
-func (c *SCIMClient) GetUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
+func (c *SCIMClient) GetUser(ctx context.Context, scimID string) (*SCIMUser, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
-	var foundUser github.SCIMUserAttributes
+	var foundUser SCIMUser
 	resp, err := c.do(ctx, http.MethodGet, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), nil, &foundUser)
 	if err != nil {
 		return nil, resp, err
@@ -117,11 +148,11 @@ func (c *SCIMClient) GetUser(ctx context.Context, scimID string) (*github.SCIMUs
 }
 
 // UpdateUser updates a user's attributes.
-func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *github.SCIMUserAttributes) (*github.SCIMUserAttributes, *github.Response, error) {
+func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *SCIMUser) (*SCIMUser, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
 	// Schema for PUT: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.1
 	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
-	var updatedUser github.SCIMUserAttributes
+	var updatedUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPut, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &updatedUser)
 	if err != nil {
 		return nil, resp, err
@@ -131,7 +162,7 @@ func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *github
 
 // DeactivateUser deactivates a user.
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/provisioning-users-and-groups-with-scim-using-the-rest-api#soft-deprovisioning-users-with-the-rest-api
-func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
+func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*SCIMUser, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
 	// Schema for PATCH: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
 	payload := &scimPatchPayload{
@@ -143,7 +174,7 @@ func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github
 			},
 		},
 	}
-	var deactivatedUser github.SCIMUserAttributes
+	var deactivatedUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &deactivatedUser)
 	if err != nil {
 		return nil, resp, err
@@ -153,7 +184,7 @@ func (c *SCIMClient) DeactivateUser(ctx context.Context, scimID string) (*github
 
 // ReactivateUser reinstating a suspended user.
 // https://docs.github.com/en/enterprise-server@3.17/admin/managing-iam/provisioning-user-accounts-with-scim/deprovisioning-and-reinstating-users#reinstating-a-user-account-that-was-soft-deprovisioned
-func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*github.SCIMUserAttributes, *github.Response, error) {
+func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*SCIMUser, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
 	payload := &scimPatchPayload{
 		Schemas: []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
@@ -164,7 +195,7 @@ func (c *SCIMClient) ReactivateUser(ctx context.Context, scimID string) (*github
 			},
 		},
 	}
-	var reactivatedUser github.SCIMUserAttributes
+	var reactivatedUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPatch, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), payload, &reactivatedUser)
 	if err != nil {
 		return nil, resp, err
