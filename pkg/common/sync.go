@@ -19,8 +19,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/abcxyz/team-link/pkg/groupsync"
-	"github.com/abcxyz/team-link/pkg/utils"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/utils"
 )
 
 // Sync syncs membership informations.

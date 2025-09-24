@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
 )
 
 func TestComputeOrgTeamSSORequired(t *testing.T) {

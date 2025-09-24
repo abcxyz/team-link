@@ -21,7 +21,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/abcxyz/team-link/pkg/cli"
+	"github.com/abcxyz/team-link/v2/pkg/cli"
 )
 
 func main() {

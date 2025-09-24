@@ -23,7 +23,7 @@ import (
 	"google.golang.org/api/cloudidentity/v1"
 
 	"github.com/abcxyz/pkg/logging"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 const (

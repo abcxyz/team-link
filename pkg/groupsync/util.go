@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/abcxyz/team-link/apis/v1alpha3"
+	"github.com/abcxyz/team-link/v2/apis/v1alpha3"
 )
 
 // ConcurrentSync syncs the given source groups concurrently using the given syncer.

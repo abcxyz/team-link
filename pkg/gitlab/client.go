@@ -21,7 +21,7 @@ import (
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/abcxyz/team-link/pkg/credentials"
+	"github.com/abcxyz/team-link/v2/pkg/credentials"
 )
 
 // ClientProvider provides a GitLab client.

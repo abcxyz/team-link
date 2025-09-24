@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-github/v67/github"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 type fakeTokenSource struct {

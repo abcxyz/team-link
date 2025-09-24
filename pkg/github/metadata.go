@@ -17,7 +17,7 @@ package github
 import (
 	"slices"
 
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 type Role string

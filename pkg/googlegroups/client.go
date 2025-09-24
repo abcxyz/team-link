@@ -21,7 +21,7 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/cloudidentity/v1"
 
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // NewGroupReaderWithDefaultApplicationToken creates a reader for GoogleGroups.

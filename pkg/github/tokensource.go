@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/abcxyz/pkg/githubauth"
-	"github.com/abcxyz/team-link/pkg/credentials"
+	"github.com/abcxyz/team-link/v2/pkg/credentials"
 )
 
 // DefaultStaticTokenEnvVar is where we read default github token from.

@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/abcxyz/pkg/logging"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 const defaultMaxUsersToProvision = 1000

@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
-	tltypes "github.com/abcxyz/team-link/internal"
-	"github.com/abcxyz/team-link/pkg/googlegroups"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
+	tltypes "github.com/abcxyz/team-link/v2/internal"
+	"github.com/abcxyz/team-link/v2/pkg/googlegroups"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // NewReader creates a GroupReader base on source type and input config.
