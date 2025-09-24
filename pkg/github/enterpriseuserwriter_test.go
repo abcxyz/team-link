@@ -30,223 +30,265 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 
 	cases := []struct {
 		name                string
-		initialUsers        map[string]*github.SCIMUserAttributes
+		initialUsers        map[string]*SCIMUser
 		desiredMembers      []groupsync.Member
 		maxUsersToProvision int64
 		failCreateUserCalls bool
 		failListUserCalls   bool
-		wantUsersOnServer   map[string]*github.SCIMUserAttributes
+		wantUsersOnServer   map[string]*SCIMUser
 		wantErrStr          string
 	}{
 		{
 			name: "success_create_and_deactivate",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.old": {
-					ID:       github.String("scim-id-user.old"),
-					UserName: "user.old",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.old"),
+						UserName: "user.old",
+						Active:   github.Bool(true),
+					},
 				},
 				"scim-id-user.unchanged": {
-					ID:       github.String("scim-id-user.unchanged"),
-					UserName: "user.unchanged",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.unchanged"),
+						UserName: "user.unchanged",
+						Active:   github.Bool(true),
+					},
 				},
 			},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user.new",
-						Attributes: &github.SCIMUserAttributes{
-							UserName: "user.new",
-							Active:   github.Bool(true),
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "user.new",
+								Active:   github.Bool(true),
+							},
 						},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user.unchanged",
-						Attributes: &github.SCIMUserAttributes{
-							UserName: "user.unchanged",
-							Active:   github.Bool(true),
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "user.unchanged",
+								Active:   github.Bool(true),
+							},
 						},
 					},
 				},
 			},
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.old": {
-					ID:       github.String("scim-id-user.old"),
-					UserName: "user.old",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.old"),
+						UserName: "user.old",
+						Active:   github.Bool(false),
+					},
 				},
 				"scim-id-user.unchanged": {
-					ID:       github.String("scim-id-user.unchanged"),
-					UserName: "user.unchanged",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.unchanged"),
+						UserName: "user.unchanged",
+						Active:   github.Bool(true),
+					},
 				},
 				"scim-id-user.new": {
-					ID:       github.String("scim-id-user.new"),
-					UserName: "user.new",
-					Active:   github.Bool(true),
-					Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.new"),
+						UserName: "user.new",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
 				},
 			},
 		},
 		{
 			name:         "success_create_only",
-			initialUsers: map[string]*github.SCIMUserAttributes{},
+			initialUsers: map[string]*SCIMUser{},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user.one",
-						Attributes: &github.SCIMUserAttributes{
-							UserName: "user.one",
-							Active:   github.Bool(true),
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "user.one",
+								Active:   github.Bool(true),
+							},
 						},
 					},
 				},
 			},
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(true),
-					Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
 				},
 			},
 		},
 		{
 			name: "success_deactivate_only",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+					},
 				},
 			},
 			desiredMembers: []groupsync.Member{},
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(false),
+					},
 				},
 			},
 		},
 		{
 			name: "success_reactivate_only",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(false),
+					},
 				},
 			},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID: "user.one",
-						Attributes: &github.SCIMUserAttributes{
-							UserName: "user.one",
-							Active:   github.Bool(true),
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "user.one",
+								Active:   github.Bool(true),
+							},
 						},
 					},
 				},
 			},
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+					},
 				},
 			},
 		},
 		{
 			name: "no_op",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(false),
+					},
 				},
 			},
 			desiredMembers: []groupsync.Member{},
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(false),
+					},
 				},
 			},
 		},
 		{
 			name: "error_list_fails",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+					},
 				},
 			},
 			failListUserCalls: true,
 			wantErrStr:        "failed to list users: failed to list scim users starting at index 1: request failed with status 500",
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+					},
 				},
 			},
 		},
 		{
 			name: "error_create_fails",
-			initialUsers: map[string]*github.SCIMUserAttributes{
+			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.old": {
-					ID:       github.String("scim-id-user.old"),
-					UserName: "user.old",
-					Active:   github.Bool(true),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.old"),
+						UserName: "user.old",
+						Active:   github.Bool(true),
+					},
 				},
 			},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID:         "user.new",
-						Attributes: &github.SCIMUserAttributes{UserName: "user.new"},
+						Attributes: &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{UserName: "user.new"}},
 					},
 				},
 			},
 			failCreateUserCalls: true,
 			wantErrStr:          "failed to create \"user.new\": request failed with status 500",
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.old": {
-					ID:       github.String("scim-id-user.old"),
-					UserName: "user.old",
-					Active:   github.Bool(false),
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.old"),
+						UserName: "user.old",
+						Active:   github.Bool(false),
+					},
 				},
 			},
 		},
 		{
 			name:                "error_exceeds_max_users",
 			maxUsersToProvision: 1,
-			initialUsers:        map[string]*github.SCIMUserAttributes{},
+			initialUsers:        map[string]*SCIMUser{},
 			desiredMembers: []groupsync.Member{
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID:         "user.one",
-						Attributes: &github.SCIMUserAttributes{UserName: "user.one"},
+						Attributes: &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{UserName: "user.one"}},
 					},
 				},
 				&groupsync.UserMember{
 					Usr: &groupsync.User{
 						ID:         "user.two",
-						Attributes: &github.SCIMUserAttributes{UserName: "user.two"},
+						Attributes: &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{UserName: "user.two"}},
 					},
 				},
 			},
 			wantErrStr: "exceeded max users to provision: 1",
-			wantUsersOnServer: map[string]*github.SCIMUserAttributes{
+			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
-					ID:       github.String("scim-id-user.one"),
-					UserName: "user.one",
-					Active:   github.Bool(true),
-					Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
 				},
 			},
 		},

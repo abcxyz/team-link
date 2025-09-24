@@ -31,7 +31,7 @@ import (
 
 // EnterpriseUserData holds the state for the mock server.
 type EnterpriseUserData struct {
-	allUsers            map[string]*github.SCIMUserAttributes // Map SCIM ID to user
+	allUsers            map[string]*SCIMUser // Map SCIM ID to user
 	failListUserCalls   bool
 	failCreateUserCalls bool
 }
@@ -49,11 +49,11 @@ func fakeEnterprise(t *testing.T, data *EnterpriseUserData) *httptest.Server {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
-			var users []*github.SCIMUserAttributes
+			var users []*SCIMUser
 			for _, u := range data.allUsers {
 				users = append(users, u)
 			}
-			list := &github.SCIMProvisionedIdentities{Resources: users, TotalResults: github.Int(len(users))}
+			list := &SCIMProvisionedIdentities{Resources: users, TotalResults: github.Int(len(users))}
 			if err := json.NewEncoder(w).Encode(list); err != nil {
 				t.Fatalf("failed to encode list response: %v", err)
 			}
@@ -62,7 +62,7 @@ func fakeEnterprise(t *testing.T, data *EnterpriseUserData) *httptest.Server {
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
-			var user github.SCIMUserAttributes
+			var user SCIMUser
 			if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -95,7 +95,7 @@ func fakeEnterprise(t *testing.T, data *EnterpriseUserData) *httptest.Server {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
-			var updatedUser github.SCIMUserAttributes
+			var updatedUser SCIMUser
 			if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -150,30 +150,30 @@ func TestSCIMClient_ListUsers(t *testing.T) {
 
 	cases := []struct {
 		name              string
-		initialUsers      map[string]*github.SCIMUserAttributes
+		initialUsers      map[string]*SCIMUser
 		failListUserCalls bool
-		want              map[string]*github.SCIMUserAttributes
+		want              map[string]*SCIMUser
 		wantErrStr        string
 	}{
 		{
 			name: "success_multiple_users",
-			initialUsers: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "user.one"},
-				"id2": {ID: github.String("id2"), UserName: "user.two"},
+			initialUsers: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "user.one"}},
+				"id2": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id2"), UserName: "user.two"}},
 			},
-			want: map[string]*github.SCIMUserAttributes{
-				"user.one": {ID: github.String("id1"), UserName: "user.one"},
-				"user.two": {ID: github.String("id2"), UserName: "user.two"},
+			want: map[string]*SCIMUser{
+				"user.one": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "user.one"}},
+				"user.two": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id2"), UserName: "user.two"}},
 			},
 		},
 		{
 			name:         "success_no_users",
-			initialUsers: map[string]*github.SCIMUserAttributes{},
-			want:         map[string]*github.SCIMUserAttributes{},
+			initialUsers: map[string]*SCIMUser{},
+			want:         map[string]*SCIMUser{},
 		},
 		{
 			name:              "error_api_fails",
-			initialUsers:      map[string]*github.SCIMUserAttributes{},
+			initialUsers:      map[string]*SCIMUser{},
 			failListUserCalls: true,
 			wantErrStr:        "request failed with status 500",
 		},
@@ -184,7 +184,7 @@ func TestSCIMClient_ListUsers(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			userData := &EnterpriseUserData{allUsers: make(map[string]*github.SCIMUserAttributes), failListUserCalls: tc.failListUserCalls}
+			userData := &EnterpriseUserData{allUsers: make(map[string]*SCIMUser), failListUserCalls: tc.failListUserCalls}
 			for k, v := range tc.initialUsers {
 				userData.allUsers[k] = v
 			}
@@ -213,22 +213,26 @@ func TestSCIMClient_UpdateUser(t *testing.T) {
 	cases := []struct {
 		name            string
 		scimIDToUpdate  string
-		updatePayload   *github.SCIMUserAttributes
-		wantFinalUser   *github.SCIMUserAttributes
+		updatePayload   *SCIMUser
+		wantFinalUser   *SCIMUser
 		wantServerCount int
 		wantErrStr      string
 	}{
 		{
 			name:           "success",
 			scimIDToUpdate: "id1",
-			updatePayload: &github.SCIMUserAttributes{
-				Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+			updatePayload: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+				},
 			},
-			wantFinalUser: &github.SCIMUserAttributes{
-				ID:   github.String("id1"),
-				Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
-				Schemas: []string{
-					"urn:ietf:params:scim:schemas:core:2.0:User",
+			wantFinalUser: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					ID:   github.String("id1"),
+					Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+					Schemas: []string{
+						"urn:ietf:params:scim:schemas:core:2.0:User",
+					},
 				},
 			},
 			wantServerCount: 1,
@@ -236,8 +240,10 @@ func TestSCIMClient_UpdateUser(t *testing.T) {
 		{
 			name:           "error_not_found",
 			scimIDToUpdate: "nonexistent",
-			updatePayload: &github.SCIMUserAttributes{
-				Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+			updatePayload: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					Name: github.SCIMUserName{GivenName: "New", FamilyName: "Name"},
+				},
 			},
 			wantErrStr:      "request failed with status 404",
 			wantServerCount: 1,
@@ -249,8 +255,8 @@ func TestSCIMClient_UpdateUser(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			userData := &EnterpriseUserData{allUsers: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "test.user", Name: github.SCIMUserName{GivenName: "Old", FamilyName: "Name"}},
+			userData := &EnterpriseUserData{allUsers: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user", Name: github.SCIMUserName{GivenName: "Old", FamilyName: "Name"}}},
 			}}
 			srv := fakeEnterprise(t, userData)
 			defer srv.Close()
@@ -301,8 +307,8 @@ func TestSCIMClient_DeleteUser(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			userData := &EnterpriseUserData{allUsers: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "test.user"},
+			userData := &EnterpriseUserData{allUsers: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user"}},
 			}}
 			srv := fakeEnterprise(t, userData)
 			defer srv.Close()
@@ -329,28 +335,30 @@ func TestSCIMClient_CreateUser(t *testing.T) {
 	cases := []struct {
 		name                string
 		failToCreateUser    bool
-		userToCreate        *github.SCIMUserAttributes
-		wantUserOnServer    *github.SCIMUserAttributes
+		userToCreate        *SCIMUser
+		wantUserOnServer    *SCIMUser
 		wantServerUserCount int
 		wantErrStr          string
 	}{
 		{
 			name:         "success",
-			userToCreate: &github.SCIMUserAttributes{UserName: "new.user"},
-			wantUserOnServer: &github.SCIMUserAttributes{
-				ID:       github.String("scim-id-new.user"),
-				UserName: "new.user",
-				Schemas: []string{
-					"urn:ietf:params:scim:schemas:core:2.0:User",
+			userToCreate: &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{UserName: "new.user"}},
+			wantUserOnServer: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					ID:       github.String("scim-id-new.user"),
+					UserName: "new.user",
+					Schemas: []string{
+						"urn:ietf:params:scim:schemas:core:2.0:User",
+					},
+					Active: github.Bool(true),
 				},
-				Active: github.Bool(true),
 			},
 			wantServerUserCount: 1,
 		},
 		{
 			name:                "fail_internal_server_error",
 			failToCreateUser:    true,
-			userToCreate:        &github.SCIMUserAttributes{UserName: "new.user"},
+			userToCreate:        &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{UserName: "new.user"}},
 			wantServerUserCount: 0,
 			wantErrStr:          "request failed with status 500",
 		},
@@ -362,7 +370,7 @@ func TestSCIMClient_CreateUser(t *testing.T) {
 
 			ctx := context.Background()
 			userData := &EnterpriseUserData{
-				allUsers:            make(map[string]*github.SCIMUserAttributes),
+				allUsers:            make(map[string]*SCIMUser),
 				failCreateUserCalls: tc.failToCreateUser,
 			}
 			srv := fakeEnterprise(t, userData)
@@ -393,13 +401,13 @@ func TestSCIMClient_GetUser(t *testing.T) {
 	cases := []struct {
 		name        string
 		scimIDToGet string
-		wantUser    *github.SCIMUserAttributes
+		wantUser    *SCIMUser
 		wantErrStr  string
 	}{
 		{
 			name:        "success_found",
 			scimIDToGet: "id1",
-			wantUser:    &github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user"},
+			wantUser:    &SCIMUser{SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user"}},
 		},
 		{
 			name:        "error_not_found",
@@ -413,8 +421,8 @@ func TestSCIMClient_GetUser(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			userData := &EnterpriseUserData{allUsers: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "test.user"},
+			userData := &EnterpriseUserData{allUsers: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user"}},
 			}}
 			srv := fakeEnterprise(t, userData)
 			defer srv.Close()
@@ -440,20 +448,22 @@ func TestSCIMClient_DeactivateUser(t *testing.T) {
 	cases := []struct {
 		name               string
 		scimIDToDeactivate string
-		users              map[string]*github.SCIMUserAttributes
-		wantUser           *github.SCIMUserAttributes
+		users              map[string]*SCIMUser
+		wantUser           *SCIMUser
 		wantErrStr         string
 	}{
 		{
 			name:               "success",
 			scimIDToDeactivate: "id1",
-			users: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "test.user", Active: github.Bool(true)},
+			users: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user", Active: github.Bool(true)}},
 			},
-			wantUser: &github.SCIMUserAttributes{
-				ID:       github.String("id1"),
-				UserName: "test.user",
-				Active:   github.Bool(false),
+			wantUser: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					ID:       github.String("id1"),
+					UserName: "test.user",
+					Active:   github.Bool(false),
+				},
 			},
 		},
 		{
@@ -493,20 +503,22 @@ func TestSCIMClient_ReactivateUser(t *testing.T) {
 	cases := []struct {
 		name               string
 		scimIDToReactivate string
-		users              map[string]*github.SCIMUserAttributes
-		wantUser           *github.SCIMUserAttributes
+		users              map[string]*SCIMUser
+		wantUser           *SCIMUser
 		wantErrStr         string
 	}{
 		{
 			name:               "success",
 			scimIDToReactivate: "id1",
-			users: map[string]*github.SCIMUserAttributes{
-				"id1": {ID: github.String("id1"), UserName: "test.user", Active: github.Bool(false)},
+			users: map[string]*SCIMUser{
+				"id1": {SCIMUserAttributes: github.SCIMUserAttributes{ID: github.String("id1"), UserName: "test.user", Active: github.Bool(false)}},
 			},
-			wantUser: &github.SCIMUserAttributes{
-				ID:       github.String("id1"),
-				UserName: "test.user",
-				Active:   github.Bool(true),
+			wantUser: &SCIMUser{
+				SCIMUserAttributes: github.SCIMUserAttributes{
+					ID:       github.String("id1"),
+					UserName: "test.user",
+					Active:   github.Bool(true),
+				},
 			},
 		},
 		{
