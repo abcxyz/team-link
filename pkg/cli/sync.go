@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/abcxyz/pkg/cli"
-	"github.com/abcxyz/team-link/pkg/common"
+	"github.com/abcxyz/team-link/v2/pkg/common"
 )
 
 var _ cli.Command = (*SyncCommand)(nil)

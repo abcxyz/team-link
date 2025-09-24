@@ -17,10 +17,10 @@ package common
 import (
 	"fmt"
 
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
-	tltypes "github.com/abcxyz/team-link/internal"
-	googlegroupgithub "github.com/abcxyz/team-link/pkg/common/googlegroup_github"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
+	tltypes "github.com/abcxyz/team-link/v2/internal"
+	googlegroupgithub "github.com/abcxyz/team-link/v2/pkg/common/googlegroup_github"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // NewBidirectionalOneToManyGroupMapper creates two OneToManyGroupMapper, directions are src->target and target->src.

@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
-	tltypes "github.com/abcxyz/team-link/internal"
-	"github.com/abcxyz/team-link/pkg/github"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
+	tltypes "github.com/abcxyz/team-link/v2/internal"
+	"github.com/abcxyz/team-link/v2/pkg/github"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // NewReadWriter creates a new ReadWriter base on target system type and provided config.

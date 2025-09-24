@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/abcxyz/pkg/testutil"
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
 )
 
 func TestParseMappingTextProto(t *testing.T) {

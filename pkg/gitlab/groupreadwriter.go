@@ -28,8 +28,8 @@ import (
 	"github.com/abcxyz/pkg/cache"
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/pkg/sets"
-	"github.com/abcxyz/team-link/pkg/groupsync"
-	"github.com/abcxyz/team-link/pkg/utils"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/utils"
 )
 
 const (

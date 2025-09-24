@@ -22,9 +22,9 @@ import (
 	"strings"
 
 	"github.com/abcxyz/pkg/logging"
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
-	"github.com/abcxyz/team-link/pkg/github"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
+	"github.com/abcxyz/team-link/v2/pkg/github"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // GroupMapper implements groupsync.OneToManyGroupMapper

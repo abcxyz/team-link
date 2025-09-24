@@ -1,4 +1,4 @@
-module github.com/abcxyz/team-link
+module github.com/abcxyz/team-link/v2
 
 go 1.24
 

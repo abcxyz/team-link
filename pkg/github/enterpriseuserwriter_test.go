@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-github/v67/github"
 
 	"github.com/abcxyz/pkg/testutil"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 func TestEnterpriseUserWriter_SetMembers(t *testing.T) {

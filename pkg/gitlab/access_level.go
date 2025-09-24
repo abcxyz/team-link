@@ -17,7 +17,7 @@ package gitlab
 import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 // AccessLevelMetadata holds an access level for a GitLab user being added to

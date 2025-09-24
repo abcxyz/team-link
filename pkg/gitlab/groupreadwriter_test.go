@@ -29,7 +29,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/abcxyz/pkg/testutil"
-	"github.com/abcxyz/team-link/pkg/groupsync"
+	"github.com/abcxyz/team-link/v2/pkg/groupsync"
 )
 
 func TestGroupReadWriter_GetGroup(t *testing.T) {

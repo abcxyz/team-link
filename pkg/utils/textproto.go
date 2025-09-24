@@ -22,8 +22,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/prototext"
 
-	api "github.com/abcxyz/team-link/apis/v1alpha3/proto"
-	tltypes "github.com/abcxyz/team-link/internal"
+	api "github.com/abcxyz/team-link/v2/apis/v1alpha3/proto"
+	tltypes "github.com/abcxyz/team-link/v2/internal"
 )
 
 // ParseMappingTextProto parses a textproto file to TeamLinkMappings type.
