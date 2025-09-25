@@ -83,6 +83,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.old": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 						ID:       github.String("scim-id-user.old"),
 						UserName: "user.old",
 						Active:   github.Bool(false),
@@ -147,6 +148,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 						ID:       github.String("scim-id-user.one"),
 						UserName: "user.one",
 						Active:   github.Bool(false),
@@ -181,6 +183,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 						ID:       github.String("scim-id-user.one"),
 						UserName: "user.one",
 						Active:   github.Bool(true),
@@ -255,6 +258,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.old": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 						ID:       github.String("scim-id-user.old"),
 						UserName: "user.old",
 						Active:   github.Bool(false),
@@ -288,6 +292,145 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 						UserName: "user.one",
 						Active:   github.Bool(true),
 						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
+				},
+			},
+		},
+		{
+			name: "chaging roles",
+			initialUsers: map[string]*SCIMUser{
+				"scim-id-nochange": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-nochange"),
+						UserName: "nochange",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
+				},
+				"scim-id-toadd": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-toadd"),
+						UserName: "toadd",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
+				},
+				"scim-id-toremove": {
+					Roles: []*SCIMUserRole{
+						{Value: "role_xyz"},
+					},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-toremove"),
+						UserName: "toremove",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
+				},
+				"scim-id-todisable": {
+					Roles: []*SCIMUserRole{
+						{Value: "role_xyz"},
+					},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-todisable"),
+						UserName: "todisable",
+						Active:   github.Bool(true),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+					},
+				},
+			},
+			desiredMembers: []groupsync.Member{
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "nochange",
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "nochange",
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "toadd",
+						Attributes: &SCIMUser{
+							Roles: []*SCIMUserRole{
+								{Value: "role_to_add"},
+							},
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "toadd",
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "toremove",
+						Attributes: &SCIMUser{
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "toremove",
+							},
+						},
+					},
+				},
+				&groupsync.UserMember{
+					Usr: &groupsync.User{
+						ID: "tocreate",
+						Attributes: &SCIMUser{
+							Roles: []*SCIMUserRole{
+								{Value: "role_to_create"},
+							},
+							SCIMUserAttributes: github.SCIMUserAttributes{
+								UserName: "tocreate",
+							},
+						},
+					},
+				},
+			},
+			wantUsersOnServer: map[string]*SCIMUser{
+				"scim-id-tocreate": {
+					Roles: []*SCIMUserRole{
+						{Value: "role_to_create"},
+					},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-tocreate"),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+						UserName: "tocreate",
+						Active:   github.Bool(true),
+					},
+				},
+				"scim-id-nochange": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-nochange"),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+						UserName: "nochange",
+						Active:   github.Bool(true),
+					},
+				},
+				"scim-id-toadd": {
+					Roles: []*SCIMUserRole{
+						{Value: "role_to_add"},
+					},
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-toadd"),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+						UserName: "toadd",
+						Active:   github.Bool(true),
+					},
+				},
+				"scim-id-toremove": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-toremove"),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+						UserName: "toremove",
+						Active:   github.Bool(true),
+					},
+				},
+				"scim-id-todisable": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-todisable"),
+						Schemas:  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+						UserName: "todisable",
+						Active:   github.Bool(false),
 					},
 				},
 			},
