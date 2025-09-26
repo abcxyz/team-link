@@ -248,7 +248,7 @@ func (f *ManyToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) 
 			merr = errors.Join(merr, fmt.Errorf("user mapper not found for system %s, source user id %s", sourceUser.System, sourceUser.ID))
 			continue
 		}
-		targetUserID, err := userMapper.MappedUserID(ctx, sourceUser.ID)
+		targetUser, err := userMapper.MappedUser(ctx, sourceUser)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
 			// if there is no mapping for the target user we will just skip them.
 			continue
@@ -257,7 +257,7 @@ func (f *ManyToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) 
 			merr = errors.Join(merr, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err))
 			continue
 		}
-		targetUsers = append(targetUsers, &User{ID: targetUserID, Metadata: sourceUser.Metadata})
+		targetUsers = append(targetUsers, targetUser)
 	}
 	return targetUsers, merr
 }
