@@ -228,7 +228,7 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 	var merr error
 	targetUsers := make([]*User, 0, len(sourceUsers))
 	for _, sourceUser := range sourceUsers {
-		targetUserID, err := f.userMapper.MappedUserID(ctx, sourceUser.ID)
+		targetUser, err := f.userMapper.MappedUser(ctx, sourceUser)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
 			// if there is no mapping for the target user we will just skip them.
 			continue
@@ -237,7 +237,7 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 			continue
 		}
-		targetUsers = append(targetUsers, &User{ID: targetUserID, Metadata: sourceUser.Metadata})
+		targetUsers = append(targetUsers, targetUser)
 	}
 	return targetUsers, merr
 }
