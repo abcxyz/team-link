@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -83,6 +84,10 @@ type scimPatchPayload struct {
 	Operations []scimPatchOp `json:"Operations"`
 }
 
+const (
+	scimV2UserSchema = "urn:ietf:params:scim:schemas:core:2.0:User"
+)
+
 // NewSCIMClient creates a new client for the GHES SCIM API.
 func NewSCIMClient(httpClient *http.Client, baseURL string) (*SCIMClient, error) {
 	u, err := url.Parse(strings.TrimSuffix(baseURL, "/") + ghesSCIMURLPath)
@@ -126,7 +131,9 @@ func (c *SCIMClient) ListUsers(ctx context.Context) (map[string]*SCIMUser, error
 func (c *SCIMClient) CreateUser(ctx context.Context, user *SCIMUser) (*SCIMUser, *github.Response, error) {
 	path := "Users"
 	// Schema for POST: https://datatracker.ietf.org/doc/html/rfc7644#section-3.3
-	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
+	if !slices.Contains(user.Schemas, scimV2UserSchema) {
+		user.Schemas = append(user.Schemas, scimV2UserSchema)
+	}
 	user.Active = github.Bool(true)
 	var createdUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPost, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &createdUser)
@@ -151,7 +158,9 @@ func (c *SCIMClient) GetUser(ctx context.Context, scimID string) (*SCIMUser, *gi
 func (c *SCIMClient) UpdateUser(ctx context.Context, scimID string, user *SCIMUser) (*SCIMUser, *github.Response, error) {
 	path := fmt.Sprintf("Users/%s", scimID)
 	// Schema for PUT: https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.1
-	user.Schemas = append(user.Schemas, "urn:ietf:params:scim:schemas:core:2.0:User")
+	if !slices.Contains(user.Schemas, scimV2UserSchema) {
+		user.Schemas = append(user.Schemas, scimV2UserSchema)
+	}
 	var updatedUser SCIMUser
 	resp, err := c.do(ctx, http.MethodPut, c.baseURL.ResolveReference(&url.URL{Path: path}).String(), user, &updatedUser)
 	if err != nil {

@@ -19,6 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+
+	"github.com/google/go-github/v67/github"
 
 	"github.com/abcxyz/pkg/logging"
 	"github.com/abcxyz/team-link/v2/pkg/groupsync"
@@ -94,10 +97,12 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		if scimUser.Active != nil && !*scimUser.Active {
 			continue
 		}
-		// Deactivate user who is not in desiredUsersMap
+		// Deactivate user who is not in desiredUsersMap and remove any role grants.
 		if _, ok := desiredUsersMap[username]; !ok {
 			logger.InfoContext(ctx, "deactivating user", "user", username)
-			if _, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID); err != nil {
+			scimUser.Active = github.Bool(false)
+			scimUser.Roles = nil
+			if _, _, err := w.scimClient.UpdateUser(ctx, *scimUser.ID, scimUser); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
 			}
 		}
@@ -112,41 +117,47 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			break
 		}
 
-		scimUser, ok := currentUsersMap[username]
+		desiredUser := desiredUsersMap[username]
+
+		// Create the user if not found in currentUsersMap.
+		currentUser, ok := currentUsersMap[username]
 		if !ok {
-			// Create user if not found in currentUsersMap
 			logger.InfoContext(ctx, "creating user", "user", username)
-			if _, _, err := w.scimClient.CreateUser(ctx, desiredUsersMap[username]); err != nil {
+			if _, _, err := w.scimClient.CreateUser(ctx, desiredUser); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
 			}
-		} else {
-			// Reactivate user if user status is unknown or deactivated.
-			if scimUser.Active == nil || !*scimUser.Active {
-				logger.InfoContext(ctx, "deactivating user before reactivating",
-					"user", username,
-					"active", scimUser.Active,
-				)
-				deactivated, _, err := w.scimClient.DeactivateUser(ctx, *scimUser.ID)
-				if err != nil {
-					merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
-				}
-				logger.InfoContext(ctx, "reactivating user",
-					"user", deactivated.UserName,
-					"active", deactivated.Active,
-				)
-				if _, _, err := w.scimClient.ReactivateUser(ctx, *scimUser.ID); err != nil {
-					merr = errors.Join(merr, fmt.Errorf("failed to reactivate %q: %w", username, err))
-				}
-				updated, _, err := w.scimClient.GetUser(ctx, *scimUser.ID)
-				if err != nil {
-					merr = errors.Join(merr, fmt.Errorf("after reactivation, failed to get %q: %w", username, err))
-				}
-				logger.InfoContext(ctx, "reactivated user",
-					"user", updated.UserName,
-					"active", updated.Active,
-				)
+			continue
+		}
+
+		// Update the user if fields we care about have changed.
+		desiredUser.ID = currentUser.ID
+		desiredUser.Active = github.Bool(true)
+		if entUserNeedsUpdate(currentUser, desiredUser) {
+			logger.InfoContext(ctx, "updating user",
+				"user", username,
+				"before", currentUser,
+				"after", desiredUser,
+			)
+			if _, _, err := w.scimClient.UpdateUser(ctx, *currentUser.ID, desiredUser); err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to update %q: %w", username, err))
 			}
 		}
 	}
 	return merr
+}
+
+func entUserNeedsUpdate(have, want *SCIMUser) bool {
+	if have.GetActive() != want.GetActive() {
+		return true
+	}
+	return !slices.Equal(entRoleNames(have), entRoleNames(want))
+}
+
+func entRoleNames(user *SCIMUser) []string {
+	roleNames := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roleNames = append(roleNames, role.Value)
+	}
+	slices.Sort(roleNames)
+	return roleNames
 }
