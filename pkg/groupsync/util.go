@@ -27,23 +27,25 @@ import (
 // ConcurrentSync syncs the given source groups concurrently using the given syncer.
 // The level of concurrency is based of the value of runtime.NumCPU.
 func ConcurrentSync(ctx context.Context, syncer v1alpha3.GroupSyncer, sourceGroupIDs []string) error {
-	groupIDs := make(chan string, len(sourceGroupIDs))
-	errs := make(chan error, len(sourceGroupIDs))
-	for _, sourceGroupID := range sourceGroupIDs {
-		groupIDs <- sourceGroupID
+	return concurrentSyncFunc(ctx, sourceGroupIDs, syncer.Sync)
+}
+
+func concurrentSyncFunc(ctx context.Context, groupIDs []string, syncFn func(context.Context, string) error) error {
+	ids := make(chan string, len(groupIDs))
+	errs := make(chan error, len(groupIDs))
+	for _, id := range groupIDs {
+		ids <- id
 	}
-	close(groupIDs)
+	close(ids)
 	waitGroup := sync.WaitGroup{}
 	for i := 0; i < runtime.NumCPU(); i++ {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			for id := range groupIDs {
-				if err := syncer.Sync(ctx, id); err != nil {
+		waitGroup.Go(func() {
+			for id := range ids {
+				if err := syncFn(ctx, id); err != nil {
 					errs <- fmt.Errorf("failed to sync id %s: %w", id, err)
 				}
 			}
-		}()
+		})
 	}
 	waitGroup.Wait()
 	close(errs)
