@@ -788,15 +788,15 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 		},
 		{
-			name:               "no_source_ids_found",
+			name:               "no_target_ids_found",
 			sourceGroupClients: map[string]GroupReader{},
 			targetGroupClient:  &testReadWriteGroupClient{},
-			sourceGroupMapper: &testOneToOneGroupMapper{
+			sourceGroupMapper:  &testOneToOneGroupMapper{},
+			targetGroupMapper: &testOneToManyGroupMapper{
 				allGroupIDsErr: fmt.Errorf("injected allGroupIDsErr"),
 			},
-			targetGroupMapper: &testOneToManyGroupMapper{},
-			userMappers:       map[string]UserMapper{},
-			wantErr:           "injected allGroupIDsErr",
+			userMappers: map[string]UserMapper{},
+			wantErr:     "injected allGroupIDsErr",
 		},
 		{
 			name: "sync_all_partial_failure",
@@ -824,12 +824,12 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDErr: map[string]error{
-					"sg1": fmt.Errorf("injected mappedGroupIdErr for sg1"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIdsErr: map[string]error{
+					"tg1": fmt.Errorf("injected mappedGroupIdErr for tg1"),
+				},
 			},
 			userMappers: map[string]UserMapper{
 				sourceSystem1: &testUserMapper{
@@ -854,7 +854,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 					&UserMember{Usr: &User{ID: "tu5"}},
 				},
 			},
-			wantErr: "injected mappedGroupIdErr for sg1",
+			wantErr: "injected mappedGroupIdErr for tg1",
 		},
 		{
 			name: "sync_all_total_failure",
@@ -882,16 +882,14 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDErr: map[string]error{
-					"sg1": fmt.Errorf("injected mappedGroupIdsErr"),
-					"sg2": fmt.Errorf("injected mappedGroupIdsErr"),
-					"sg3": fmt.Errorf("injected mappedGroupIdsErr"),
-					"sg4": fmt.Errorf("injected mappedGroupIdsErr"),
-					"sg5": fmt.Errorf("injected mappedGroupIdsErr"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIdsErr: map[string]error{
+					"tg1": fmt.Errorf("injected mappedGroupIdsErr"),
+					"tg2": fmt.Errorf("injected mappedGroupIdsErr"),
+					"tg3": fmt.Errorf("injected mappedGroupIdsErr"),
+				},
 			},
 			userMappers: map[string]UserMapper{
 				sourceSystem1: &testUserMapper{

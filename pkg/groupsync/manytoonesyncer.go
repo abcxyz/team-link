@@ -105,6 +105,12 @@ func (f *ManyToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error 
 		"target_group_id", targetGroupID,
 	)
 
+	return f.sync(ctx, targetGroupID)
+}
+
+func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error {
+	logger := logging.FromContext(ctx)
+
 	// Get all source group mappings associated with the current target Group ID
 	sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroupID)
 	if err != nil {
@@ -178,11 +184,11 @@ func (f *ManyToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error 
 
 // SyncAll syncs all source groups that this GroupSyncer is aware of to the target system.
 func (f *ManyToOneSyncer) SyncAll(ctx context.Context) error {
-	sourceGroupIDs, err := f.sourceGroupMapper.AllGroupIDs(ctx)
+	targetGroupIDs, err := f.targetGroupMapper.AllGroupIDs(ctx)
 	if err != nil {
 		return fmt.Errorf("error fetching source group ids: %w", err)
 	}
-	if err := ConcurrentSync(ctx, f, sourceGroupIDs); err != nil {
+	if err := concurrentSyncFunc(ctx, targetGroupIDs, f.sync); err != nil {
 		return fmt.Errorf("failed to sync one or more ids: %w", err)
 	}
 	return nil
