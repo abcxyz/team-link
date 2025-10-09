@@ -193,7 +193,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			},
 		},
 		{
-			name: "empty_group",
+			name: "empty_group_does_not_sync",
 			sourceGroupClients: map[string]GroupReader{
 				sourceSystem1: &testReadWriteGroupClient{
 					groups:       sourceGroups1,
@@ -238,7 +238,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				},
 				"tg2": {},
 				"tg3": {},
-				"tg4": {},
+				"tg4": {&UserMember{Usr: &User{ID: "tu5"}}},
 			},
 		},
 		{

@@ -137,6 +137,13 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			"source_user_ids", sourceUserIds,
 		)
 
+		if len(sourceUserIds) == 0 {
+			logger.WarnContext(ctx, "no source group descendants found. "+
+				"skipping sync in case this is an upstream data issue.",
+				"target_group_id", targetGroupID)
+			continue
+		}
+
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
 		targetUserIds := userIDs(targetUsers)
