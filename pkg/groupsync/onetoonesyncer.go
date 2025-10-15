@@ -100,32 +100,32 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 
 	// Get the union of all users that are members of the source group
 	sourceUsers, err := f.sourceUsers(ctx, sourceGroupID)
-	sourceUserIds := userIDs(sourceUsers)
+	sourceUserIDs := userIDs(sourceUsers)
 	if err != nil {
 		return fmt.Errorf("error getting source users for source group %s: %w", sourceGroupID, err)
 	}
 	logger.DebugContext(ctx, "found descendants for source group id",
-		"source_user_ids", sourceUserIds,
+		"source_user_ids", sourceUserIDs,
 	)
 
-	if len(sourceUserIds) == 0 {
+	if len(sourceUserIDs) == 0 {
 		return fmt.Errorf("zero source group descendants found for source group %s", sourceGroupID)
 	}
 
 	// Map each source user to their corresponding target user
 	targetUsers, err := f.targetUsers(ctx, sourceUsers)
-	targetUserIds := userIDs(targetUsers)
+	targetUserIDs := userIDs(targetUsers)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed mapping one or more source users to their target user",
-			"source_user_ids", sourceUserIds,
-			"target_user_ids", targetUserIds,
+			"source_user_ids", sourceUserIDs,
+			"target_user_ids", targetUserIDs,
 			"error", err,
 		)
 		return fmt.Errorf("error getting one or more target users: %w", err)
 	}
 	logger.DebugContext(ctx, "mapped source users to target users",
-		"source_user_ids", sourceUserIds,
-		"target_user_ids", targetUserIds,
+		"source_user_ids", sourceUserIDs,
+		"target_user_ids", targetUserIDs,
 	)
 
 	// map each targetUser to Member type
@@ -138,7 +138,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 	// Set the target group's members to targetMembers.
 	logger.DebugContext(ctx, "setting target group id members to target users",
 		"target_group_id", targetGroupID,
-		"target_user_ids", targetUserIds,
+		"target_user_ids", targetUserIDs,
 	)
 	if err := f.targetGroupWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 		logger.ErrorContext(ctx, "failed setting target group members",
