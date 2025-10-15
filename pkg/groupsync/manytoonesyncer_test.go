@@ -209,7 +209,6 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupClient: &testReadWriteGroupClient{
 				groups: targetGroups,
 				users:  targetUsers,
-				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
 					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
@@ -240,6 +239,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				"tg3": {},
 				"tg4": {&UserMember{Usr: &User{ID: "tu5"}}},
 			},
+			wantErr: "zero source group descendants found for target group id tg4",
 		},
 		{
 			name: "multiple_sources",
@@ -326,8 +326,8 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
-				mappedGroupIdsErr: map[string]error{
-					"tg1": fmt.Errorf("injected mappedGroupIdsErr for tg1"),
+				mappedGroupIDsErr: map[string]error{
+					"tg1": fmt.Errorf("injected mappedGroupIDsErr for tg1"),
 				},
 			},
 			userMappers: map[string]UserMapper{
@@ -341,7 +341,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				"tg2": {},
 				"tg3": {},
 			},
-			wantErr: "injected mappedGroupIdsErr for tg1",
+			wantErr: "injected mappedGroupIDsErr for tg1",
 		},
 		{
 			name: "error_getting_source_users_partial_system_not_found",
@@ -377,12 +377,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {
-					&UserMember{Usr: &User{ID: "tu1"}},
-					&UserMember{Usr: &User{ID: "tu2"}},
-					&UserMember{Usr: &User{ID: "tu3"}},
-					&UserMember{Usr: &User{ID: "tu4"}},
-				},
+				"tg3": {},
 			},
 			wantErr: "source group reader not found",
 		},
@@ -431,12 +426,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {
-					&UserMember{Usr: &User{ID: "tu1"}},
-					&UserMember{Usr: &User{ID: "tu2"}},
-					&UserMember{Usr: &User{ID: "tu3"}},
-					&UserMember{Usr: &User{ID: "tu4"}},
-				},
+				"tg3": {},
 			},
 			wantErr: "injected descendantsErrs for sg5",
 		},
@@ -510,9 +500,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
-				"tg1": {
-					&UserMember{Usr: &User{ID: "tu2"}},
-				},
+				"tg1": {},
 				"tg2": {},
 				"tg3": {},
 			},
@@ -544,7 +532,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				m: targetGroupMapping,
 			},
 			userMappers: map[string]UserMapper{},
-			syncID:      "sg5", // Mapped to both source systems.
+			syncID:      "sg1", // Mapped to both source systems.
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
@@ -827,8 +815,8 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
-				mappedGroupIdsErr: map[string]error{
-					"tg1": fmt.Errorf("injected mappedGroupIdErr for tg1"),
+				mappedGroupIDsErr: map[string]error{
+					"tg1": fmt.Errorf("injected mappedGroupIDErr for tg1"),
 				},
 			},
 			userMappers: map[string]UserMapper{
@@ -854,7 +842,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 					&UserMember{Usr: &User{ID: "tu5"}},
 				},
 			},
-			wantErr: "injected mappedGroupIdErr for tg1",
+			wantErr: "injected mappedGroupIDErr for tg1",
 		},
 		{
 			name: "sync_all_total_failure",
@@ -885,10 +873,10 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
-				mappedGroupIdsErr: map[string]error{
-					"tg1": fmt.Errorf("injected mappedGroupIdsErr"),
-					"tg2": fmt.Errorf("injected mappedGroupIdsErr"),
-					"tg3": fmt.Errorf("injected mappedGroupIdsErr"),
+				mappedGroupIDsErr: map[string]error{
+					"tg1": fmt.Errorf("injected mappedGroupIDsErr"),
+					"tg2": fmt.Errorf("injected mappedGroupIDsErr"),
+					"tg3": fmt.Errorf("injected mappedGroupIDsErr"),
 				},
 			},
 			userMappers: map[string]UserMapper{
@@ -904,7 +892,7 @@ func TestManyToOneSyncer_SyncAll(t *testing.T) {
 				"tg2": {},
 				"tg3": {},
 			},
-			wantErr: "injected mappedGroupIdsErr",
+			wantErr: "injected mappedGroupIDsErr",
 		},
 	}
 
