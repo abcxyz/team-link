@@ -98,7 +98,6 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 		"target_group_id", targetGroupID,
 	)
 
-	var merr error
 	// Get the union of all users that are members of the source group
 	sourceUsers, err := f.sourceUsers(ctx, sourceGroupID)
 	sourceUserIds := userIDs(sourceUsers)
@@ -110,10 +109,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 	)
 
 	if len(sourceUserIds) == 0 {
-		logger.WarnContext(ctx, "no source group descendants found. skipping sync in case this is an upstream data issue.",
-			"source_group_id", sourceGroupID,
-			"target_group_id", targetGroupID)
-		return nil
+		return fmt.Errorf("zero source group descendants found for source group %s", sourceGroupID)
 	}
 
 	// Map each source user to their corresponding target user
@@ -125,7 +121,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 			"target_user_ids", targetUserIds,
 			"error", err,
 		)
-		merr = errors.Join(merr, fmt.Errorf("error getting one or more target users: %w", err))
+		return fmt.Errorf("error getting one or more target users: %w", err)
 	}
 	logger.DebugContext(ctx, "mapped source users to target users",
 		"source_user_ids", sourceUserIds,
@@ -149,10 +145,10 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 			"target_group_id", targetGroupID,
 			"error", err,
 		)
-		merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
+		return fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 	}
 
-	return merr
+	return nil
 }
 
 // SyncAll syncs all source groups that this GroupSyncer is aware of to the target system.
@@ -179,7 +175,6 @@ func (f *OneToOneSyncer) sourceUsers(ctx context.Context, sourceGroupID string) 
 // returns an empty list if none were found.
 func (f *OneToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) ([]*User, error) {
 	logger := logging.FromContext(ctx)
-	var merr error
 	targetUsers := make([]*User, 0, len(sourceUsers))
 	for _, sourceUser := range sourceUsers {
 		targetUser, err := f.userMapper.MappedUser(ctx, sourceUser)
@@ -190,10 +185,9 @@ func (f *OneToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) (
 			continue
 		}
 		if err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err))
-			continue
+			return nil, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 		}
 		targetUsers = append(targetUsers, targetUser)
 	}
-	return targetUsers, merr
+	return targetUsers, nil
 }

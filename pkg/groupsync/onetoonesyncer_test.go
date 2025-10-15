@@ -173,9 +173,7 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
-				"tg1": {
-					&UserMember{Usr: &User{ID: "tu2"}},
-				},
+				"tg1": {},
 			},
 			wantErr: "injected mapped user id error",
 		},

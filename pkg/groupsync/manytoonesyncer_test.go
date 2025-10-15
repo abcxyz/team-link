@@ -209,7 +209,6 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupClient: &testReadWriteGroupClient{
 				groups: targetGroups,
 				users:  targetUsers,
-				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
 					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
@@ -240,6 +239,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				"tg3": {},
 				"tg4": {&UserMember{Usr: &User{ID: "tu5"}}},
 			},
+			wantErr: "zero source group descendants found for target group id tg4",
 		},
 		{
 			name: "multiple_sources",
@@ -377,12 +377,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {
-					&UserMember{Usr: &User{ID: "tu1"}},
-					&UserMember{Usr: &User{ID: "tu2"}},
-					&UserMember{Usr: &User{ID: "tu3"}},
-					&UserMember{Usr: &User{ID: "tu4"}},
-				},
+				"tg3": {},
 			},
 			wantErr: "source group reader not found",
 		},
@@ -431,12 +426,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {
-					&UserMember{Usr: &User{ID: "tu1"}},
-					&UserMember{Usr: &User{ID: "tu2"}},
-					&UserMember{Usr: &User{ID: "tu3"}},
-					&UserMember{Usr: &User{ID: "tu4"}},
-				},
+				"tg3": {},
 			},
 			wantErr: "injected descendantsErrs for sg5",
 		},
@@ -510,9 +500,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			},
 			syncID: "sg1",
 			want: map[string][]Member{
-				"tg1": {
-					&UserMember{Usr: &User{ID: "tu2"}},
-				},
+				"tg1": {},
 				"tg2": {},
 				"tg3": {},
 			},
@@ -544,7 +532,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				m: targetGroupMapping,
 			},
 			userMappers: map[string]UserMapper{},
-			syncID:      "sg5", // Mapped to both source systems.
+			syncID:      "sg1", // Mapped to both source systems.
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},

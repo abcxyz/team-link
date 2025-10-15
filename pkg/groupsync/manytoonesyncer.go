@@ -126,41 +126,27 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 		"source_group_mappings", sourceGroupMappings,
 	)
 
-	var merr error
 	// Get the union of all users that are members of each source group
 	sourceUsers, err := f.sourceUsers(ctx, sourceGroupMappings)
-	sourceUserIds := userIDs(sourceUsers)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed getting one or more source users for source group ids",
-			"source_group_mappings", sourceGroupMappings,
-			"source_user_ids", sourceUserIds,
-			"error", err,
-		)
-		merr = errors.Join(merr, fmt.Errorf("error getting one or more source users: %w", err))
+		return fmt.Errorf("error getting source users: %w", err)
 	}
+	sourceUserIds := userIDs(sourceUsers)
 	logger.InfoContext(ctx, "found descendant(s) for source group id(s)",
 		"source_group_mappings", sourceGroupMappings,
 		"source_user_ids", sourceUserIds,
 	)
 
 	if len(sourceUserIds) == 0 {
-		logger.WarnContext(ctx, "no source group descendants found. "+
-			"skipping sync in case this is an upstream data issue.",
-			"target_group_id", targetGroupID)
-		return merr
+		return fmt.Errorf("zero source group descendants found for target group id %s", targetGroupID)
 	}
 
 	// Map each source user to their corresponding target user
 	targetUsers, err := f.targetUsers(ctx, sourceUsers)
-	targetUserIds := userIDs(targetUsers)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed mapping one or more source users to their target user",
-			"source_user_ids", sourceUserIds,
-			"target_user_ids", targetUserIds,
-			"error", err,
-		)
-		merr = errors.Join(merr, fmt.Errorf("error getting one or more target users: %w", err))
+		return fmt.Errorf("error getting one or more target users: %w", err)
 	}
+	targetUserIds := userIDs(targetUsers)
 	logger.InfoContext(ctx, "mapped source users to target users",
 		"source_user_ids", sourceUserIds,
 		"target_user_ids", targetUserIds,
@@ -183,10 +169,10 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 			"target_group_id", targetGroupID,
 			"error", err,
 		)
-		merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
+		return fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 	}
 
-	return merr
+	return nil
 }
 
 // SyncAll syncs all source groups that this GroupSyncer is aware of to the target system.
@@ -208,18 +194,15 @@ func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings [
 	for _, sourceGroupMapping := range sourceGroupMappings {
 		system := sourceGroupMapping.System
 		if system == "" {
-			merr = errors.Join(merr, fmt.Errorf("missing source system for source group reader: %s", sourceGroupMapping))
-			continue
+			return nil, fmt.Errorf("missing source system for source group reader: %s", sourceGroupMapping)
 		}
 		groupReader, exist := f.sourceGroupReaders[system]
 		if !exist {
-			merr = errors.Join(merr, fmt.Errorf("source group reader not found: %s", sourceGroupMapping))
-			continue
+			return nil, fmt.Errorf("source group reader not found: %s", sourceGroupMapping)
 		}
 		sourceUsers, err := groupReader.Descendants(ctx, sourceGroupMapping.GroupID)
 		if err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupMapping, err))
-			continue
+			return nil, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupMapping, err)
 		}
 		for _, sourceUser := range sourceUsers {
 			mappedUser, exists := userMap[sourceUser.ID]
@@ -248,29 +231,26 @@ func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings [
 
 // returns an empty list if none were found.
 func (f *ManyToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) ([]*User, error) {
-	var merr error
 	targetUsers := make([]*User, 0, len(sourceUsers))
 	for _, sourceUser := range sourceUsers {
 		system := sourceUser.System
 		if system == "" {
-			merr = errors.Join(merr, fmt.Errorf("missing source system for source user id %s", sourceUser.ID))
-			continue
+			return nil, fmt.Errorf("missing source system for source user id %s", sourceUser.ID)
 		}
 		userMapper, exist := f.userMappers[system]
 		if !exist {
-			merr = errors.Join(merr, fmt.Errorf("user mapper not found for system %s, source user id %s", sourceUser.System, sourceUser.ID))
-			continue
+			return nil, fmt.Errorf("user mapper not found for system %s, source user id %s", sourceUser.System, sourceUser.ID)
 		}
 		targetUser, err := userMapper.MappedUser(ctx, sourceUser)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
 			// if there is no mapping for the target user we will just skip them.
+			// it happens when the user is removed from the source system.
 			continue
 		}
 		if err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err))
-			continue
+			return nil, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 		}
 		targetUsers = append(targetUsers, targetUser)
 	}
-	return targetUsers, merr
+	return targetUsers, nil
 }
