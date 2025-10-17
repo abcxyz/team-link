@@ -41,10 +41,18 @@ func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 	}
 }
 
+// WithUserDeactivationSanityCheck sets the sanity check function for SCIM user deactivation.
+func WithUserDeactivationSanityCheck(f func(context.Context, *groupsync.User) (bool, error)) EnterpriseRWOpt {
+	return func(rw *EnterpriseUserWriter) {
+		rw.userDeactivationSanityCheck = f
+	}
+}
+
 // EnterpriseUserWriter manages enterprise users via a direct GHES SCIM API client.
 type EnterpriseUserWriter struct {
-	scimClient          *SCIMClient
-	maxUsersToProvision int64
+	scimClient                  *SCIMClient
+	maxUsersToProvision         int64
+	userDeactivationSanityCheck func(context.Context, *groupsync.User) (bool, error)
 }
 
 // NewEnterpriseUserWriter creates a new EnterpriseUserWriter with default 1000
@@ -57,6 +65,9 @@ func NewEnterpriseUserWriter(httpClient *http.Client, enterpriseBaseURL string, 
 	w := &EnterpriseUserWriter{
 		maxUsersToProvision: defaultMaxUsersToProvision,
 		scimClient:          scimClient,
+		userDeactivationSanityCheck: func(context.Context, *groupsync.User) (bool, error) {
+			return true, nil
+		},
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -73,8 +84,9 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 	desiredUsersMap := make(map[string]*SCIMUser)
+	userMemberMap := make(map[string]*groupsync.User)
 	// Use a list to maintain the ordering of the desired users to avoid unit test flakiness.
-	desiredUsersName := []string{}
+	var desiredUsersName []string
 	for _, m := range members {
 		if !m.IsUser() {
 			logger.DebugContext(ctx, "skipping non-user member", "member", m.ID())
@@ -86,6 +98,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			logger.DebugContext(ctx, "skipping non-SCIM user member", "member", m.ID())
 			continue
 		}
+		userMemberMap[scimUser.UserName] = u
 		desiredUsersMap[scimUser.UserName] = scimUser
 		desiredUsersName = append(desiredUsersName, scimUser.UserName)
 	}
@@ -98,15 +111,22 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			continue
 		}
 		// Deactivate user who is not in desiredUsersMap and remove any role grants.
-		if _, ok := desiredUsersMap[username]; !ok {
-			logger.InfoContext(ctx, "deactivating user", "user", username)
+		if _, ok := desiredUsersMap[username]; !ok{
+			deactivate, err := w.userDeactivationSanityCheck(ctx, userMemberMap[username])
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to check user ACL for deactivation %q: %w", username, err))
+			}
+			if !deactivate {
+				logger.InfoContext(ctx, "skipping user deactivation due to sanity check failed", "user", username, "target_host", w.scimClient.baseURL.Host)
+				continue
+			}
+			logger.InfoContext(ctx, "deactivating user", "user", username, "target_host", w.scimClient.baseURL.Host)
 			scimUser.Active = github.Bool(false)
 			scimUser.Roles = nil
 			if _, _, err := w.scimClient.UpdateUser(ctx, *scimUser.ID, scimUser); err != nil {
 				merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
 			}
 		}
-	}
 
 	// 2. Create and reactivate users.
 	var count int64
