@@ -41,10 +41,18 @@ func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 	}
 }
 
+// WithUserDeactivationSanityCheck sets the sanity check function for SCIM user deactivation.
+func WithUserDeactivationSanityCheck(f func(context.Context, *groupsync.User) (bool, error)) EnterpriseRWOpt {
+	return func(rw *EnterpriseUserWriter) {
+		rw.userDeactivationSanityCheck = f
+	}
+}
+
 // EnterpriseUserWriter manages enterprise users via a direct GHES SCIM API client.
 type EnterpriseUserWriter struct {
-	scimClient          *SCIMClient
-	maxUsersToProvision int64
+	scimClient                  *SCIMClient
+	maxUsersToProvision         int64
+	userDeactivationSanityCheck func(context.Context, *groupsync.User) (bool, error)
 }
 
 // NewEnterpriseUserWriter creates a new EnterpriseUserWriter with default 1000
@@ -57,6 +65,9 @@ func NewEnterpriseUserWriter(httpClient *http.Client, enterpriseBaseURL string, 
 	w := &EnterpriseUserWriter{
 		maxUsersToProvision: defaultMaxUsersToProvision,
 		scimClient:          scimClient,
+		userDeactivationSanityCheck: func(context.Context, *groupsync.User) (bool, error) {
+			return true, nil
+		},
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -73,6 +84,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		return fmt.Errorf("failed to list users: %w", err)
 	}
 	desiredUsersMap := make(map[string]*SCIMUser)
+	userMemberMap := make(map[string]*groupsync.User)
 	// Use a list to maintain the ordering of the desired users to avoid unit test flakiness.
 	desiredUsersName := []string{}
 	for _, m := range members {
@@ -86,6 +98,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 			logger.DebugContext(ctx, "skipping non-SCIM user member", "member", m.ID())
 			continue
 		}
+		userMemberMap[scimUser.UserName] = u
 		desiredUsersMap[scimUser.UserName] = scimUser
 		desiredUsersName = append(desiredUsersName, scimUser.UserName)
 	}
@@ -99,11 +112,27 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		}
 		// Deactivate user who is not in desiredUsersMap and remove any role grants.
 		if _, ok := desiredUsersMap[username]; !ok {
-			logger.InfoContext(ctx, "deactivating user", "user", username)
+			deactivate, err := w.userDeactivationSanityCheck(ctx, userMemberMap[username])
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to check user ACL for deactivating user %q host %q: %w", username, w.scimClient.baseURL.Host, err))
+			}
+			if !deactivate {
+				logger.InfoContext(
+					ctx, "skipping user deactivation due to sanity check failed",
+					"user", username,
+					"host", w.scimClient.baseURL.Host,
+				)
+				continue
+			}
+			logger.InfoContext(
+				ctx, "deactivating user",
+				"user", username,
+				"host", w.scimClient.baseURL.Host,
+			)
 			scimUser.Active = github.Bool(false)
 			scimUser.Roles = nil
 			if _, _, err := w.scimClient.UpdateUser(ctx, *scimUser.ID, scimUser); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q: %w", username, err))
+				merr = errors.Join(merr, fmt.Errorf("failed to deactivate %q host %q: %w", w.scimClient.baseURL.Host, username, err))
 			}
 		}
 	}
@@ -113,7 +142,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 	for _, username := range desiredUsersName {
 		count++
 		if count > w.maxUsersToProvision {
-			merr = errors.Join(merr, fmt.Errorf("exceeded max users to provision: %d", w.maxUsersToProvision))
+			merr = errors.Join(merr, fmt.Errorf("exceeded max users to provision, host %q: %d", w.scimClient.baseURL.Host, w.maxUsersToProvision))
 			break
 		}
 
@@ -122,9 +151,13 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 		// Create the user if not found in currentUsersMap.
 		currentUser, ok := currentUsersMap[username]
 		if !ok {
-			logger.InfoContext(ctx, "creating user", "user", username)
+			logger.InfoContext(
+				ctx, "creating user",
+				"user", username,
+				"host", w.scimClient.baseURL.Host,
+			)
 			if _, _, err := w.scimClient.CreateUser(ctx, desiredUser); err != nil {
-				merr = errors.Join(merr, fmt.Errorf("failed to create %q: %w", username, err))
+				merr = errors.Join(merr, fmt.Errorf("failed to create %q host %q: %w", username, w.scimClient.baseURL.Host, err))
 			}
 			continue
 		}
