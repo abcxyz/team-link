@@ -79,10 +79,19 @@ type OneToOneGroupMapper interface {
 
 // Mapping is a group ID with the group system and other combinable metadata.
 type Mapping struct {
-	GroupID string `json:"group_id,omitempty"`
+	GroupID     string `json:"group_id,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
 	// The system where the Group comes from.
 	System   string          `json:"system,omitempty"`
 	Metadata MappingMetadata `json:"metadata,omitempty"`
+}
+
+func (m Mapping) String() string {
+	s := m.System + "/" + m.GroupID
+	if m.DisplayName != "" {
+		s += " (" + m.DisplayName + ")"
+	}
+	return s
 }
 
 // MappingMetadata is arbitrary data that is combinable with other metadata,
@@ -125,6 +134,8 @@ func (m *noopUserMapper) MappedUser(ctx context.Context, user *User) (*User, err
 type User struct {
 	// ID is the user's ID in the group system.
 	ID string `json:"id,omitempty"`
+	// DisplayName is the human friendly name for the user.
+	DisplayName string `json:"display_name,omitempty"`
 	// System is where the user comes from.
 	System string `json:"system,omitempty"`
 	// Attributes represent arbitrary attributes about the user
@@ -136,14 +147,32 @@ type User struct {
 	Metadata MappingMetadata `json:"metadata,omitempty"`
 }
 
+func (u User) String() string {
+	s := u.System + "/" + u.ID
+	if u.DisplayName != "" {
+		s += " (" + u.DisplayName + ")"
+	}
+	return s
+}
+
 // Group represents a group in a group system.
 type Group struct {
 	// ID is the group's ID in the group system.
 	ID string `json:"id,omitempty"`
+	// DisplayName is the human friendly name for the group.
+	DisplayName string `json:"display_name,omitempty"`
 	// Attributes represent arbitrary attributes about the group
 	// in the given group system. This field is typically set by
 	// the corresponding GroupReader when retrieving the group.
 	Attributes any `json:"attributes,omitempty"`
+}
+
+func (g Group) String() string {
+	s := g.ID
+	if g.DisplayName != "" {
+		s += " (" + g.DisplayName + ")"
+	}
+	return s
 }
 
 // Member represents a member of a group. A member may either be
