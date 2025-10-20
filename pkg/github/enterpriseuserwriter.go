@@ -42,6 +42,7 @@ func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 }
 
 // WithUserDeactivationSanityCheck sets the sanity check function for SCIM user deactivation.
+// It will only attempt to deactivate user If the func returns true.
 func WithUserDeactivationSanityCheck(f func(context.Context, *groupsync.User) (bool, error)) EnterpriseRWOpt {
 	return func(rw *EnterpriseUserWriter) {
 		rw.userDeactivationSanityCheck = f
@@ -117,7 +118,7 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, _ string, members
 				merr = errors.Join(merr, fmt.Errorf("failed to check user ACL for deactivating user %q host %q: %w", username, w.scimClient.baseURL.Host, err))
 			}
 			if !deactivate {
-				logger.InfoContext(
+				logger.WarnContext(
 					ctx, "skipping user deactivation due to sanity check failed",
 					"user", username,
 					"host", w.scimClient.baseURL.Host,
