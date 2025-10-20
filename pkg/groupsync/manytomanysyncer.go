@@ -84,7 +84,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "starting sync", "source_group_id", sourceGroupID)
 	// get target group IDs for this source group ID
-	targetGroupIDs, err := f.sourceGroupMapper.MappedGroupIDs(ctx, sourceGroupID)
+	targetGroups, err := f.sourceGroupMapper.Mappings(ctx, sourceGroupID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to map source group ID to target groups IDs",
 			"source_group_id", sourceGroupID,
@@ -94,19 +94,19 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 	}
 	logger.InfoContext(ctx, "found the following target group IDs to sync",
 		"source_group_id", sourceGroupID,
-		"target_group_ids", targetGroupIDs,
+		"target_groups", targetGroups,
 	)
 
 	var merr error
-	for _, targetGroupID := range targetGroupIDs {
+	for _, targetGroup := range targetGroups {
 		logger.InfoContext(ctx, "syncing target group ID",
-			"target_group_id", targetGroupID,
+			"target_group", targetGroup,
 		)
 		// get all source group mappings associated with the current target GroupID
-		sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroupID)
+		sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroup.GroupID)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed getting one ore more source group mappings for target group ID",
-				"target_group_id", targetGroupID,
+				"target_group", targetGroup,
 				"source_group_mappings", sourceGroupMappings,
 				"error", err,
 			)
@@ -115,17 +115,16 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			continue
 		}
 		logger.InfoContext(ctx, "found source group mappings for target Group ID",
-			"target_group_id", targetGroupID,
+			"target_group", targetGroup,
 			"source_group_mappings", sourceGroupMappings,
 		)
 
 		// get the union of all users that are members of each source group
 		sourceUsers, err := f.sourceUsers(ctx, sourceGroupMappings)
-		sourceUserIds := userIDs(sourceUsers)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed getting one or more source users for source group IDs",
 				"source_group_mappings", sourceGroupMappings,
-				"source_user_ids", sourceUserIds,
+				"source_users", sourceUsers,
 				"error", err,
 			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more source users: %w", err))
@@ -134,23 +133,22 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		}
 		logger.InfoContext(ctx, "found descendant(s) for source group ID(s)",
 			"source_group_mappings", sourceGroupMappings,
-			"source_user_ids", sourceUserIds,
+			"source_users", sourceUsers,
 		)
 
-		if len(sourceUserIds) == 0 {
+		if len(sourceUsers) == 0 {
 			logger.WarnContext(ctx, "no source group descendants found. "+
 				"skipping sync in case this is an upstream data issue.",
-				"target_group_id", targetGroupID)
+				"target_group", targetGroup)
 			continue
 		}
 
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
-		targetUserIds := userIDs(targetUsers)
 		if err != nil {
 			logger.ErrorContext(ctx, "failed mapping one or more source users to their target user",
-				"source_user_ids", sourceUserIds,
-				"target_user_ids", targetUserIds,
+				"source_users", sourceUsers,
+				"target_users", targetUsers,
 				"error", err,
 			)
 			merr = errors.Join(merr, fmt.Errorf("error getting one or more target users: %w", err))
@@ -158,8 +156,8 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			continue
 		}
 		logger.InfoContext(ctx, "mapped source users to target users",
-			"source_user_ids", sourceUserIds,
-			"target_user_ids", targetUserIds,
+			"source_users", sourceUsers,
+			"target_users", targetUsers,
 		)
 
 		// map each targetUser to Member type
@@ -171,15 +169,15 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 		// targetMembers is now the canonical set of members for the target group ID.
 		// Set the target group's members to targetMembers.
 		logger.InfoContext(ctx, "setting target group ID members to target users",
-			"target_group_id", targetGroupID,
-			"target_user_ids", targetUserIds,
+			"target_group", targetGroup,
+			"target_users", targetUsers,
 		)
-		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
+		if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroup.GroupID, targetMembers); err != nil {
 			logger.ErrorContext(ctx, "failed setting target group members",
-				"target_group_id", targetGroupID,
+				"target_group", targetGroup,
 				"error", err,
 			)
-			merr = fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
+			merr = fmt.Errorf("error setting members to target group %s: %w", targetGroup, err)
 		}
 	}
 

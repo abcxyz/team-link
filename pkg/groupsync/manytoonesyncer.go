@@ -92,7 +92,7 @@ func (f *ManyToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error 
 	logger := logging.FromContext(ctx)
 	logger.InfoContext(ctx, "starting sync", "source_group_id", sourceGroupID)
 	// Get target group ID for this source group ID
-	targetGroupID, err := f.sourceGroupMapper.MappedGroupID(ctx, sourceGroupID)
+	targetGroup, err := f.sourceGroupMapper.Mapping(ctx, sourceGroupID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to map source group id to target group id",
 			"source_group_id", sourceGroupID,
@@ -102,10 +102,10 @@ func (f *ManyToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error 
 	}
 	logger.InfoContext(ctx, "found the following target group id to sync",
 		"source_group_id", sourceGroupID,
-		"target_group_id", targetGroupID,
+		"target_group", targetGroup,
 	)
 
-	return f.sync(ctx, targetGroupID)
+	return f.sync(ctx, targetGroup.GroupID)
 }
 
 func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error {
@@ -131,13 +131,12 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 	if err != nil {
 		return fmt.Errorf("error getting source users: %w", err)
 	}
-	sourceUserIDs := userIDs(sourceUsers)
 	logger.InfoContext(ctx, "found descendant(s) for source group id(s)",
 		"source_group_mappings", sourceGroupMappings,
-		"source_user_ids", sourceUserIDs,
+		"source_users", sourceUsers,
 	)
 
-	if len(sourceUserIDs) == 0 {
+	if len(sourceUsers) == 0 {
 		return fmt.Errorf("zero source group descendants found for target group id %s", targetGroupID)
 	}
 
@@ -146,10 +145,9 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 	if err != nil {
 		return fmt.Errorf("error getting one or more target users: %w", err)
 	}
-	targetUserIDs := userIDs(targetUsers)
 	logger.InfoContext(ctx, "mapped source users to target users",
-		"source_user_ids", sourceUserIDs,
-		"target_user_ids", targetUserIDs,
+		"source_users", sourceUsers,
+		"target_users", targetUsers,
 	)
 
 	// map each targetUser to Member type
@@ -162,7 +160,7 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 	// Set the target group's members to targetMembers.
 	logger.InfoContext(ctx, "setting target group id members to target users",
 		"target_group_id", targetGroupID,
-		"target_user_ids", targetUserIDs,
+		"target_users", targetUsers,
 	)
 	if err := f.targetGroupWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 		logger.ErrorContext(ctx, "failed setting target group members",
