@@ -103,7 +103,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 	if err != nil {
 		return fmt.Errorf("error getting source users for source group %s: %w", sourceGroupID, err)
 	}
-	logger.DebugContext(ctx, "found descendants for source group id",
+	logger.InfoContext(ctx, "found descendants for source group id",
 		"source_users", sourceUsers,
 	)
 
@@ -121,7 +121,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 		)
 		return fmt.Errorf("error getting one or more target users: %w", err)
 	}
-	logger.DebugContext(ctx, "mapped source users to target users",
+	logger.InfoContext(ctx, "mapped source users to target users",
 		"source_users", sourceUsers,
 		"target_users", targetUsers,
 	)
@@ -134,7 +134,7 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 
 	// targetMembers is now the canonical set of members for the target group ID.
 	// Set the target group's members to targetMembers.
-	logger.DebugContext(ctx, "setting target group id members to target users",
+	logger.InfoContext(ctx, "setting target group id members to target users",
 		"target_group", targetGroup,
 		"target_users", targetUsers,
 	)
