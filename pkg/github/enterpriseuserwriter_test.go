@@ -29,14 +29,15 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name                string
-		initialUsers        map[string]*SCIMUser
-		desiredMembers      []groupsync.Member
-		maxUsersToProvision int64
-		failCreateUserCalls bool
-		failListUserCalls   bool
-		wantUsersOnServer   map[string]*SCIMUser
-		wantErrStr          string
+		name                            string
+		initialUsers                    map[string]*SCIMUser
+		desiredMembers                  []groupsync.Member
+		maxUsersToProvision             int64
+		failCreateUserCalls             bool
+		failListUserCalls               bool
+		failUserDeactivationSanityCheck bool
+		wantUsersOnServer               map[string]*SCIMUser
+		wantErrStr                      string
 	}{
 		{
 			name: "success_create_and_deactivate",
@@ -157,6 +158,29 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			},
 		},
 		{
+			name: "deactivate_sanity_check_fails",
+			initialUsers: map[string]*SCIMUser{
+				"scim-id-user.one": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+					},
+				},
+			},
+			desiredMembers:                  []groupsync.Member{},
+			failUserDeactivationSanityCheck: true,
+			wantUsersOnServer: map[string]*SCIMUser{
+				"scim-id-user.one": {
+					SCIMUserAttributes: github.SCIMUserAttributes{
+						ID:       github.String("scim-id-user.one"),
+						UserName: "user.one",
+						Active:   github.Bool(true),
+					},
+				},
+			},
+		},
+		{
 			name: "success_reactivate_only",
 			initialUsers: map[string]*SCIMUser{
 				"scim-id-user.one": {
@@ -254,7 +278,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 				},
 			},
 			failCreateUserCalls: true,
-			wantErrStr:          "failed to create \"user.new\": request failed with status 500",
+			wantErrStr:          "failed to create \"user.new\"",
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.old": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
@@ -284,7 +308,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 					},
 				},
 			},
-			wantErrStr: "exceeded max users to provision: 1",
+			wantErrStr: "exceeded max users to provision",
 			wantUsersOnServer: map[string]*SCIMUser{
 				"scim-id-user.one": {
 					SCIMUserAttributes: github.SCIMUserAttributes{
@@ -453,6 +477,12 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			var opts []EnterpriseRWOpt
 			if tc.maxUsersToProvision > 0 {
 				opts = append(opts, WithMaxUsersToProvision(tc.maxUsersToProvision))
+			}
+
+			if tc.failUserDeactivationSanityCheck {
+				opts = append(opts, WithUserDeactivationSanityCheck(func(context.Context, *groupsync.User) (bool, error) {
+					return false, nil
+				}))
 			}
 
 			writer, err := NewEnterpriseUserWriter(srv.Client(), srv.URL, opts...)
