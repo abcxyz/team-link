@@ -136,13 +136,6 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 			"source_users", sourceUsers,
 		)
 
-		if len(sourceUsers) == 0 {
-			logger.WarnContext(ctx, "no source group descendants found. "+
-				"skipping sync in case this is an upstream data issue.",
-				"target_group", targetGroup)
-			continue
-		}
-
 		// map each source user to their corresponding target user
 		targetUsers, err := f.targetUsers(ctx, sourceUsers)
 		if err != nil {
@@ -197,13 +190,11 @@ func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
 }
 
 func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupMappings []Mapping) ([]*User, error) {
-	var merr error
 	userMap := make(map[string]*User)
 	for _, sourceGroupMapping := range sourceGroupMappings {
 		sourceUsers, err := f.sourceGroupReader.Descendants(ctx, sourceGroupMapping.GroupID)
 		if err != nil {
-			merr = errors.Join(merr, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupMapping, err))
-			continue
+			return nil, fmt.Errorf("error fetching source group users: %s, %w", sourceGroupMapping, err)
 		}
 		for _, sourceUser := range sourceUsers {
 			mappedUser, exists := userMap[sourceUser.ID]
@@ -226,11 +217,10 @@ func (f *ManyToManySyncer) sourceUsers(ctx context.Context, sourceGroupMappings 
 	for _, user := range userMap {
 		users = append(users, user)
 	}
-	return users, merr
+	return users, nil
 }
 
 func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User) ([]*User, error) {
-	var merr error
 	targetUsers := make([]*User, 0, len(sourceUsers))
 	for _, sourceUser := range sourceUsers {
 		targetUser, err := f.userMapper.MappedUser(ctx, sourceUser)
@@ -239,10 +229,9 @@ func (f *ManyToManySyncer) targetUsers(ctx context.Context, sourceUsers []*User)
 			continue
 		}
 		if err != nil {
-			merr = fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
-			continue
+			return nil, fmt.Errorf("error mapping source user id %s to target user id: %w", sourceUser.ID, err)
 		}
 		targetUsers = append(targetUsers, targetUser)
 	}
-	return targetUsers, merr
+	return targetUsers, nil
 }
