@@ -16,6 +16,7 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -480,8 +481,8 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			}
 
 			if tc.failUserDeactivationSanityCheck {
-				opts = append(opts, WithUserDeactivationSanityCheck(func(context.Context, *groupsync.User) (bool, error) {
-					return false, nil
+				opts = append(opts, WithUserDeactivationSanityCheck(func(context.Context, *SCIMUser, string) error {
+					return fmt.Errorf("sanity check failed")
 				}))
 			}
 
