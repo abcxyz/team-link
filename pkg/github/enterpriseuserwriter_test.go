@@ -480,7 +480,7 @@ func TestEnterpriseUserWriter_SetMembers(t *testing.T) {
 			}
 
 			if tc.failUserDeactivationSanityCheck {
-				opts = append(opts, WithUserDeactivationSanityCheck(func(context.Context, *groupsync.User) (bool, error) {
+				opts = append(opts, WithUserDeactivationSanityCheck(func(context.Context, *SCIMUser, string) (bool, error) {
 					return false, nil
 				}))
 			}
