@@ -42,8 +42,8 @@ func WithMaxUsersToProvision(num int64) EnterpriseRWOpt {
 }
 
 // WithUserDeactivationSanityCheck sets the sanity check function for SCIM user deactivation.
-// It will only attempt to deactivate user If the func returns nil.
-func WithUserDeactivationSanityCheck(f func(context.Context, *SCIMUser, string) error) EnterpriseRWOpt {
+// It will only attempt to deactivate user If the func returns true.
+func WithUserDeactivationSanityCheck(f func(context.Context, *SCIMUser, string) (bool, error)) EnterpriseRWOpt {
 	return func(rw *EnterpriseUserWriter) {
 		rw.userDeactivationSanityCheck = f
 	}
@@ -53,7 +53,7 @@ func WithUserDeactivationSanityCheck(f func(context.Context, *SCIMUser, string) 
 type EnterpriseUserWriter struct {
 	scimClient                  *SCIMClient
 	maxUsersToProvision         int64
-	userDeactivationSanityCheck func(ctx context.Context, user *SCIMUser, enterpriseID string) error
+	userDeactivationSanityCheck func(ctx context.Context, user *SCIMUser, enterpriseID string) (bool, error)
 }
 
 // NewEnterpriseUserWriter creates a new EnterpriseUserWriter with default 1000
@@ -66,8 +66,8 @@ func NewEnterpriseUserWriter(httpClient *http.Client, enterpriseBaseURL string, 
 	w := &EnterpriseUserWriter{
 		maxUsersToProvision: defaultMaxUsersToProvision,
 		scimClient:          scimClient,
-		userDeactivationSanityCheck: func(context.Context, *SCIMUser, string) error {
-			return nil
+		userDeactivationSanityCheck: func(context.Context, *SCIMUser, string) (bool, error) {
+			return true, nil
 		},
 	}
 	for _, opt := range opts {
@@ -111,9 +111,13 @@ func (w *EnterpriseUserWriter) SetMembers(ctx context.Context, enterpriseID stri
 		}
 		// Deactivate user who is not in desiredUsersMap and remove any role grants.
 		if _, ok := desiredUsersMap[username]; !ok {
-			if err := w.userDeactivationSanityCheck(ctx, scimUser, enterpriseID); err != nil {
+			deactivate, err := w.userDeactivationSanityCheck(ctx, scimUser, enterpriseID)
+			if err != nil {
+				merr = errors.Join(merr, fmt.Errorf("failed to check user ACL for deactivating user %q host %q: %w", username, w.scimClient.baseURL.Host, err))
+			}
+			if !deactivate {
 				logger.WarnContext(
-					ctx, "skipping user deactivation due to sanity check failed",
+					ctx, "skipping user deactivation because sanity check did not pass",
 					"user", username,
 					"host", w.scimClient.baseURL.Host,
 					"error", err,
