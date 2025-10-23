@@ -354,7 +354,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: fmt.Sprintf("error getting associated source group ids: %s", "injected mappedGroupIDsErr"),
+			wantErr: fmt.Sprintf("error getting associated source groups: %s", "injected mappedGroupIDsErr"),
 		},
 		{
 			name:         "error_getting_source_users_partial",
@@ -441,7 +441,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: "error getting one or more source users",
+			wantErr: "error getting source users",
 		},
 		{
 			name:         "error_getting_source_users_total",
@@ -516,7 +516,7 @@ func TestSync(t *testing.T) {
 				"99": {},
 				"98": {},
 			},
-			wantErr: "error getting one or more source users",
+			wantErr: "error getting source users",
 		},
 		{
 			name:         "error_mapping_source_users_partial",
@@ -599,7 +599,7 @@ func TestSync(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error getting one or more target users",
+			wantErr: "error getting target users",
 		},
 		{
 			name:         "error_mapping_source_users_total",
@@ -677,7 +677,7 @@ func TestSync(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error getting one or more target users",
+			wantErr: "error getting target users",
 		},
 		{
 			name:         "error_setting_members_partial",
