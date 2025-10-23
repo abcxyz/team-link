@@ -193,7 +193,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			},
 		},
 		{
-			name: "empty_group_does_not_sync",
+			name: "sync_empty_group",
 			sourceGroupClients: map[string]GroupReader{
 				sourceSystem1: &testReadWriteGroupClient{
 					groups:       sourceGroups1,
@@ -237,9 +237,8 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				},
 				"tg2": {},
 				"tg3": {},
-				"tg4": {&UserMember{Usr: &User{ID: "tu5"}}},
+				"tg4": {},
 			},
-			wantErr: "zero source group descendants found for target group id tg4",
 		},
 		{
 			name: "multiple_sources",
