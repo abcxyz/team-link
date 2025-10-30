@@ -354,7 +354,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: fmt.Sprintf("error getting associated source group ids: %s", "injected mappedGroupIDsErr"),
+			wantErr: fmt.Sprintf("error getting associated source groups for target group 98: %s", "injected mappedGroupIDsErr"),
 		},
 		{
 			name:         "error_getting_source_users_partial",
@@ -441,7 +441,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: "error getting one or more source users",
+			wantErr: "error getting source users",
 		},
 		{
 			name:         "error_getting_source_users_total",
@@ -516,7 +516,7 @@ func TestSync(t *testing.T) {
 				"99": {},
 				"98": {},
 			},
-			wantErr: "error getting one or more source users",
+			wantErr: "error getting source users",
 		},
 		{
 			name:         "error_mapping_source_users_partial",
@@ -599,7 +599,7 @@ func TestSync(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error getting one or more target users",
+			wantErr: "error getting target users",
 		},
 		{
 			name:         "error_mapping_source_users_total",
@@ -677,7 +677,7 @@ func TestSync(t *testing.T) {
 				"98": {},
 				"99": {},
 			},
-			wantErr: "error getting one or more target users",
+			wantErr: "error getting target users",
 		},
 		{
 			name:         "error_setting_members_partial",
@@ -1029,17 +1029,16 @@ func TestSyncAll(t *testing.T) {
 			},
 		},
 		{
-			name:              "no_source_ids_found",
+			name:              "no_target_ids_found",
 			sourceSystem:      "source",
 			targetSystem:      "target",
 			sourceGroupClient: &testReadWriteGroupClient{},
 			targetGroupClient: &testReadWriteGroupClient{},
-			sourceGroupMapper: &testOneToManyGroupMapper{
+			targetGroupMapper: &testOneToManyGroupMapper{
 				allGroupIDsErr: fmt.Errorf("injected allGroupIDsErr"),
 			},
-			targetGroupMapper: &testOneToManyGroupMapper{},
-			userMapper:        &testUserMapper{},
-			wantErr:           "error fetching source group IDs",
+			userMapper: &testUserMapper{},
+			wantErr:    "error fetching target group IDs",
 		},
 		{
 			name:         "sync_all_partial_failure",
@@ -1099,12 +1098,12 @@ func TestSyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDsErr: map[string]error{
-					"1": fmt.Errorf("injected mappedGroupIDsErr"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIDsErr: map[string]error{
+					"99": fmt.Errorf("injected mappedGroupIDsErr"),
+				},
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -1196,16 +1195,15 @@ func TestSyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDsErr: map[string]error{
-					"1": fmt.Errorf("injected mappedGroupIDsErr"),
-					"2": fmt.Errorf("injected mappedGroupIDsErr"),
-					"3": fmt.Errorf("injected mappedGroupIDsErr"),
-					"4": fmt.Errorf("injected mappedGroupIDsErr"),
-					"5": fmt.Errorf("injected mappedGroupIDsErr"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIDsErr: map[string]error{
+					"99": fmt.Errorf("injected mappedGroupIDsErr"),
+					"98": fmt.Errorf("injected mappedGroupIDsErr"),
+					"97": fmt.Errorf("injected mappedGroupIDsErr"),
+					"96": fmt.Errorf("injected mappedGroupIDsErr"),
+				},
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{

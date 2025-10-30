@@ -136,10 +136,6 @@ func (f *ManyToOneSyncer) sync(ctx context.Context, targetGroupID string) error 
 		"source_users", sourceUsers,
 	)
 
-	if len(sourceUsers) == 0 {
-		return fmt.Errorf("zero source group descendants found for target group id %s", targetGroupID)
-	}
-
 	// Map each source user to their corresponding target user
 	targetUsers, err := f.targetUsers(ctx, sourceUsers)
 	if err != nil {
@@ -187,7 +183,6 @@ func (f *ManyToOneSyncer) SyncAll(ctx context.Context) error {
 
 // returns an empty list if none were found.
 func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings []Mapping) ([]*User, error) {
-	var merr error
 	userMap := make(map[string]*User)
 	for _, sourceGroupMapping := range sourceGroupMappings {
 		system := sourceGroupMapping.System
@@ -224,7 +219,7 @@ func (f *ManyToOneSyncer) sourceUsers(ctx context.Context, sourceGroupMappings [
 	for _, user := range userMap {
 		users = append(users, user)
 	}
-	return users, merr
+	return users, nil
 }
 
 // returns an empty list if none were found.
