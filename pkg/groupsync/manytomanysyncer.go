@@ -120,7 +120,7 @@ func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroupID st
 			"source_group_mappings", sourceGroupMappings,
 			"error", err,
 		)
-		return fmt.Errorf("error getting associated source groups: %w", err)
+		return fmt.Errorf("error getting associated source groups for target group %s: %w", targetGroupID, err)
 	}
 	logger.InfoContext(ctx, "found source group mappings",
 		"source_group_mappings", sourceGroupMappings,
@@ -133,7 +133,7 @@ func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroupID st
 			"source_group_mappings", sourceGroupMappings,
 			"error", err,
 		)
-		return fmt.Errorf("error getting source users: %w", err)
+		return fmt.Errorf("error getting source users for target group %s: %w", targetGroupID, err)
 	}
 	logger.InfoContext(ctx, "found descendant(s) for source groups",
 		"source_group_mappings", sourceGroupMappings,
@@ -146,7 +146,7 @@ func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroupID st
 		logger.ErrorContext(ctx, "failed mapping source user to the target user",
 			"error", err,
 		)
-		return fmt.Errorf("error getting target users for group: %w", err)
+		return fmt.Errorf("error getting target users for group %s: %w", targetGroupID, err)
 	}
 	logger.InfoContext(ctx, "mapped source users to target users",
 		"source_users", sourceUsers,

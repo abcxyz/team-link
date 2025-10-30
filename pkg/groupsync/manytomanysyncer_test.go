@@ -354,7 +354,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
 			},
-			wantErr: fmt.Sprintf("error getting associated source groups: %s", "injected mappedGroupIDsErr"),
+			wantErr: fmt.Sprintf("error getting associated source groups for target group 98: %s", "injected mappedGroupIDsErr"),
 		},
 		{
 			name:         "error_getting_source_users_partial",
