@@ -1029,17 +1029,16 @@ func TestSyncAll(t *testing.T) {
 			},
 		},
 		{
-			name:              "no_source_ids_found",
+			name:              "no_target_ids_found",
 			sourceSystem:      "source",
 			targetSystem:      "target",
 			sourceGroupClient: &testReadWriteGroupClient{},
 			targetGroupClient: &testReadWriteGroupClient{},
-			sourceGroupMapper: &testOneToManyGroupMapper{
+			targetGroupMapper: &testOneToManyGroupMapper{
 				allGroupIDsErr: fmt.Errorf("injected allGroupIDsErr"),
 			},
-			targetGroupMapper: &testOneToManyGroupMapper{},
-			userMapper:        &testUserMapper{},
-			wantErr:           "error fetching source group IDs",
+			userMapper: &testUserMapper{},
+			wantErr:    "error fetching target group IDs",
 		},
 		{
 			name:         "sync_all_partial_failure",
@@ -1099,12 +1098,12 @@ func TestSyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDsErr: map[string]error{
-					"1": fmt.Errorf("injected mappedGroupIDsErr"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIDsErr: map[string]error{
+					"99": fmt.Errorf("injected mappedGroupIDsErr"),
+				},
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{
@@ -1196,16 +1195,15 @@ func TestSyncAll(t *testing.T) {
 			},
 			sourceGroupMapper: &testOneToManyGroupMapper{
 				m: sourceGroupMapping,
-				mappedGroupIDsErr: map[string]error{
-					"1": fmt.Errorf("injected mappedGroupIDsErr"),
-					"2": fmt.Errorf("injected mappedGroupIDsErr"),
-					"3": fmt.Errorf("injected mappedGroupIDsErr"),
-					"4": fmt.Errorf("injected mappedGroupIDsErr"),
-					"5": fmt.Errorf("injected mappedGroupIDsErr"),
-				},
 			},
 			targetGroupMapper: &testOneToManyGroupMapper{
 				m: targetGroupMapping,
+				mappedGroupIDsErr: map[string]error{
+					"99": fmt.Errorf("injected mappedGroupIDsErr"),
+					"98": fmt.Errorf("injected mappedGroupIDsErr"),
+					"97": fmt.Errorf("injected mappedGroupIDsErr"),
+					"96": fmt.Errorf("injected mappedGroupIDsErr"),
+				},
 			},
 			userMapper: &testUserMapper{
 				m: map[string]string{

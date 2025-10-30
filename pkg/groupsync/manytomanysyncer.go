@@ -99,7 +99,7 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 
 	var merr error
 	for _, targetGroup := range targetGroups {
-		if err := f.syncTargetGroup(ctx, targetGroup); err != nil {
+		if err := f.syncTargetGroup(ctx, targetGroup.GroupID); err != nil {
 			merr = errors.Join(merr, err)
 		}
 	}
@@ -107,14 +107,14 @@ func (f *ManyToManySyncer) Sync(ctx context.Context, sourceGroupID string) error
 	return merr
 }
 
-func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroup Mapping) error {
-	logger := logging.FromContext(ctx).With("target_group", targetGroup)
+func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroupID string) error {
+	logger := logging.FromContext(ctx).With("target_group", targetGroupID)
 	ctx = logging.WithLogger(ctx, logger)
 
 	logger.InfoContext(ctx, "starting sync target group")
 
 	// get all source group mappings associated with the current target GroupID
-	sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroup.GroupID)
+	sourceGroupMappings, err := f.targetGroupMapper.Mappings(ctx, targetGroupID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed getting source group mappings for target group",
 			"source_group_mappings", sourceGroupMappings,
@@ -164,22 +164,22 @@ func (f *ManyToManySyncer) syncTargetGroup(ctx context.Context, targetGroup Mapp
 	logger.InfoContext(ctx, "setting target group ID members to target users",
 		"target_users", targetUsers,
 	)
-	if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroup.GroupID, targetMembers); err != nil {
+	if err := f.targetGroupReadWriter.SetMembers(ctx, targetGroupID, targetMembers); err != nil {
 		logger.ErrorContext(ctx, "failed setting target group members",
 			"error", err,
 		)
-		return fmt.Errorf("error setting members to target group %s: %w", targetGroup, err)
+		return fmt.Errorf("error setting members to target group %s: %w", targetGroupID, err)
 	}
 	return nil
 }
 
 // SyncAll syncs all source groups that this GroupSyncer is aware of to the target system.
 func (f *ManyToManySyncer) SyncAll(ctx context.Context) error {
-	sourceGroupIDs, err := f.sourceGroupMapper.AllGroupIDs(ctx)
+	targetGroupIDs, err := f.targetGroupMapper.AllGroupIDs(ctx)
 	if err != nil {
-		return fmt.Errorf("error fetching source group IDs: %w", err)
+		return fmt.Errorf("error fetching target group IDs: %w", err)
 	}
-	if err := ConcurrentSync(ctx, f, sourceGroupIDs); err != nil {
+	if err := concurrentSyncFunc(ctx, targetGroupIDs, f.syncTargetGroup); err != nil {
 		return fmt.Errorf("failed to sync one or more IDs: %w", err)
 	}
 	return nil
