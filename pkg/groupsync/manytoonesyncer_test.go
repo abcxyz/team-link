@@ -182,12 +182,12 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping1,
 				},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // sg1 -> tg1, which mapped to only sg1
 			want: map[string][]Member{
 				"tg1": {
 					&UserMember{Usr: &User{ID: "tu1"}},
 					&UserMember{Usr: &User{ID: "tu2"}},
-				},
+				}, // sg1 members
 				"tg2": {},
 				"tg3": {},
 			},
@@ -230,14 +230,14 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping2,
 				},
 			},
-			syncID: "sg6",
+			syncID: "sg6", // sg6 -> tg4, which mapped to only sg6
 			want: map[string][]Member{
 				"tg1": {
 					&UserMember{Usr: &User{ID: "tu5"}},
 				},
 				"tg2": {},
 				"tg3": {},
-				"tg4": {},
+				"tg4": {}, // user removed since sg6 is empty
 			},
 		},
 		{
@@ -278,16 +278,16 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping2,
 				},
 			},
-			syncID: "sg4",
+			syncID: "sg4", // sg4 -> tg3, tg3 -> sg4 (system1) and sg5 (system2)
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
 				"tg3": {
-					&UserMember{Usr: &User{ID: "tu1"}},
-					&UserMember{Usr: &User{ID: "tu2"}},
-					&UserMember{Usr: &User{ID: "tu3"}},
-					&UserMember{Usr: &User{ID: "tu4"}},
-					&UserMember{Usr: &User{ID: "tu5"}},
+					&UserMember{Usr: &User{ID: "tu1"}}, // from sg4
+					&UserMember{Usr: &User{ID: "tu2"}}, // from sg4
+					&UserMember{Usr: &User{ID: "tu3"}}, // from sg4
+					&UserMember{Usr: &User{ID: "tu4"}}, // from sg4
+					&UserMember{Usr: &User{ID: "tu5"}}, // from sg5
 				},
 			},
 		},
@@ -313,9 +313,8 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 			targetGroupClient: &testReadWriteGroupClient{
 				groups: targetGroups,
 				users:  targetUsers,
-				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
 					"tg3": {},
 				},
@@ -334,9 +333,9 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping1,
 				},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // sg1 -> tg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg1
 				"tg2": {},
 				"tg3": {},
 			},
@@ -358,7 +357,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				groupMembers: map[string][]Member{
 					"tg1": {},
 					"tg2": {},
-					"tg3": {},
+					"tg3": {&UserMember{Usr: &User{ID: "tu5"}}},
 				},
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
@@ -372,11 +371,11 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping1,
 				},
 			},
-			syncID: "sg4",
+			syncID: "sg4", // sg4 -> tg3, tg3 -> sg4 (system1) and sg5 (system2)
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {},
+				"tg3": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg3
 			},
 			wantErr: "source group reader not found",
 		},
@@ -404,7 +403,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				groupMembers: map[string][]Member{
 					"tg1": {},
 					"tg2": {},
-					"tg3": {},
+					"tg3": {&UserMember{Usr: &User{ID: "tu5"}}},
 				},
 			},
 			sourceGroupMapper: &testOneToOneGroupMapper{
@@ -421,11 +420,11 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping2,
 				},
 			},
-			syncID: "sg4",
+			syncID: "sg4", // sg4 -> tg3, tg3 -> sg4 (system1) and sg5 (system2)
 			want: map[string][]Member{
 				"tg1": {},
 				"tg2": {},
-				"tg3": {},
+				"tg3": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg3
 			},
 			wantErr: "injected descendantsErrs for sg5",
 		},
@@ -437,7 +436,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				users:  targetUsers,
 				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
 					"tg3": {},
 				},
@@ -456,16 +455,16 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping2,
 				},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // sg1 -> tg1, tg1 -> sg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg1
 				"tg2": {},
 				"tg3": {},
 			},
 			wantErr: "source group reader not found",
 		},
 		{
-			name: "error_mapping_source_users_partial",
+			name: "error_getting_target_user_partial",
 			sourceGroupClients: map[string]GroupReader{
 				sourceSystem1: &testReadWriteGroupClient{
 					groups:       sourceGroups1,
@@ -478,7 +477,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				users:  targetUsers,
 				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
 					"tg3": {},
 				},
@@ -497,16 +496,16 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					},
 				},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // sg1 -> tg1, tg1 -> sg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg1
 				"tg2": {},
 				"tg3": {},
 			},
 			wantErr: "injected mappedUserIDErrs for su1",
 		},
 		{
-			name: "error_mapping_source_users_total",
+			name: "error_getting_target_users_total",
 			sourceGroupClients: map[string]GroupReader{
 				sourceSystem1: &testReadWriteGroupClient{
 					groups:       sourceGroups1,
@@ -519,7 +518,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				users:  targetUsers,
 				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
 					"tg3": {},
 				},
@@ -531,9 +530,9 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				m: targetGroupMapping,
 			},
 			userMappers: map[string]UserMapper{},
-			syncID:      "sg1", // Mapped to both source systems.
+			syncID:      "sg1", // sg1 -> tg1, tg1 -> sg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg1
 				"tg2": {},
 				"tg3": {},
 			},
@@ -553,7 +552,7 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 				users:  targetUsers,
 				// groupMembers is subject to change after sync is completed.
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
 					"tg2": {},
 					"tg3": {},
 				},
@@ -572,13 +571,53 @@ func TestManyToOneSyncer_Sync(t *testing.T) {
 					m: userMapping1,
 				},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // sg1 -> tg1, tg1 -> sg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu5"}}}, // no change to tg1
 				"tg2": {},
 				"tg3": {},
 			},
 			wantErr: "error setting members for group tg1",
+		},
+		{
+			name: "skip_target_user_not_found_error",
+			sourceGroupClients: map[string]GroupReader{
+				sourceSystem1: &testReadWriteGroupClient{
+					groups:       sourceGroups1,
+					groupMembers: sourceGroupMembers1,
+					users:        sourceUsers1,
+				},
+			},
+			targetGroupClient: &testReadWriteGroupClient{
+				groups: targetGroups,
+				users:  targetUsers,
+				// groupMembers is subject to change after sync is completed.
+				groupMembers: map[string][]Member{
+					"tg1": {&UserMember{Usr: &User{ID: "tu5"}}},
+					"tg2": {},
+					"tg3": {},
+				},
+			},
+			sourceGroupMapper: &testOneToOneGroupMapper{
+				m: sourceGroupMapping,
+			},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
+			},
+			userMappers: map[string]UserMapper{
+				sourceSystem1: &testUserMapper{
+					m: userMapping1,
+					mappedUserIDErrs: map[string]error{
+						"su1": ErrTargetUserIDNotFound,
+					},
+				},
+			},
+			syncID: "sg1", // sg1 -> tg1, tg1 -> sg1
+			want: map[string][]Member{
+				"tg1": {&UserMember{Usr: &User{ID: "tu2"}}}, // skipped su1 (su1 -> tu1), but added su2 (su2 -> tu2)
+				"tg2": {},
+				"tg3": {},
+			},
 		},
 	}
 
