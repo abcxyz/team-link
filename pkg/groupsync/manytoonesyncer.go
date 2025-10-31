@@ -237,7 +237,7 @@ func (f *ManyToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) 
 		targetUser, err := userMapper.MappedUser(ctx, sourceUser)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
 			// if there is no mapping for the target user we will just skip them.
-			// it happens when the user is removed from the source system.
+			// it happens when the user is removed from the source system or not mapped to target system.
 			continue
 		}
 		if err != nil {

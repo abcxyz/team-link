@@ -107,10 +107,6 @@ func (f *OneToOneSyncer) Sync(ctx context.Context, sourceGroupID string) error {
 		"source_users", sourceUsers,
 	)
 
-	if len(sourceUsers) == 0 {
-		return fmt.Errorf("zero source group descendants found for source group %s", sourceGroupID)
-	}
-
 	// Map each source user to their corresponding target user
 	targetUsers, err := f.targetUsers(ctx, sourceUsers)
 	if err != nil {
@@ -177,6 +173,8 @@ func (f *OneToOneSyncer) targetUsers(ctx context.Context, sourceUsers []*User) (
 	for _, sourceUser := range sourceUsers {
 		targetUser, err := f.userMapper.MappedUser(ctx, sourceUser)
 		if errors.Is(err, ErrTargetUserIDNotFound) {
+			// if there is no mapping for the target user we will just skip them.
+			// it happens when the user is removed from the source system or not mapped to target system.
 			logger.DebugContext(ctx, "target user id not found, skipping",
 				"source_user", sourceUser,
 			)

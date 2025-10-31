@@ -144,7 +144,7 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "3",
+			syncID: "3", // 3 -> 96, 96 -> 3
 			want: map[string][]Member{
 				"96": {
 					&UserMember{Usr: &User{ID: "st"}},
@@ -232,7 +232,7 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "2",
+			syncID: "2", // 2 -> 97, 97 -> 2 & 4
 			want: map[string][]Member{
 				"96": {},
 				// Even though 2 contains one member, "c", we expect 97 to have
@@ -319,7 +319,7 @@ func TestSync(t *testing.T) {
 				},
 				groupMembers: map[string][]Member{
 					"99": {},
-					"98": {},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
 					"97": {},
 					"96": {},
 				},
@@ -342,11 +342,11 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {},
+				"98": {&UserMember{Usr: &User{ID: "qr"}}}, // no change due to unable to find mapped source groups
 				"99": {
 					&UserMember{Usr: &User{ID: "qr"}},
 					&UserMember{Usr: &User{ID: "st"}},
@@ -409,7 +409,7 @@ func TestSync(t *testing.T) {
 				},
 				groupMembers: map[string][]Member{
 					"99": {},
-					"98": {},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
 					"97": {},
 					"96": {},
 				},
@@ -429,11 +429,11 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {},
+				"98": {&UserMember{Usr: &User{ID: "qr"}}}, // no change since groupreader unable to read group 5.
 				"99": {
 					&UserMember{Usr: &User{ID: "qr"}},
 					&UserMember{Usr: &User{ID: "st"}},
@@ -490,8 +490,8 @@ func TestSync(t *testing.T) {
 					"st": {ID: "st"},
 				},
 				groupMembers: map[string][]Member{
-					"99": {},
-					"98": {},
+					"99": {&UserMember{Usr: &User{ID: "qr"}}},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
 					"97": {},
 					"96": {},
 				},
@@ -511,15 +511,17 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
-				"99": {},
-				"98": {},
+				"99": {&UserMember{Usr: &User{ID: "qr"}}}, // no change since unable to read group 1
+				"98": {&UserMember{Usr: &User{ID: "qr"}}}, // no change since unable to read group 1 & 5
+				"97": {},
+				"96": {},
 			},
 			wantErr: "error getting source users",
 		},
 		{
-			name:         "error_mapping_source_users_partial",
+			name:         "error_getting_target_users_partial",
 			sourceSystem: "source",
 			targetSystem: "target",
 			sourceGroupClient: &testReadWriteGroupClient{
@@ -574,8 +576,8 @@ func TestSync(t *testing.T) {
 					"st": {ID: "st"},
 				},
 				groupMembers: map[string][]Member{
-					"99": {},
-					"98": {},
+					"99": {&UserMember{Usr: &User{ID: "qr"}}},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
 					"97": {},
 					"96": {},
 				},
@@ -592,17 +594,17 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {},
-				"99": {},
+				"98": {&UserMember{Usr: &User{ID: "qr"}}}, // no change, unable to get mapped target user for users in group 1
+				"99": {&UserMember{Usr: &User{ID: "qr"}}}, // no change, unable to get mapped target user for users in group 1
 			},
 			wantErr: "error getting target users",
 		},
 		{
-			name:         "error_mapping_source_users_total",
+			name:         "error_getting_target_users_total",
 			sourceSystem: "source",
 			targetSystem: "target",
 			sourceGroupClient: &testReadWriteGroupClient{
@@ -657,8 +659,8 @@ func TestSync(t *testing.T) {
 					"st": {ID: "st"},
 				},
 				groupMembers: map[string][]Member{
-					"99": {},
-					"98": {},
+					"99": {&UserMember{Usr: &User{ID: "qr"}}},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
 					"97": {},
 					"96": {},
 				},
@@ -670,14 +672,106 @@ func TestSync(t *testing.T) {
 				m: targetGroupMapping,
 			},
 			userMapper: &testUserMapper{},
-			syncID:     "1",
+			syncID:     "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {},
-				"99": {},
+				"98": {&UserMember{Usr: &User{ID: "qr"}}}, // no change due to unable to find mapped target users
+				"99": {&UserMember{Usr: &User{ID: "qr"}}}, // no change due to unable to find mapped target users
 			},
 			wantErr: "error getting target users",
+		},
+		{
+			name:         "skip_target_user_not_found_error",
+			sourceSystem: "source",
+			targetSystem: "target",
+			sourceGroupClient: &testReadWriteGroupClient{
+				groups: map[string]*Group{
+					"1": {ID: "1"},
+					"2": {ID: "3"},
+					"3": {ID: "4"},
+					"4": {ID: "5"},
+				},
+				groupMembers: map[string][]Member{
+					"1": {
+						&UserMember{Usr: &User{ID: "a"}},
+						&UserMember{Usr: &User{ID: "b"}},
+						&GroupMember{Grp: &Group{ID: "3"}},
+					},
+					"2": {
+						&UserMember{Usr: &User{ID: "c"}},
+					},
+					"3": {
+						&UserMember{Usr: &User{ID: "d"}},
+						&UserMember{Usr: &User{ID: "e"}},
+					},
+					"4": {
+						&GroupMember{Grp: &Group{ID: "1"}},
+						&GroupMember{Grp: &Group{ID: "2"}},
+					},
+					"5": {
+						&UserMember{Usr: &User{ID: "a"}},
+						&UserMember{Usr: &User{ID: "c"}},
+					},
+				},
+				users: map[string]*User{
+					"a": {ID: "a"},
+					"b": {ID: "b"},
+					"c": {ID: "c"},
+					"d": {ID: "d"},
+					"e": {ID: "e"},
+				},
+			},
+			targetGroupClient: &testReadWriteGroupClient{
+				groups: map[string]*Group{
+					"99": {ID: "99"},
+					"98": {ID: "98"},
+					"97": {ID: "97"},
+					"96": {ID: "96"},
+				},
+				users: map[string]*User{
+					"xy": {ID: "xy"},
+					"zw": {ID: "zw"},
+					"qr": {ID: "qr"},
+					"uv": {ID: "uv"},
+					"st": {ID: "st"},
+				},
+				groupMembers: map[string][]Member{
+					"99": {&UserMember{Usr: &User{ID: "qr"}}},
+					"98": {&UserMember{Usr: &User{ID: "qr"}}},
+					"97": {},
+					"96": {},
+				},
+			},
+			sourceGroupMapper: &testOneToManyGroupMapper{
+				m: sourceGroupMapping,
+			},
+			targetGroupMapper: &testOneToManyGroupMapper{
+				m: targetGroupMapping,
+			},
+			userMapper: &testUserMapper{
+				m: map[string]string{
+					"b": "xy",
+					"c": "uv",
+					"d": "st",
+					"e": "zw",
+				},
+				mappedUserIDErrs: map[string]error{
+					"a": ErrTargetUserIDNotFound,
+				},
+			},
+			syncID: "2", // 2 -> 97, 97 -> 2 & 4
+			want: map[string][]Member{
+				"96": {},
+				"97": {
+					&UserMember{Usr: &User{ID: "st"}},
+					&UserMember{Usr: &User{ID: "uv"}},
+					&UserMember{Usr: &User{ID: "xy"}},
+					&UserMember{Usr: &User{ID: "zw"}},
+				}, // skipped user a ("qr")
+				"98": {&UserMember{Usr: &User{ID: "qr"}}},
+				"99": {&UserMember{Usr: &User{ID: "qr"}}},
+			},
 		},
 		{
 			name:         "error_setting_members_partial",
@@ -759,7 +853,7 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
@@ -770,7 +864,7 @@ func TestSync(t *testing.T) {
 					&UserMember{Usr: &User{ID: "xy"}},
 					&UserMember{Usr: &User{ID: "zw"}},
 				},
-				"99": {},
+				"99": {}, // no change
 			},
 			wantErr: "error setting members for group 99",
 		},
@@ -855,12 +949,12 @@ func TestSync(t *testing.T) {
 					"e": "zw",
 				},
 			},
-			syncID: "1",
+			syncID: "1", // 1 -> 99 & 98, 99 -> 1, 98 -> 1 & 5
 			want: map[string][]Member{
 				"96": {},
 				"97": {},
-				"98": {},
-				"99": {},
+				"98": {}, // no change
+				"99": {}, // no change
 			},
 			wantErr: "error setting members for group",
 		},
