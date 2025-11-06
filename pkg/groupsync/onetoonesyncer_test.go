@@ -160,7 +160,7 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 				groups: targetGroups,
 				users:  targetUsers,
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu1"}}},
 					"tg2": {},
 				},
 			},
@@ -171,11 +171,38 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 				m:                userMapping,
 				mappedUserIDErrs: map[string]error{"su1": fmt.Errorf("injected mapped user id error")},
 			},
-			syncID: "sg1",
+			syncID: "sg1", // -> tg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu1"}}}, // no change
 			},
 			wantErr: "injected mapped user id error",
+		},
+		{
+			name: "skipp_target_user_not_found_err",
+			sourceGroupClient: &testReadWriteGroupClient{
+				groups:       sourceGroups,
+				groupMembers: sourceGroupMembers,
+				users:        sourceUsers,
+			},
+			targetGroupClient: &testReadWriteGroupClient{
+				groups: targetGroups,
+				users:  targetUsers,
+				groupMembers: map[string][]Member{
+					"tg1": {&UserMember{Usr: &User{ID: "tu1"}}},
+					"tg2": {},
+				},
+			},
+			sourceGroupMapper: &testOneToOneGroupMapper{
+				m: sourceGroupMapping,
+			},
+			userMapper: &testUserMapper{
+				m:                userMapping,
+				mappedUserIDErrs: map[string]error{"su1": ErrTargetUserIDNotFound},
+			},
+			syncID: "sg1", // -> tg1
+			want: map[string][]Member{
+				"tg1": {&UserMember{Usr: &User{ID: "tu2"}}}, // skipped su1 (tu1), but added su2 (tu2)
+			},
 		},
 		{
 			name: "err_setting_members",
@@ -188,7 +215,7 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 				groups: targetGroups,
 				users:  targetUsers,
 				groupMembers: map[string][]Member{
-					"tg1": {},
+					"tg1": {&UserMember{Usr: &User{ID: "tu1"}}},
 					"tg2": {},
 				},
 				setMembersErrs: map[string]error{"tg1": fmt.Errorf("injected set members error")},
@@ -199,9 +226,9 @@ func TestOneToOneSyncer_Sync(t *testing.T) {
 			userMapper: &testUserMapper{
 				m: userMapping,
 			},
-			syncID: "sg1",
+			syncID: "sg1", // -> tg1
 			want: map[string][]Member{
-				"tg1": {},
+				"tg1": {&UserMember{Usr: &User{ID: "tu1"}}}, // no change
 			},
 			wantErr: "injected set members error",
 		},
