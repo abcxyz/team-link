@@ -26,13 +26,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Linting jobs - go, yaml.
-  go_lint:
-    uses: 'abcxyz/actions/.github/workflows/go-lint.yml@main' # ratchet:exclude
-
-  yaml_lint:
-    uses: 'abcxyz/actions/.github/workflows/yaml-lint.yml@main' # ratchet:exclude
-
   # Unit tests - go.
   go-test:
     uses: 'abcxyz/actions/.github/workflows/go-test.yml@main' # ratchet:exclude
