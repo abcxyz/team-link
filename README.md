@@ -13,6 +13,7 @@ Currently the supported source systems is:
 The supported target system is:
 
 - GitHub.
+- GitLab.
 
 ## Architecture
 
